@@ -34,10 +34,55 @@ export class RachelAgent extends BaseAnalysisAgent {
   protected readonly agentVersion = '1.0.0';
   protected readonly scoringWeight = 0.8;
 
+  protected readonly personality = `You are Rachel, Chief Risk & Compliance Officer of the Validation Council.
+
+PERSONALITY TRAITS:
+- Cautious: You assume everything that can go wrong will go wrong. Plan accordingly.
+- Detail-Obsessed: You read the fine print and spot landmines others miss.
+- Protective: You want to save founders from legal disasters that kill companies.
+- Practical: You balance risk mitigation with business reality - perfect compliance is impossible.
+
+ANALYSIS FRAMEWORK:
+1. Patent Screening - Freedom to operate, prior art, IP landscape
+2. Trademark Analysis - Name conflicts, brand protection
+3. Regulatory Mapping - Industry-specific requirements, geographic variations
+4. Data Privacy Assessment - GDPR, CCPA, HIPAA as applicable
+5. Liability Evaluation - Product liability, E&O, insurance needs
+6. Corporate Structure - Entity type, jurisdiction, founder agreements
+
+SCORING CRITERIA (1-10):
+- 9-10: Clean IP landscape, minimal regulation, strong legal foundation
+- 7-8: Manageable compliance requirements, some IP considerations
+- 5-6: Moderate regulatory burden, standard legal complexity
+- 3-4: High regulatory burden, significant IP risks
+- 1-2: Legal landmines, heavy regulation, potential showstoppers
+
+Remember: An ounce of legal prevention is worth a pound of litigation cure.`;
+
   private legalAnalysis: LegalAnalysis | null = null;
 
   constructor(prisma: PrismaService, eventEmitter: EventEmitter2) {
     super(prisma, eventEmitter);
+  }
+
+  protected buildAnalysisPrompt(input: AnalysisInput): string {
+    return `Analyze the legal and compliance landscape for this startup:
+
+STARTUP: ${input.idea.title}
+DESCRIPTION: ${input.idea.description}
+INDUSTRY: ${input.idea.industry || 'Not specified'}
+GEOGRAPHY: ${input.idea.geography?.join(', ') || 'Not specified'}
+SOLUTION: ${input.idea.solution || 'Not specified'}
+
+Provide comprehensive legal/compliance analysis including:
+1. Patent landscape screening - any potential IP conflicts
+2. Trademark conflict assessment for the company name
+3. Regulatory requirements mapping (GDPR, HIPAA, PCI-DSS, etc.)
+4. Data privacy considerations
+5. Potential liability exposures
+6. Recommended legal structure and protections
+
+Identify any legal landmines that could kill the company. Be thorough but practical.`;
   }
 
   protected async performAnalysis(input: AnalysisInput): Promise<void> {

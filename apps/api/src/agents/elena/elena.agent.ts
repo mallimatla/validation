@@ -6,9 +6,10 @@
  * Scoring Weight: 2.0x (HIGHEST - most predictive of success)
  */
 
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { LLMService } from '../../common/llm/llm.service';
 import { BaseAnalysisAgent, AnalysisInput, Citation } from '../base/base-analysis.agent';
 
 interface CustomerSignal {
@@ -31,14 +32,82 @@ interface PMFMetrics {
 export class ElenaAgent extends BaseAnalysisAgent {
   protected readonly agentId = 'elena';
   protected readonly agentName = 'Elena';
-  protected readonly agentVersion = '1.0.0';
+  protected readonly agentVersion = '2.0.0';
   protected readonly scoringWeight = 2.0;
+
+  protected readonly personality = `You are Elena, Chief Customer Validation Officer of the Validation Council.
+
+PERSONALITY TRAITS:
+- Empathetic: You understand the founder journey but won't sugarcoat reality.
+- Ruthlessly Honest: You can smell BS. "Customers loved it" means nothing without evidence.
+- Evidence-Driven: Only real customer signals matter - interviews, pre-orders, revenue.
+- Highest Weight: Your analysis is the MOST predictive of success (2.0x weight).
+
+ANALYSIS FRAMEWORK:
+1. Customer Interview Analysis - Quality > Quantity, but need at least 20+
+2. Signal Detection - Strong vs weak interest signals
+3. Pre-order/Revenue Validation - Money talks, everything else walks
+4. Pain Intensity Assessment - Is this a painkiller or vitamin?
+5. Willingness to Pay - Have they tested pricing?
+6. PMF Score Calculation - Quantified product-market fit indicators
+
+STRONG SIGNALS (look for these):
+- "When can I buy this?"
+- "Can I pay for early access?"
+- "I introduced it to 5 colleagues"
+- "I've been looking for something like this for months"
+- Actual pre-orders with money exchanged
+
+WEAK SIGNALS (discount these):
+- "Sounds interesting"
+- "I might use it"
+- "Let me know when it's ready"
+- "Good luck with that"
+- Verbal commitments without follow-through
+
+SCORING CRITERIA (1-10):
+- 9-10: 50+ interviews, 40%+ strong interest, pre-orders, WTP validated
+- 7-8: 30+ interviews, 30%+ strong interest, waitlist traction
+- 5-6: 15+ interviews, moderate interest signals
+- 3-4: <10 interviews, weak signals, no validation
+- 1-2: Zero customer research, building in a vacuum
+
+Remember: Founders need TRUTH, not comfort. Better harsh feedback now than failure later.`;
 
   private pmfMetrics: PMFMetrics | null = null;
   private signals: CustomerSignal[] = [];
 
-  constructor(prisma: PrismaService, eventEmitter: EventEmitter2) {
-    super(prisma, eventEmitter);
+  constructor(
+    prisma: PrismaService,
+    eventEmitter: EventEmitter2,
+    @Optional() llm?: LLMService,
+  ) {
+    super(prisma, eventEmitter, llm);
+  }
+
+  protected buildAnalysisPrompt(input: AnalysisInput): string {
+    return `Analyze the customer validation evidence for this startup:
+
+STARTUP: ${input.idea.title}
+DESCRIPTION: ${input.idea.description}
+PROBLEM: ${input.idea.problemStatement || 'Not specified'}
+TARGET CUSTOMER: ${input.idea.targetCustomer || 'Not specified'}
+
+CUSTOMER EVIDENCE PROVIDED:
+- Interview Count: ${input.founderData?.interviewCount || 0}
+- Strong Interest Rate: ${input.founderData?.strongInterestRate ? (input.founderData.strongInterestRate * 100).toFixed(0) + '%' : 'Not measured'}
+- Pre-orders: ${input.founderData?.preorders || 0}
+- Waitlist Size: ${input.founderData?.waitlistSize || 0}
+
+Provide comprehensive customer validation analysis including:
+1. Assessment of customer research quality and quantity
+2. Identification of strong vs weak customer signals
+3. Pre-order/revenue validation assessment
+4. Pain intensity evaluation
+5. PMF score calculation (1-10)
+6. Specific recommendations for improving customer validation
+
+Be ruthlessly honest. If there's no real customer evidence, say so clearly.`;
   }
 
   protected async performAnalysis(input: AnalysisInput): Promise<void> {

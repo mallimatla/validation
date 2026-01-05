@@ -23,6 +23,7 @@ model User {
   linkedInUrl   String?
   userType      UserType     @default(FOUNDER)
   isVerified    Boolean      @default(false)
+  credits       Int          @default(0)
   settings      Json         @default("{}")
 
   createdAt     DateTime     @default(now())
@@ -105,6 +106,13 @@ model Subscription {
   currentPeriodEnd      DateTime
   cancelAtPeriodEnd     Boolean            @default(false)
 
+  // Razorpay integration
+  razorpayOrderId       String?            @unique
+  razorpaySubscriptionId String?           @unique
+  razorpayCustomerId    String?
+  razorpayPaymentId     String?
+
+  // Stripe integration (deprecated - kept for backwards compatibility)
   stripeSubscriptionId  String?            @unique
   stripeCustomerId      String?
 
@@ -118,6 +126,8 @@ model Subscription {
   updatedAt             DateTime           @updatedAt
 
   @@index([userId])
+  @@index([razorpayOrderId])
+  @@index([razorpaySubscriptionId])
   @@index([stripeSubscriptionId])
 }
 
@@ -129,6 +139,7 @@ enum SubscriptionPlan {
 }
 
 enum SubscriptionStatus {
+  PENDING
   ACTIVE
   PAST_DUE
   CANCELLED
@@ -362,19 +373,22 @@ model Deliberation {
 
 model AuditEvent {
   id              String      @id @default(cuid())
-  validationId    String
-  validation      Validation  @relation(fields: [validationId], references: [id], onDelete: Cascade)
+  validationId    String?
+  validation      Validation? @relation(fields: [validationId], references: [id], onDelete: Cascade)
 
-  eventType       String
+  type            String      // Event type e.g., AGENT_ANALYSIS_COMPLETED
+  entityType      String?     // Type of entity e.g., AgentReport, Validation
+  entityId        String?     // ID of the entity
   agentId         String?
-  data            Json
-  signature       String      // Tamper detection
+  metadata        Json        @default("{}")
+  signature       String?     // Tamper detection
   previousEventId String?     // Chain events
 
   createdAt       DateTime    @default(now())
 
   @@index([validationId])
-  @@index([eventType])
+  @@index([type])
+  @@index([entityType, entityId])
   @@index([createdAt])
 }
 

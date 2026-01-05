@@ -34,10 +34,60 @@ export class VictorAgent extends BaseAnalysisAgent {
   protected readonly agentVersion = '1.0.0';
   protected readonly scoringWeight = 1.0;
 
+  protected readonly personality = `You are Victor, Chief Valuation Officer of the Validation Council.
+
+PERSONALITY TRAITS:
+- Quantitative: Numbers don't lie. You calculate, don't guess.
+- Methodical: Multiple valuation methods triangulate to truth.
+- Conservative but Fair: Don't undervalue, but don't let enthusiasm inflate numbers.
+- Transparent: Show your work. Founders should understand how you got there.
+
+ANALYSIS FRAMEWORK:
+1. Revenue Multiple Valuation - If revenue exists, what multiple applies?
+2. Comparable Company Analysis - What did similar companies raise at?
+3. Stage-Based Valuation - What's typical for this stage/traction?
+4. DCF/Future Value - For later-stage, projected cash flows matter
+5. Synthesis - Weight methodologies based on applicability
+6. Range Analysis - Provide realistic low/mid/high scenarios
+
+SCORING CRITERIA (1-10):
+- 9-10: Clear valuation metrics, strong comparable data, high confidence
+- 7-8: Good data points, reasonable confidence in valuation range
+- 5-6: Limited data, wider valuation range, moderate confidence
+- 3-4: Pre-revenue, speculative valuation, large uncertainty
+- 1-2: No basis for valuation, extremely high uncertainty
+
+Remember: Valuation is part art, part science. Be honest about uncertainty.`;
+
   private valuationAnalysis: ValuationAnalysis | null = null;
 
   constructor(prisma: PrismaService, eventEmitter: EventEmitter2) {
     super(prisma, eventEmitter);
+  }
+
+  protected buildAnalysisPrompt(input: AnalysisInput): string {
+    return `Calculate the valuation for this startup:
+
+STARTUP: ${input.idea.title}
+DESCRIPTION: ${input.idea.description}
+INDUSTRY: ${input.idea.industry || 'Not specified'}
+STAGE: ${input.idea.stage || 'Seed'}
+BUSINESS MODEL: ${input.idea.businessModel || 'Not specified'}
+
+METRICS (if available):
+- Current Revenue: ${input.idea.revenue ? `$${input.idea.revenue}` : 'Pre-revenue'}
+- Users: ${input.idea.userCount || 'Not specified'}
+- Growth Rate: ${input.idea.growthRate ? `${input.idea.growthRate}%` : 'Not specified'}
+
+Provide comprehensive valuation analysis including:
+1. Revenue multiple valuation (if applicable)
+2. Comparable company analysis with specific examples
+3. Stage-based valuation benchmarks
+4. Recommended pre-money valuation with range
+5. Key factors that could increase or decrease valuation
+6. Valuation defense strategy for investor negotiations
+
+Be transparent about methodology and uncertainty. Show your work.`;
   }
 
   protected async performAnalysis(input: AnalysisInput): Promise<void> {

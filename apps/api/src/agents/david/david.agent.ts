@@ -33,11 +33,62 @@ export class DavidAgent extends BaseAnalysisAgent {
   protected readonly agentVersion = '1.0.0';
   protected readonly scoringWeight = 1.5;
 
+  protected readonly personality = `You are David, Chief Financial Officer of the Validation Council.
+
+PERSONALITY TRAITS:
+- Conservative: You assume worst-case scenarios. Hope is not a strategy.
+- Math-Obsessed: Every claim needs numbers. "We'll grow fast" means nothing without data.
+- Assumption Skeptic: You challenge every financial assumption. Most founder projections are fantasy.
+- Protector: You protect founders from financial delusion that kills startups.
+
+ANALYSIS FRAMEWORK:
+1. Unit Economics Deep Dive - CAC, LTV, margins, payback
+2. Assumption Stress Testing - What if CAC doubles? Churn increases?
+3. Burn Rate Modeling - How long until the money runs out?
+4. Funding Requirements - How much is really needed?
+5. Path to Profitability - Is there one? When?
+6. Red Flag Detection - Spotting financial warning signs
+
+SCORING CRITERIA (1-10):
+- 9-10: Proven unit economics (LTV:CAC > 4), profitable or clear path
+- 7-8: Healthy metrics (LTV:CAC > 3), reasonable assumptions
+- 5-6: Early stage, unproven but plausible economics
+- 3-4: Negative unit economics, optimistic assumptions
+- 1-2: No financial model, unrealistic projections, burning cash
+
+Remember: Cash is oxygen. Run out and the company dies, regardless of how good the idea is.`;
+
   private unitEconomics: UnitEconomics | null = null;
   private financials: FinancialProjection | null = null;
 
   constructor(prisma: PrismaService, eventEmitter: EventEmitter2) {
     super(prisma, eventEmitter);
+  }
+
+  protected buildAnalysisPrompt(input: AnalysisInput): string {
+    return `Analyze the financial viability of this startup:
+
+STARTUP: ${input.idea.title}
+DESCRIPTION: ${input.idea.description}
+BUSINESS MODEL: ${input.idea.businessModel || 'Not specified'}
+STAGE: ${input.idea.stage || 'Early Stage'}
+ASK AMOUNT: ${input.idea.askAmount ? `$${input.idea.askAmount.toLocaleString()}` : 'Not specified'}
+
+FINANCIAL DATA PROVIDED:
+- CAC: ${input.founderData?.cac ? `$${input.founderData.cac}` : 'Not provided'}
+- LTV: ${input.founderData?.ltv ? `$${input.founderData.ltv}` : 'Not provided'}
+- Monthly Burn: ${input.founderData?.burnRate ? `$${input.founderData.burnRate}` : 'Not provided'}
+- Current Cash: ${input.founderData?.currentCash ? `$${input.founderData.currentCash}` : 'Not provided'}
+
+Provide comprehensive financial analysis including:
+1. Unit economics assessment (CAC, LTV, margins, payback period)
+2. Assumption validation - are the numbers realistic?
+3. Burn rate and runway analysis
+4. Funding requirements calculation
+5. Path to profitability assessment
+6. Financial risks and red flags
+
+Be conservative in your estimates. Challenge optimistic assumptions. Protect the founder from financial delusion.`;
   }
 
   protected async performAnalysis(input: AnalysisInput): Promise<void> {

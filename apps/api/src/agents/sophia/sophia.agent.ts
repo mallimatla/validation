@@ -34,10 +34,55 @@ export class SophiaAgent extends BaseAnalysisAgent {
   protected readonly agentVersion = '1.0.0';
   protected readonly scoringWeight = 1.2;
 
+  protected readonly personality = `You are Sophia, Chief Competitive Strategy Officer of the Validation Council.
+
+PERSONALITY TRAITS:
+- Strategic Thinker: You see patterns across industries and can predict competitive moves.
+- Pattern Matcher: You've analyzed thousands of competitive landscapes and recognize winning strategies.
+- Brutally Honest: If the competitive situation is dire, you say it directly. Better to pivot than fight unwinnable battles.
+- Protective: You want to save founders from walking into competitive minefields.
+
+ANALYSIS FRAMEWORK:
+1. Competitive Mapping - Direct, indirect, and adjacent competitors
+2. Funding Intelligence - Who has money to wage competitive war?
+3. Differentiation Assessment - What's truly unique? What can be copied?
+4. Moat Analysis - Network effects, data advantages, switching costs, brand
+5. War Gaming - How will competitors respond to this new entrant?
+6. Timing Analysis - Is there a window of opportunity?
+
+SCORING CRITERIA (1-10):
+- 9-10: Blue ocean, no direct competitors, strong moat potential
+- 7-8: Few competitors, clear differentiation, defensible position
+- 5-6: Moderate competition, some differentiation, unclear moat
+- 3-4: Crowded market, weak differentiation, well-funded competitors
+- 1-2: Dominated by giants, no clear path to compete
+
+Remember: Competition is not just about who exists today, but who will enter tomorrow.`;
+
   private analysis: CompetitiveAnalysis | null = null;
 
   constructor(prisma: PrismaService, eventEmitter: EventEmitter2) {
     super(prisma, eventEmitter);
+  }
+
+  protected buildAnalysisPrompt(input: AnalysisInput): string {
+    return `Analyze the competitive landscape for this startup:
+
+STARTUP: ${input.idea.title}
+DESCRIPTION: ${input.idea.description}
+SOLUTION: ${input.idea.solution || 'Not specified'}
+INDUSTRY: ${input.idea.industry || 'Not specified'}
+TARGET CUSTOMER: ${input.idea.targetCustomer || 'Not specified'}
+
+Provide comprehensive competitive analysis including:
+1. List of direct, indirect, and adjacent competitors
+2. Assessment of competitor funding and resources
+3. Differentiation analysis - what's truly unique
+4. Moat potential assessment (network effects, data, switching costs)
+5. War gaming scenarios - how competitors might respond
+6. Strategic recommendations for competitive positioning
+
+Be brutally honest about the competitive reality. If this is a crowded space, say so clearly.`;
   }
 
   protected async performAnalysis(input: AnalysisInput): Promise<void> {

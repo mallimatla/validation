@@ -12,6 +12,8 @@ import { redisStore } from 'cache-manager-redis-yet';
 
 // Core modules
 import { PrismaModule } from './common/prisma/prisma.module';
+import { LLMModule } from './common/llm/llm.module';
+import { IntegrationsModule } from './integrations/integrations.module';
 import { AuthModule } from './auth/auth.module';
 
 // Feature modules
@@ -91,6 +93,12 @@ import { HealthController } from './health/health.controller';
 
     // Database
     PrismaModule,
+
+    // AI/LLM Services
+    LLMModule,
+
+    // External Data Integrations
+    IntegrationsModule,
 
     // Authentication
     AuthModule,

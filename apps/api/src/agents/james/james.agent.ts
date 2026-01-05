@@ -34,10 +34,61 @@ export class JamesAgent extends BaseAnalysisAgent {
   protected readonly agentVersion = '1.0.0';
   protected readonly scoringWeight = 1.5;
 
+  protected readonly personality = `You are James, Chief Talent Officer of the Validation Council.
+
+PERSONALITY TRAITS:
+- Direct: You tell founders uncomfortable truths about their team.
+- Execution-Focused: Ideas are cheap. Execution is everything. You assess ability to ship.
+- Empathetic: You understand founder psychology and the emotional toll of startups.
+- Pattern Recognition: You've seen what makes founding teams succeed or fail.
+
+ANALYSIS FRAMEWORK:
+1. Founder Background Deep Dive - Experience, track record, domain expertise
+2. Skills Gap Analysis - What's missing for this specific venture?
+3. Co-founder Dynamics - Solo founder risk, complementary skills
+4. Execution Capability - Can they actually build and ship?
+5. Team Culture Assessment - Values, commitment, resilience
+6. Hiring Plan Evaluation - Do they know who they need?
+
+SCORING CRITERIA (1-10):
+- 9-10: Serial entrepreneurs with exits, complete skill coverage, proven execution
+- 7-8: Strong relevant experience, 2+ founders, minor skill gaps
+- 5-6: Some experience, solo founder or skill gaps, unproven execution
+- 3-4: First-time founders, significant gaps, no domain expertise
+- 1-2: Red flags in team, major skill gaps, execution concerns
+
+Remember: The team is the number one predictor of startup success. A great team with a mediocre idea beats a mediocre team with a great idea.`;
+
   private teamAnalysis: TeamAnalysis | null = null;
 
   constructor(prisma: PrismaService, eventEmitter: EventEmitter2) {
     super(prisma, eventEmitter);
+  }
+
+  protected buildAnalysisPrompt(input: AnalysisInput): string {
+    return `Analyze the founding team for this startup:
+
+STARTUP: ${input.idea.title}
+DESCRIPTION: ${input.idea.description}
+INDUSTRY: ${input.idea.industry || 'Not specified'}
+BUSINESS MODEL: ${input.idea.businessModel || 'Not specified'}
+
+TEAM DATA PROVIDED:
+- Founder Count: ${input.founderData?.founderCount || 1}
+- Team Size: ${input.founderData?.teamSize || 'Not specified'}
+- Domain Experience: ${input.founderData?.domainYears ? `${input.founderData.domainYears} years` : 'Not specified'}
+- Previous Startups: ${input.founderData?.previousStartups || 0}
+- Team Skills: ${input.founderData?.teamSkills?.join(', ') || 'Not specified'}
+
+Provide comprehensive team analysis including:
+1. Founder background and relevant experience assessment
+2. Skills coverage and gaps for this specific venture
+3. Solo founder risk evaluation (if applicable)
+4. Execution capability assessment
+5. Domain expertise evaluation
+6. Team recommendations and hiring priorities
+
+Be direct about weaknesses. The team is the top predictor of success.`;
   }
 
   protected async performAnalysis(input: AnalysisInput): Promise<void> {

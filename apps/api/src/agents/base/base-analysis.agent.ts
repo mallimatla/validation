@@ -1,11 +1,13 @@
 /**
  * Base Analysis Agent
  * Abstract base class for all analysis agents in the Validation Council
+ * Enhanced with LLM integration for AI-powered analysis
  */
 
 import { Logger } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { LLMService, StructuredAnalysis } from '../../common/llm/llm.service';
 
 export interface AnalysisInput {
   validationId: string;
@@ -19,9 +21,28 @@ export interface AnalysisInput {
     businessModel?: string;
     stage?: string;
     geography?: string[];
+    askAmount?: number;
+    useOfFunds?: string;
+    revenue?: number;
+    userCount?: number;
+    growthRate?: number;
   };
   founderData: Record<string, any>;
   previousAgentOutputs?: Map<string, any>;
+  externalData?: Record<string, any>;
+  fundingContext?: {
+    targetStage?: string;
+    currentMRR?: number;
+    currentUsers?: number;
+    hasProduct?: boolean;
+    growthRate?: number;
+    requestedValuation?: number;
+  };
+  marketContext?: {
+    tamEstimate?: number;
+    samEstimate?: number;
+    somEstimate?: number;
+  };
 }
 
 export interface Finding {
@@ -84,6 +105,7 @@ export abstract class BaseAnalysisAgent {
   protected abstract readonly agentName: string;
   protected abstract readonly agentVersion: string;
   protected abstract readonly scoringWeight: number;
+  protected abstract readonly personality: string;
   protected readonly logger: Logger;
 
   protected findings: Finding[] = [];
@@ -91,10 +113,13 @@ export abstract class BaseAnalysisAgent {
   protected risks: Risk[] = [];
   protected recommendations: Recommendation[] = [];
   protected rawAnalysis: string = '';
+  protected llmAnalysis: StructuredAnalysis | null = null;
+  protected analysisScore: number = 5;
 
   constructor(
     protected readonly prisma: PrismaService,
     protected readonly eventEmitter: EventEmitter2,
+    protected readonly llm?: LLMService,
   ) {
     this.logger = new Logger(this.constructor.name);
   }
@@ -109,7 +134,18 @@ export abstract class BaseAnalysisAgent {
     this.logger.log(`Starting analysis for validation ${input.validationId}`);
 
     try {
-      // Run the specific agent's analysis
+      // Emit start event
+      this.eventEmitter.emit('agent.analysis.started', {
+        agentId: this.agentId,
+        validationId: input.validationId,
+      });
+
+      // Run AI-powered analysis if LLM is available
+      if (this.llm?.isAvailable()) {
+        await this.performAIAnalysis(input);
+      }
+
+      // Run the specific agent's analysis (can supplement or replace AI)
       await this.performAnalysis(input);
 
       // Calculate final score
@@ -129,18 +165,156 @@ export abstract class BaseAnalysisAgent {
         recommendations: this.recommendations,
         rawAnalysis: this.rawAnalysis,
         executionTimeMs: Date.now() - startTime,
+        metadata: {
+          usedLLM: this.llm?.isAvailable() ?? false,
+          agentName: this.agentName,
+          scoringWeight: this.scoringWeight,
+        },
       };
 
       // Store agent report
       await this.storeAgentReport(output);
+
+      // Emit completion event
+      this.eventEmitter.emit('agent.analysis.completed', {
+        agentId: this.agentId,
+        validationId: input.validationId,
+        score,
+        confidence,
+        executionTimeMs: output.executionTimeMs,
+      });
 
       this.logger.log(`Analysis complete: score=${score}, confidence=${confidence}`);
 
       return output;
     } catch (error) {
       this.logger.error(`Analysis failed: ${(error as Error).message}`);
+
+      // Emit error event
+      this.eventEmitter.emit('agent.analysis.failed', {
+        agentId: this.agentId,
+        validationId: input.validationId,
+        error: (error as Error).message,
+      });
+
       throw error;
     }
+  }
+
+  /**
+   * Perform AI-powered analysis using LLM
+   */
+  protected async performAIAnalysis(input: AnalysisInput): Promise<void> {
+    if (!this.llm) return;
+
+    try {
+      const prompt = this.buildAnalysisPrompt(input);
+      const context = this.buildAnalysisContext(input);
+
+      this.llmAnalysis = await this.llm.analyzeStructured(
+        prompt,
+        context,
+        this.personality,
+      );
+
+      // Merge LLM findings into agent findings
+      this.mergeLLMAnalysis(this.llmAnalysis);
+    } catch (error) {
+      this.logger.warn(`AI analysis failed, falling back to rules-based: ${(error as Error).message}`);
+    }
+  }
+
+  /**
+   * Build the analysis prompt for the LLM
+   */
+  protected abstract buildAnalysisPrompt(input: AnalysisInput): string;
+
+  /**
+   * Build context object for LLM analysis
+   */
+  protected buildAnalysisContext(input: AnalysisInput): Record<string, any> {
+    return {
+      idea: input.idea,
+      founderData: input.founderData,
+      previousAnalyses: input.previousAgentOutputs
+        ? Object.fromEntries(input.previousAgentOutputs)
+        : {},
+      externalData: input.externalData || {},
+    };
+  }
+
+  /**
+   * Merge LLM analysis into agent's findings
+   */
+  protected mergeLLMAnalysis(analysis: StructuredAnalysis): void {
+    // Add findings from LLM
+    for (const finding of analysis.findings) {
+      const citation = analysis.citations.find((c) =>
+        finding.description.toLowerCase().includes(c.claim.toLowerCase().slice(0, 30))
+      );
+
+      this.addFinding({
+        title: finding.title,
+        description: finding.description,
+        type: finding.type,
+        severity: finding.severity,
+        evidence: citation
+          ? [
+              this.addCitation({
+                claim: citation.claim,
+                source: citation.source,
+                sourceUrl: citation.sourceUrl,
+                confidence: citation.confidence,
+                dataType: citation.dataType,
+              }),
+            ]
+          : [],
+        confidence: finding.confidence,
+      });
+    }
+
+    // Add risks from LLM
+    for (const risk of analysis.risks) {
+      this.addRisk({
+        title: risk.title,
+        description: risk.description,
+        category: risk.category,
+        probability: risk.probability,
+        impact: risk.impact,
+        mitigations: risk.mitigations,
+        evidence: [],
+      });
+    }
+
+    // Add recommendations from LLM
+    for (const rec of analysis.recommendations) {
+      this.addRecommendation({
+        title: rec.title,
+        description: rec.description,
+        priority: rec.priority,
+        timeframe: rec.timeframe,
+        effort: rec.effort,
+        impact: rec.impact,
+      });
+    }
+
+    // Add remaining citations
+    for (const citation of analysis.citations) {
+      const exists = this.citations.some((c) => c.claim === citation.claim);
+      if (!exists) {
+        this.addCitation({
+          claim: citation.claim,
+          source: citation.source,
+          sourceUrl: citation.sourceUrl,
+          confidence: citation.confidence,
+          dataType: citation.dataType,
+        });
+      }
+    }
+
+    // Update raw analysis and score
+    this.rawAnalysis = analysis.rawAnalysis || this.rawAnalysis;
+    this.analysisScore = analysis.score;
   }
 
   /**
@@ -151,17 +325,28 @@ export abstract class BaseAnalysisAgent {
   /**
    * Calculate the final score (1-10)
    */
-  protected abstract calculateScore(): number;
+  protected calculateScore(): number {
+    // Prefer LLM score if available, otherwise use agent's calculation
+    if (this.llmAnalysis) {
+      return this.llmAnalysis.score;
+    }
+    return this.analysisScore;
+  }
 
   /**
    * Calculate confidence level (1-10)
    */
   protected calculateConfidence(): number {
     // Base confidence on citation count and data quality
-    const citationScore = Math.min(10, this.citations.length * 1.5);
-    const findingScore = Math.min(10, this.findings.length * 2);
+    const citationScore = Math.min(10, this.citations.length * 1.2);
+    const findingScore = Math.min(10, this.findings.length * 1.5);
+    const llmBonus = this.llmAnalysis ? 2 : 0;
 
-    return Math.round((citationScore + findingScore) / 2);
+    const avgCitationConfidence = this.citations.length > 0
+      ? this.citations.reduce((sum, c) => sum + c.confidence, 0) / this.citations.length * 10
+      : 0;
+
+    return Math.min(10, Math.round((citationScore + findingScore + avgCitationConfidence + llmBonus) / 4));
   }
 
   /**
@@ -173,6 +358,8 @@ export abstract class BaseAnalysisAgent {
     this.risks = [];
     this.recommendations = [];
     this.rawAnalysis = '';
+    this.llmAnalysis = null;
+    this.analysisScore = 5;
   }
 
   /**
@@ -259,6 +446,23 @@ export abstract class BaseAnalysisAgent {
         },
       });
     }
+
+    // Create audit event
+    await this.prisma.auditEvent.create({
+      data: {
+        type: 'AGENT_ANALYSIS_COMPLETED',
+        entityType: 'AgentReport',
+        entityId: output.validationId,
+        agentId: output.agentId,
+        metadata: {
+          score: output.score,
+          confidence: output.confidence,
+          findingsCount: output.findings.length,
+          citationsCount: output.citations.length,
+          executionTimeMs: output.executionTimeMs,
+        },
+      },
+    });
   }
 
   /**
@@ -271,6 +475,8 @@ export abstract class BaseAnalysisAgent {
       agentId: output.agentId,
       validationId: output.validationId,
       score: output.score,
+      confidence: output.confidence,
+      findingsCount: output.findings.length,
       timestamp: Date.now(),
     });
     return crypto.createHmac('sha256', secret).update(data).digest('hex');
