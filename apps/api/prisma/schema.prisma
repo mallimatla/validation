@@ -202,6 +202,9 @@ model Validation {
   successProbability Float?
   trustScore      Float?            // Audit trust score (1-10)
   auditedAt       DateTime?         // When validation was audited
+  verdict         String?           // Final verdict: PROCEED, PIVOT, RECONSIDER, STOP
+  verdictRationale String?          // Explanation for the verdict
+  executiveSummary String?          // Executive summary of validation
 
   // Timestamps
   createdAt       DateTime          @default(now())

@@ -138,7 +138,7 @@ export class SnapshotService {
       active: total - expired,
       expired,
       byType: byType.reduce(
-        (acc, item) => {
+        (acc: Record<string, any>, item: { contentType: string; _count: any }) => {
           acc[item.contentType] = item._count;
           return acc;
         },

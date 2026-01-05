@@ -67,7 +67,7 @@ export class OutcomesService {
       outcomesCollected: outcomes,
       collectionRate: total > 0 ? outcomes / total : 0,
       outcomeDistribution: byType.reduce(
-        (acc, item) => { acc[item.outcomeType] = item._count; return acc; },
+        (acc: Record<string, any>, item: { outcomeType: string; _count: any }) => { acc[item.outcomeType] = item._count; return acc; },
         {} as Record<string, number>,
       ),
     };

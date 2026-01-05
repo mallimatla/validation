@@ -308,12 +308,12 @@ export class ValidationProcessor {
 
     // Calculate totals
     const totalTokens = validation.agentReports.reduce(
-      (sum, r: any) => sum + (r.inputTokens || 0) + (r.outputTokens || 0),
+      (sum: number, r: { inputTokens?: number; outputTokens?: number }) => sum + (r.inputTokens || 0) + (r.outputTokens || 0),
       0,
     );
 
     const executionTimeMs = validation.agentReports.reduce(
-      (sum, r: any) => sum + (r.executionTimeMs || 0),
+      (sum: number, r: { executionTimeMs?: number }) => sum + (r.executionTimeMs || 0),
       0,
     );
 

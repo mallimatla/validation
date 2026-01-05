@@ -473,11 +473,32 @@ Follow the 90-day action plan to systematically validate assumptions, build prod
         verdict: output.verdict,
         verdictRationale: output.verdictRationale,
         executiveSummary: output.executiveSummary,
-        ninetyDayPlan: output.ninetyDayPlan as any,
         status: 'COMPLETE',
         completedAt: new Date(),
       },
     });
+
+    // Store ninety day plan in the related model if provided
+    if (output.ninetyDayPlan) {
+      await this.prisma.ninetyDayPlan.upsert({
+        where: { validationId },
+        create: {
+          validationId,
+          phases: output.ninetyDayPlan.phases as any || [],
+          milestones: output.ninetyDayPlan.milestones as any || [],
+          validationGates: output.ninetyDayPlan.validationGates as any || [],
+          estimatedCost: output.ninetyDayPlan.estimatedCost || 0,
+          criticalPath: output.ninetyDayPlan.criticalPath || [],
+        },
+        update: {
+          phases: output.ninetyDayPlan.phases as any || [],
+          milestones: output.ninetyDayPlan.milestones as any || [],
+          validationGates: output.ninetyDayPlan.validationGates as any || [],
+          estimatedCost: output.ninetyDayPlan.estimatedCost || 0,
+          criticalPath: output.ninetyDayPlan.criticalPath || [],
+        },
+      });
+    }
 
     this.eventEmitter.emit('validation.synthesized', {
       validationId,

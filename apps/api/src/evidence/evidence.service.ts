@@ -148,7 +148,7 @@ export class EvidenceService {
     });
 
     const byType = citations.reduce(
-      (acc, c) => {
+      (acc: Record<string, number>, c: { dataType: string }) => {
         acc[c.dataType] = (acc[c.dataType] || 0) + 1;
         return acc;
       },
@@ -156,7 +156,7 @@ export class EvidenceService {
     );
 
     const byAgent = citations.reduce(
-      (acc, c) => {
+      (acc: Record<string, number>, c: { agentReport?: { agentId: string } | null }) => {
         const agentId = c.agentReport?.agentId || 'unknown';
         acc[agentId] = (acc[agentId] || 0) + 1;
         return acc;
@@ -168,7 +168,7 @@ export class EvidenceService {
     const MIN_PER_AGENT = 1;  // Minimum per agent
 
     const meetsTotal = citations.length >= MIN_CITATIONS;
-    const meetsPerAgent = Object.values(byAgent).every(count => count >= MIN_PER_AGENT);
+    const meetsPerAgent = Object.values(byAgent).every((count: number) => count >= MIN_PER_AGENT);
 
     return {
       meets: meetsTotal && meetsPerAgent,
@@ -187,7 +187,7 @@ export class EvidenceService {
     });
 
     const results = await Promise.all(
-      citations.map(c => this.verifyCitation(c.id)),
+      citations.map((c: { id: string }) => this.verifyCitation(c.id)),
     );
 
     const valid = results.filter(r => r.isValid).length;

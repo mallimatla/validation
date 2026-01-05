@@ -278,13 +278,13 @@ export class SentinelAgent {
       });
 
       if (accuracyMetrics) {
-        if (accuracyMetrics.accuracy < 0.6) {
+        if (accuracyMetrics.accuracy != null && accuracyMetrics.accuracy < 0.6) {
           flags[report.agentId].push(
             `Historical accuracy below threshold: ${(accuracyMetrics.accuracy * 100).toFixed(0)}%`
           );
         }
 
-        if (accuracyMetrics.totalPredictions < 10) {
+        if (accuracyMetrics.totalPredictions != null && accuracyMetrics.totalPredictions < 10) {
           flags[report.agentId].push(
             `Limited prediction history: ${accuracyMetrics.totalPredictions} predictions`
           );

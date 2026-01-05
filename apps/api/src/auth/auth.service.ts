@@ -7,7 +7,9 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClerkClient } from '@clerk/backend';
 import { PrismaService } from '../common/prisma/prisma.service';
-import { User } from '@prisma/client';
+
+// User type from Prisma - inferred from PrismaService
+type User = Awaited<ReturnType<PrismaService['user']['findFirst']>>;
 
 @Injectable()
 export class AuthService {

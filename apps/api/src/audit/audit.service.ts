@@ -60,7 +60,7 @@ export class AuditService {
       eventCount: events.length,
       startTime: events[0]?.createdAt,
       endTime: events[events.length - 1]?.createdAt,
-      hasErrors: events.some(e => e.type.includes('failed') || e.type.includes('error')),
+      hasErrors: events.some((e: { type: string }) => e.type.includes('failed') || e.type.includes('error')),
     };
   }
 
@@ -124,7 +124,7 @@ export class AuditService {
     return {
       totalEvents,
       eventsByType: eventsByType.reduce(
-        (acc, item) => {
+        (acc: Record<string, any>, item: { type: string; _count: any }) => {
           acc[item.type] = item._count;
           return acc;
         },
