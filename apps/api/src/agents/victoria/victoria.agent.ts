@@ -479,23 +479,34 @@ Follow the 90-day action plan to systematically validate assumptions, build prod
     });
 
     // Store ninety day plan in the related model if provided
-    if (output.ninetyDayPlan) {
+    if (output.ninetyDayPlan && output.ninetyDayPlan.length > 0) {
+      // Convert NinetyDayAction[] array to structured plan format
+      const planData = {
+        phases: output.ninetyDayPlan as unknown as Record<string, unknown>[],
+        milestones: [] as Record<string, unknown>[],
+        validationGates: [] as Record<string, unknown>[],
+        estimatedCost: 0,
+        criticalPath: output.ninetyDayPlan
+          .filter(action => action.priority === 'critical')
+          .map(action => action.title),
+      };
+
       await this.prisma.ninetyDayPlan.upsert({
         where: { validationId },
         create: {
           validationId,
-          phases: output.ninetyDayPlan.phases as any || [],
-          milestones: output.ninetyDayPlan.milestones as any || [],
-          validationGates: output.ninetyDayPlan.validationGates as any || [],
-          estimatedCost: output.ninetyDayPlan.estimatedCost || 0,
-          criticalPath: output.ninetyDayPlan.criticalPath || [],
+          phases: planData.phases as any,
+          milestones: planData.milestones as any,
+          validationGates: planData.validationGates as any,
+          estimatedCost: planData.estimatedCost,
+          criticalPath: planData.criticalPath,
         },
         update: {
-          phases: output.ninetyDayPlan.phases as any || [],
-          milestones: output.ninetyDayPlan.milestones as any || [],
-          validationGates: output.ninetyDayPlan.validationGates as any || [],
-          estimatedCost: output.ninetyDayPlan.estimatedCost || 0,
-          criticalPath: output.ninetyDayPlan.criticalPath || [],
+          phases: planData.phases as any,
+          milestones: planData.milestones as any,
+          validationGates: planData.validationGates as any,
+          estimatedCost: planData.estimatedCost,
+          criticalPath: planData.criticalPath,
         },
       });
     }
