@@ -1,7 +1,7 @@
 # Validation Council API - Production Dockerfile
 # Multi-stage build for optimized image size
 
-# Stage 1: Dependencies
+# Stage 1: Dependencies (all deps for building)
 FROM node:20-alpine AS deps
 WORKDIR /app
 
@@ -14,8 +14,8 @@ COPY apps/api/package.json ./apps/api/
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/agent-core/package.json ./packages/agent-core/
 
-# Install dependencies
-RUN npm ci --only=production
+# Install ALL dependencies (including dev for build)
+RUN npm ci
 
 # Stage 2: Builder
 FROM node:20-alpine AS builder
@@ -31,7 +31,21 @@ RUN cd apps/api && npx prisma generate
 # Build the application
 RUN npm run build --workspace=@validation-council/api
 
-# Stage 3: Runner
+# Stage 3: Production dependencies
+FROM node:20-alpine AS prod-deps
+WORKDIR /app
+
+RUN apk add --no-cache libc6-compat
+
+COPY package.json package-lock.json* ./
+COPY apps/api/package.json ./apps/api/
+COPY packages/shared/package.json ./packages/shared/
+COPY packages/agent-core/package.json ./packages/agent-core/
+
+# Install only production dependencies
+RUN npm ci --omit=dev
+
+# Stage 4: Runner
 FROM node:20-alpine AS runner
 WORKDIR /app
 
@@ -42,9 +56,11 @@ ENV NODE_ENV=production
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nestjs
 
-# Copy necessary files
+# Copy production dependencies
+COPY --from=prod-deps /app/node_modules ./node_modules
+
+# Copy built application
 COPY --from=builder /app/apps/api/dist ./dist
-COPY --from=builder /app/apps/api/node_modules ./node_modules
 COPY --from=builder /app/apps/api/package.json ./package.json
 COPY --from=builder /app/apps/api/prisma ./prisma
 
