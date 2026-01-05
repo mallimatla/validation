@@ -69,12 +69,15 @@ RUN chown -R nestjs:nodejs /app
 
 USER nestjs
 
-# Expose port
-EXPOSE 3001
+# Expose port (Railway sets PORT env var)
+EXPOSE 4000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3001/health || exit 1
+# Set default port
+ENV PORT=4000
+
+# Health check - use liveness endpoint that doesn't require database
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=5 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:${PORT}/api/v1/health/live || exit 1
 
 # Start the application
 CMD ["node", "dist/main.js"]
