@@ -3,12 +3,14 @@
  * Registers all feature modules and providers
  */
 
-import { Module } from '@nestjs/common';
+import { Module, Logger } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { BullModule } from '@nestjs/bull';
 import { CacheModule } from '@nestjs/cache-manager';
 import { redisStore } from 'cache-manager-redis-yet';
+
+const logger = new Logger('AppModule');
 
 // Core modules
 import { PrismaModule } from './common/prisma/prisma.module';
@@ -48,25 +50,48 @@ import { HealthController } from './health/health.controller';
       ignoreErrors: false,
     }),
 
-    // Redis-backed job queue
+    // Redis-backed job queue (optional - falls back gracefully if Redis unavailable)
     BullModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
-        redis: {
-          host: configService.get('REDIS_HOST', 'localhost'),
-          port: configService.get('REDIS_PORT', 6379),
-          password: configService.get('REDIS_PASSWORD'),
-        },
-        defaultJobOptions: {
-          removeOnComplete: 100,
-          removeOnFail: 50,
-          attempts: 3,
-          backoff: {
-            type: 'exponential',
-            delay: 1000,
+      useFactory: async (configService: ConfigService) => {
+        const redisHost = configService.get('REDIS_HOST');
+        const redisUrl = configService.get('REDIS_URL');
+
+        // Only configure Redis if explicitly set
+        if (!redisHost && !redisUrl) {
+          logger.warn('Redis not configured. Job queue features will be limited.');
+          // Return minimal config - Bull will fail gracefully on queue operations
+          return {
+            redis: {
+              host: 'localhost',
+              port: 6379,
+              maxRetriesPerRequest: 1,
+              retryStrategy: () => null, // Don't retry connection
+              lazyConnect: true,
+              enableOfflineQueue: false,
+            },
+          };
+        }
+
+        return {
+          redis: redisUrl
+            ? redisUrl
+            : {
+                host: redisHost || 'localhost',
+                port: configService.get('REDIS_PORT', 6379),
+                password: configService.get('REDIS_PASSWORD'),
+              },
+          defaultJobOptions: {
+            removeOnComplete: 100,
+            removeOnFail: 50,
+            attempts: 3,
+            backoff: {
+              type: 'exponential',
+              delay: 1000,
+            },
           },
-        },
-      }),
+        };
+      },
       inject: [ConfigService],
     }),
 
