@@ -1,0 +1,542 @@
+// Validation Council Prisma Schema
+// Database models for the complete platform
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// User Models
+// ============================================================================
+
+model User {
+  id            String       @id @default(cuid())
+  email         String       @unique
+  name          String?
+  avatarUrl     String?
+  company       String?
+  linkedInUrl   String?
+  userType      UserType     @default(FOUNDER)
+  isVerified    Boolean      @default(false)
+  settings      Json         @default("{}")
+
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  lastLoginAt   DateTime?
+
+  // Relations
+  validations     Validation[]
+  subscriptions   Subscription[]
+  founderProfile  FounderProfile?
+  investorProfile InvestorProfile?
+  apiKeys         ApiKey[]
+  refundRequests  RefundRequest[]
+
+  @@index([email])
+  @@index([userType])
+}
+
+enum UserType {
+  FOUNDER
+  INVESTOR
+  ADMIN
+}
+
+model FounderProfile {
+  id                  String    @id @default(cuid())
+  userId              String    @unique
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  bio                 String?
+  skills              String[]
+  previousStartups    Json      @default("[]")
+  githubUrl           String?
+  twitterUrl          String?
+  portfolio           String?
+  lookingForCofounder Boolean   @default(false)
+  openToInvestors     Boolean   @default(true)
+
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+}
+
+model InvestorProfile {
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  firmName        String?
+  firmType        String    @default("angel")
+  checkSizeMin    Int       @default(0)
+  checkSizeMax    Int       @default(0)
+  currency        String    @default("USD")
+  stages          String[]
+  industries      String[]
+  geography       String[]
+  portfolioCount  Int?
+  websiteUrl      String?
+  thesis          String?
+  dealFlowPrefs   Json      @default("{}")
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  introRequests   InvestorIntroRequest[]
+}
+
+// ============================================================================
+// Subscription Models
+// ============================================================================
+
+model Subscription {
+  id                    String             @id @default(cuid())
+  userId                String
+  user                  User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  plan                  SubscriptionPlan   @default(FREE)
+  status                SubscriptionStatus @default(ACTIVE)
+  currentPeriodStart    DateTime
+  currentPeriodEnd      DateTime
+  cancelAtPeriodEnd     Boolean            @default(false)
+
+  stripeSubscriptionId  String?            @unique
+  stripeCustomerId      String?
+
+  // Usage tracking
+  validationsUsed       Int                @default(0)
+  agentCreditsUsed      Int                @default(0)
+  storageUsedMb         Int                @default(0)
+  apiCallsUsed          Int                @default(0)
+
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  @@index([userId])
+  @@index([stripeSubscriptionId])
+}
+
+enum SubscriptionPlan {
+  FREE
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  EXPIRED
+  TRIALING
+}
+
+model ApiKey {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name        String
+  keyPrefix   String    // First 8 chars for identification
+  keyHash     String    // SHA-256 hash of full key
+  permissions String[]
+  lastUsedAt  DateTime?
+  expiresAt   DateTime?
+  isActive    Boolean   @default(true)
+
+  createdAt   DateTime  @default(now())
+
+  @@index([userId])
+  @@index([keyPrefix])
+}
+
+// ============================================================================
+// Validation Models
+// ============================================================================
+
+model Validation {
+  id              String            @id @default(cuid())
+  userId          String
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Idea details
+  title           String
+  description     String
+  problemStatement String?
+  solution        String?
+  targetCustomer  String?
+  industry        String?
+  businessModel   String?
+  stage           String            @default("idea")
+  geography       String[]
+  founderData     Json              @default("{}")
+
+  // Validation settings
+  tier            ValidationTier    @default(STANDARD)
+  priority        String            @default("normal")
+  requestedAgents String[]
+
+  // Status
+  status          ValidationStatus  @default(PENDING)
+
+  // Results
+  overallScore    Float?
+  overallConfidence Float?
+  recommendation  String?           // GREEN, YELLOW, RED
+  successProbability Float?
+
+  // Timestamps
+  createdAt       DateTime          @default(now())
+  startedAt       DateTime?
+  completedAt     DateTime?
+
+  // Cost tracking
+  totalTokens     Int               @default(0)
+  totalCost       Float             @default(0)
+  executionTimeMs Int               @default(0)
+
+  // Relations
+  agentReports    AgentReport[]
+  citations       Citation[]
+  deliberations   Deliberation[]
+  auditEvents     AuditEvent[]
+  outcomes        Outcome[]
+  attachments     ValidationAttachment[]
+  fatalFlaws      FatalFlaw[]
+  ninetyDayPlan   NinetyDayPlan?
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum ValidationTier {
+  BASIC
+  STANDARD
+  PREMIUM
+  ENTERPRISE
+}
+
+enum ValidationStatus {
+  PENDING
+  QUEUED
+  PROCESSING
+  AWAITING_DELIBERATION
+  SYNTHESIZING
+  COMPLETE
+  FAILED
+  CANCELLED
+}
+
+model ValidationAttachment {
+  id            String      @id @default(cuid())
+  validationId  String
+  validation    Validation  @relation(fields: [validationId], references: [id], onDelete: Cascade)
+
+  type          String      // pitch_deck, financial_model, interview_transcript, analytics, other
+  filename      String
+  url           String
+  mimeType      String
+  sizeBytes     Int
+
+  uploadedAt    DateTime    @default(now())
+
+  @@index([validationId])
+}
+
+// ============================================================================
+// Agent Report Models
+// ============================================================================
+
+model AgentReport {
+  id              String      @id @default(cuid())
+  validationId    String
+  validation      Validation  @relation(fields: [validationId], references: [id], onDelete: Cascade)
+
+  agentId         String      // e.g., "marcus"
+  agentVersion    String      // e.g., "2.3.1"
+
+  score           Float
+  confidence      Float
+  findings        Json        @default("[]")
+  risks           Json        @default("[]")
+  recommendations Json        @default("[]")
+  rawAnalysis     String?
+
+  // Accountability
+  citationCount   Int
+  signature       String      // Cryptographic signature
+
+  // Execution stats
+  executionTimeMs Int
+  inputTokens     Int         @default(0)
+  outputTokens    Int         @default(0)
+
+  createdAt       DateTime    @default(now())
+
+  // Relations
+  citations       Citation[]
+
+  @@index([validationId])
+  @@index([agentId])
+}
+
+// ============================================================================
+// Citation & Evidence Models
+// ============================================================================
+
+model Citation {
+  id              String        @id @default(cuid())
+  validationId    String
+  validation      Validation    @relation(fields: [validationId], references: [id], onDelete: Cascade)
+  agentReportId   String?
+  agentReport     AgentReport?  @relation(fields: [agentReportId], references: [id], onDelete: SetNull)
+
+  claim           String        // The claim being made
+  source          String        // Source name
+  sourceUrl       String        // Original URL
+  snapshotId      String?
+  snapshot        Snapshot?     @relation(fields: [snapshotId], references: [id])
+
+  retrievedAt     DateTime
+  confidence      Float
+  dataType        String        // primary, secondary, computed
+
+  // Verification
+  lastVerified    DateTime?
+  isValid         Boolean       @default(true)
+
+  @@index([validationId])
+  @@index([agentReportId])
+}
+
+model Snapshot {
+  id            String      @id @default(cuid())
+  originalUrl   String
+  content       String      // Stored content (may be truncated)
+  contentType   String      // html, json, pdf, text, image
+  contentHash   String      // SHA-256 for integrity
+  storageUrl    String      // S3 URL for full content
+
+  capturedAt    DateTime    @default(now())
+  expiresAt     DateTime
+
+  // Relations
+  citations     Citation[]
+
+  @@index([originalUrl])
+  @@index([contentHash])
+}
+
+// ============================================================================
+// Deliberation Models
+// ============================================================================
+
+model Deliberation {
+  id              String      @id @default(cuid())
+  validationId    String
+  validation      Validation  @relation(fields: [validationId], references: [id], onDelete: Cascade)
+
+  topic           String      // What they're debating
+  triggerReason   String
+  initiatingAgent String      // Who started the challenge
+  respondingAgents String[]   // Who was challenged
+
+  transcript      Json        // Full debate transcript
+  resolution      Json        // How it was resolved
+
+  createdAt       DateTime    @default(now())
+  completedAt     DateTime?
+
+  @@index([validationId])
+}
+
+// ============================================================================
+// Audit Models
+// ============================================================================
+
+model AuditEvent {
+  id              String      @id @default(cuid())
+  validationId    String
+  validation      Validation  @relation(fields: [validationId], references: [id], onDelete: Cascade)
+
+  eventType       String
+  agentId         String?
+  data            Json
+  signature       String      // Tamper detection
+  previousEventId String?     // Chain events
+
+  createdAt       DateTime    @default(now())
+
+  @@index([validationId])
+  @@index([eventType])
+  @@index([createdAt])
+}
+
+// ============================================================================
+// Outcome & Accountability Models
+// ============================================================================
+
+model Outcome {
+  id                  String      @id @default(cuid())
+  validationId        String
+  validation          Validation  @relation(fields: [validationId], references: [id], onDelete: Cascade)
+
+  outcomeType         String      // funded, pmf_achieved, profitable, acquired, pivoted, shutdown, still_operating
+  outcomeDate         DateTime?
+  details             Json        @default("{}")
+
+  verificationSource  String?     // crunchbase, linkedin, news, founder_survey
+  verificationUrl     String?
+  verified            Boolean     @default(false)
+
+  reportedAt          DateTime    @default(now())
+  verifiedAt          DateTime?
+  verifiedBy          String?
+
+  @@index([validationId])
+  @@index([outcomeType])
+}
+
+model FollowUp {
+  id                      String          @id @default(cuid())
+  validationId            String
+  userId                  String
+
+  scheduledFor            DateTime
+  status                  FollowUpStatus  @default(SCHEDULED)
+  monthsAfterValidation   Int
+
+  sentAt                  DateTime?
+  respondedAt             DateTime?
+  response                Json?
+
+  createdAt               DateTime        @default(now())
+
+  @@index([validationId])
+  @@index([scheduledFor])
+  @@index([status])
+}
+
+enum FollowUpStatus {
+  SCHEDULED
+  SENT
+  RESPONDED
+  EXPIRED
+  CANCELLED
+}
+
+model AgentAccuracy {
+  id              String      @id @default(cuid())
+  agentId         String
+  agentVersion    String
+
+  metricType      String      // e.g., "market_size_accuracy"
+  metricValue     Float       // e.g., 0.71 for 71%
+  sampleSize      Int         // How many validations
+  confidence      Float
+
+  calculatedAt    DateTime    @default(now())
+
+  @@unique([agentId, agentVersion, metricType])
+  @@index([agentId])
+}
+
+// ============================================================================
+// Fatal Flaw & Plan Models
+// ============================================================================
+
+model FatalFlaw {
+  id              String      @id @default(cuid())
+  validationId    String
+  validation      Validation  @relation(fields: [validationId], references: [id], onDelete: Cascade)
+
+  category        String      // no_market, no_differentiation, unsustainable_economics, etc.
+  title           String
+  description     String
+  evidence        Json        @default("[]")
+  agentSource     String
+  canBeMitigated  Boolean     @default(false)
+  mitigation      String?
+
+  createdAt       DateTime    @default(now())
+
+  @@index([validationId])
+}
+
+model NinetyDayPlan {
+  id              String      @id @default(cuid())
+  validationId    String      @unique
+  validation      Validation  @relation(fields: [validationId], references: [id], onDelete: Cascade)
+
+  phases          Json        @default("[]")
+  milestones      Json        @default("[]")
+  validationGates Json        @default("[]")
+  estimatedCost   Float       @default(0)
+  criticalPath    String[]
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+}
+
+// ============================================================================
+// Refund & Trust Models
+// ============================================================================
+
+model RefundRequest {
+  id              String        @id @default(cuid())
+  validationId    String
+  userId          String
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  reason          String
+  evidence        String?
+  claimedInaccuracies Json      @default("[]")
+  amount          Float
+
+  status          RefundStatus  @default(REQUESTED)
+  reviewedAt      DateTime?
+  reviewedBy      String?
+  reviewNotes     String?
+  processedAt     DateTime?
+
+  requestedAt     DateTime      @default(now())
+
+  @@index([validationId])
+  @@index([userId])
+  @@index([status])
+}
+
+enum RefundStatus {
+  REQUESTED
+  UNDER_REVIEW
+  APPROVED
+  DENIED
+  PROCESSED
+}
+
+// ============================================================================
+// Investor Models
+// ============================================================================
+
+model InvestorIntroRequest {
+  id                String      @id @default(cuid())
+  validationId      String
+  investorProfileId String
+  investorProfile   InvestorProfile @relation(fields: [investorProfileId], references: [id], onDelete: Cascade)
+
+  status            String      @default("pending") // pending, accepted, declined, expired
+  message           String?
+
+  requestedAt       DateTime    @default(now())
+  respondedAt       DateTime?
+  response          String?
+
+  @@index([validationId])
+  @@index([investorProfileId])
+}

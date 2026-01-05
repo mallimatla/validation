@@ -1,0 +1,30 @@
+{
+  "name": "validation-council",
+  "version": "1.0.0",
+  "private": true,
+  "description": "The Validation Council - AI-Powered Startup Idea Validation Platform",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "test:agent": "turbo run test --filter=@validation-council/api -- --testPathPattern",
+    "lint": "turbo run lint",
+    "clean": "turbo run clean",
+    "db:generate": "npm run db:generate --workspace=@validation-council/api",
+    "db:migrate": "npm run db:migrate --workspace=@validation-council/api",
+    "db:seed": "npm run db:seed --workspace=@validation-council/api",
+    "db:studio": "npm run db:studio --workspace=@validation-council/api"
+  },
+  "devDependencies": {
+    "turbo": "^2.0.0",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "packageManager": "npm@10.0.0"
+}
