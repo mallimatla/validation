@@ -21,7 +21,7 @@ import {
   DataSource,
   AgentId,
 } from '@validation-council/shared';
-import { generateId, hashContent, generateSignature } from '@validation-council/shared';
+import { generateId, generateSignature } from '@validation-council/shared';
 import { LLMProvider, LLMResponse } from './llm-provider';
 import { CitationManager } from './citation-manager';
 import { AccountabilityTracker } from './accountability-tracker';

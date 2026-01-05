@@ -111,7 +111,7 @@ export class MultiProviderLLM implements LLMProvider {
   async complete(request: LLMRequest): Promise<LLMResponse> {
     await this.enforceRateLimit();
 
-    const startTime = Date.now();
+    const _startTime = Date.now();
 
     try {
       let response: LLMResponse;

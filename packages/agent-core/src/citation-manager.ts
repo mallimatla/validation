@@ -80,7 +80,7 @@ export class InMemorySnapshotStorage implements SnapshotStorage {
 export class CitationManager {
   private citations: Map<string, Citation> = new Map();
   private snapshotStorage: SnapshotStorage;
-  private validationId?: string;
+  private _validationId?: string;
 
   constructor(snapshotStorage?: SnapshotStorage) {
     this.snapshotStorage = snapshotStorage || new InMemorySnapshotStorage();
@@ -90,7 +90,7 @@ export class CitationManager {
    * Set the current validation ID for context
    */
   setValidationId(validationId: string): void {
-    this.validationId = validationId;
+    this._validationId = validationId;
   }
 
   /**

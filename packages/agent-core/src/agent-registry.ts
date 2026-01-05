@@ -11,7 +11,6 @@
 import {
   AgentConfig,
   AgentId,
-  AGENT_IDS,
   AGENT_WEIGHTS,
   AGENT_NAMES,
   AGENT_ROLES,

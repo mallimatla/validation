@@ -341,7 +341,7 @@ export class AccountabilityTracker {
   private calculatePredictionAccuracy(
     predicted: number | string | boolean,
     actual: number | string | boolean,
-    type: string
+    _type: string
   ): number {
     // Boolean comparison
     if (typeof predicted === 'boolean' && typeof actual === 'boolean') {

@@ -167,8 +167,8 @@ export interface PredictionComparison {
   validationId: string;
   agentId: AgentId;
   predictionType: string;
-  predictedValue: number | string;
-  actualValue?: number | string;
+  predictedValue: number | string | boolean;
+  actualValue?: number | string | boolean;
   accuracy?: number;
   withinThreshold: boolean;
   threshold: number;
