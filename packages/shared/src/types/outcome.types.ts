@@ -103,14 +103,14 @@ export interface FollowUpResponse {
 export interface AgentAccuracyMetrics {
   agentId: AgentId;
   agentVersion: string;
-  metrics: AccuracyMetric[];
+  metrics: OutcomeAccuracyMetric[];
   overallAccuracy: number;
   sampleSize: number;
   lastCalculated: Date;
   trend: 'improving' | 'stable' | 'declining';
 }
 
-export interface AccuracyMetric {
+export interface OutcomeAccuracyMetric {
   metricId: string;
   metricType: string;
   description: string;
