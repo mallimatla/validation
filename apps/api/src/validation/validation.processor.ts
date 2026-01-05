@@ -343,8 +343,8 @@ export class ValidationProcessor {
     await this.prisma.auditEvent.create({
       data: {
         validationId,
-        eventType,
-        data,
+        type: eventType,
+        metadata: data,
         signature: `${eventType}-${Date.now()}`, // Would be proper cryptographic signature
       },
     });

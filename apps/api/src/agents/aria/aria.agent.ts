@@ -214,9 +214,9 @@ export class AriaAgent {
     await this.prisma.auditEvent.create({
       data: {
         validationId,
-        eventType,
+        type: eventType,
         agentId: 'aria',
-        data,
+        metadata: data,
         signature: this.generateSignature({ validationId, eventType, data }),
       },
     });

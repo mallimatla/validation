@@ -200,6 +200,8 @@ model Validation {
   overallConfidence Float?
   recommendation  String?           // GREEN, YELLOW, RED
   successProbability Float?
+  trustScore      Float?            // Audit trust score (1-10)
+  auditedAt       DateTime?         // When validation was audited
 
   // Timestamps
   createdAt       DateTime          @default(now())
@@ -377,17 +379,22 @@ model AuditEvent {
   validation      Validation? @relation(fields: [validationId], references: [id], onDelete: Cascade)
 
   type            String      // Event type e.g., AGENT_ANALYSIS_COMPLETED
+  eventType       String?     // Alias for type (backwards compatibility)
   entityType      String?     // Type of entity e.g., AgentReport, Validation
   entityId        String?     // ID of the entity
   agentId         String?
   metadata        Json        @default("{}")
+  data            Json?       // Event data (alias for metadata)
+  details         Json?       // Additional event details
   signature       String?     // Tamper detection
   previousEventId String?     // Chain events
+  timestamp       DateTime?   // Event timestamp
 
   createdAt       DateTime    @default(now())
 
   @@index([validationId])
   @@index([type])
+  @@index([eventType])
   @@index([entityType, entityId])
   @@index([createdAt])
 }
@@ -447,18 +454,42 @@ enum FollowUpStatus {
 
 model AgentAccuracy {
   id              String      @id @default(cuid())
-  agentId         String
+  agentId         String      @unique
   agentVersion    String
 
-  metricType      String      // e.g., "market_size_accuracy"
+  metricType      String      @default("overall") // e.g., "market_size_accuracy"
   metricValue     Float       // e.g., 0.71 for 71%
+  accuracy        Float?      // Overall accuracy (0-1)
+  totalPredictions Int?       // Total predictions made
   sampleSize      Int         // How many validations
   confidence      Float
 
   calculatedAt    DateTime    @default(now())
 
-  @@unique([agentId, agentVersion, metricType])
   @@index([agentId])
+}
+
+// ============================================================================
+// Prediction Tracking Model
+// ============================================================================
+
+model Prediction {
+  id              String      @id @default(cuid())
+  validationId    String
+  agentId         String
+
+  predictionType  String      // Type of prediction (e.g., "market_size", "success_probability")
+  predictedValue  Json        // The predicted value
+  actualValue     Json?       // The actual outcome (when known)
+  confidence      Float       // Confidence in prediction (0-1)
+  wasAccurate     Boolean?    // Whether prediction was accurate
+
+  createdAt       DateTime    @default(now())
+  evaluatedAt     DateTime?   // When outcome was recorded
+
+  @@index([validationId])
+  @@index([agentId])
+  @@index([predictionType])
 }
 
 // ============================================================================

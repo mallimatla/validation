@@ -474,7 +474,7 @@ Follow the 90-day action plan to systematically validate assumptions, build prod
         verdictRationale: output.verdictRationale,
         executiveSummary: output.executiveSummary,
         ninetyDayPlan: output.ninetyDayPlan as any,
-        status: 'completed',
+        status: 'COMPLETE',
         completedAt: new Date(),
       },
     });

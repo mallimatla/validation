@@ -5,9 +5,8 @@
 
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
-import { AGENT_NAMES, AGENT_ROLES, ACCURACY_TARGETS } from '@validation-council/shared';
 
-interface AgentInfo {
+export interface AgentInfo {
   id: string;
   name: string;
   role: string;

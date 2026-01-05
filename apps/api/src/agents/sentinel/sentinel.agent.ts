@@ -350,14 +350,14 @@ export class SentinelAgent {
     await this.prisma.auditEvent.create({
       data: {
         validationId: result.validationId,
-        eventType: 'AUDIT_COMPLETED',
+        type: 'AUDIT_COMPLETED',
         agentId: this.agentId,
-        details: {
+        metadata: {
           trustScore: result.trustScore,
           issueCount: result.issuesFound.length,
           citationStats: result.citationStats,
           integrityHash: result.integrityHash,
-        } as any,
+        },
         timestamp: result.auditedAt,
       },
     });
@@ -499,13 +499,21 @@ export class SentinelAgent {
       where: { agentId },
       create: {
         agentId,
+        agentVersion: '1.0.0',
+        metricType: 'overall',
+        metricValue: accuracy,
         accuracy,
         totalPredictions: predictions.length,
+        sampleSize: predictions.length,
+        confidence: Math.min(1, predictions.length / 100),
         calculatedAt: new Date(),
       },
       update: {
         accuracy,
+        metricValue: accuracy,
         totalPredictions: predictions.length,
+        sampleSize: predictions.length,
+        confidence: Math.min(1, predictions.length / 100),
         calculatedAt: new Date(),
       },
     });

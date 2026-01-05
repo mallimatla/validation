@@ -6,7 +6,7 @@
 import { Controller, Get, Param, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { AuthGuard } from '../auth/auth.guard';
-import { AgentsService } from './agents.service';
+import { AgentsService, AgentInfo } from './agents.service';
 
 @ApiTags('agents')
 @ApiBearerAuth()

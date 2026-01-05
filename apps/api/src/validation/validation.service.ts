@@ -336,8 +336,8 @@ export class ValidationService {
     await this.prisma.auditEvent.create({
       data: {
         validationId: id,
-        eventType: 'challenge_submitted',
-        data: {
+        type: 'challenge_submitted',
+        metadata: {
           findingId: body.findingId,
           reason: body.reason,
           userId,

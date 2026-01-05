@@ -98,8 +98,8 @@ export class DeliberationService {
         triggerReason: conflict.description,
         initiatingAgent: 'aria',
         respondingAgents: conflict.agents,
-        transcript: messages,
-        resolution,
+        transcript: messages as any,
+        resolution: resolution as any,
       },
     });
 

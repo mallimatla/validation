@@ -9,7 +9,7 @@ import * as crypto from 'crypto';
 
 export interface AuditEventData {
   validationId: string;
-  eventType: string;
+  type: string;
   agentId?: string;
   data: Record<string, any>;
   previousEventId?: string;
@@ -33,15 +33,15 @@ export class AuditService {
     const auditEvent = await this.prisma.auditEvent.create({
       data: {
         validationId: event.validationId,
-        eventType: event.eventType,
+        type: event.type,
         agentId: event.agentId,
-        data: event.data,
+        metadata: event.data,
         signature,
         previousEventId: event.previousEventId,
       },
     });
 
-    this.logger.debug(`Audit event logged: ${event.eventType} for ${event.validationId}`);
+    this.logger.debug(`Audit event logged: ${event.type} for ${event.validationId}`);
     return auditEvent;
   }
 
@@ -60,7 +60,7 @@ export class AuditService {
       eventCount: events.length,
       startTime: events[0]?.createdAt,
       endTime: events[events.length - 1]?.createdAt,
-      hasErrors: events.some(e => e.eventType.includes('failed') || e.eventType.includes('error')),
+      hasErrors: events.some(e => e.type.includes('failed') || e.type.includes('error')),
     };
   }
 
@@ -77,10 +77,10 @@ export class AuditService {
 
     for (const event of events) {
       const expectedSignature = this.generateSignature({
-        validationId: event.validationId,
-        eventType: event.eventType,
+        validationId: event.validationId!,
+        type: event.type,
         agentId: event.agentId || undefined,
-        data: event.data as Record<string, any>,
+        data: event.metadata as Record<string, any>,
         previousEventId: event.previousEventId || undefined,
       });
 
@@ -115,7 +115,7 @@ export class AuditService {
     const [totalEvents, eventsByType] = await Promise.all([
       this.prisma.auditEvent.count({ where }),
       this.prisma.auditEvent.groupBy({
-        by: ['eventType'],
+        by: ['type'],
         where,
         _count: true,
       }),
@@ -125,7 +125,7 @@ export class AuditService {
       totalEvents,
       eventsByType: eventsByType.reduce(
         (acc, item) => {
-          acc[item.eventType] = item._count;
+          acc[item.type] = item._count;
           return acc;
         },
         {} as Record<string, number>,
@@ -148,7 +148,7 @@ export class AuditService {
     const where: any = {};
 
     if (params.validationId) where.validationId = params.validationId;
-    if (params.eventTypes?.length) where.eventType = { in: params.eventTypes };
+    if (params.eventTypes?.length) where.type = { in: params.eventTypes };
     if (params.agentId) where.agentId = params.agentId;
     if (params.startDate || params.endDate) {
       where.createdAt = {};
@@ -177,7 +177,7 @@ export class AuditService {
   private generateSignature(event: AuditEventData): string {
     const payload = JSON.stringify({
       validationId: event.validationId,
-      eventType: event.eventType,
+      type: event.type,
       agentId: event.agentId,
       data: event.data,
       previousEventId: event.previousEventId,

@@ -98,9 +98,9 @@ export class QualityGateService {
     await this.prisma.auditEvent.create({
       data: {
         validationId,
-        eventType: passed ? 'quality_check_passed' : 'quality_check_failed',
+        type: passed ? 'quality_check_passed' : 'quality_check_failed',
         agentId: 'aria',
-        data: {
+        metadata: {
           checks: checks.map(c => ({ name: c.checkName, passed: c.passed, score: c.score })),
           overallScore,
           failedChecks,
