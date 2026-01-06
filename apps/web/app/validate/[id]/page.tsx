@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'next/navigation';
+import { useAuth } from '@clerk/nextjs';
 import Link from 'next/link';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://validation-production.up.railway.app';
@@ -286,6 +287,7 @@ function generateAgentReport(agentId: string, validationId: string): { score: nu
 export default function ValidationProgressPage() {
   const params = useParams();
   const validationId = params.id as string;
+  const { getToken, isSignedIn } = useAuth();
 
   const [progress, setProgress] = useState<ValidationProgress | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -349,7 +351,14 @@ export default function ValidationProgressPage() {
   useEffect(() => {
     const fetchProgress = async () => {
       try {
-        const response = await fetch(`${API_URL}/api/v1/validations/${validationId}/progress`);
+        const headers: Record<string, string> = {};
+        if (isSignedIn) {
+          const token = await getToken();
+          if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+          }
+        }
+        const response = await fetch(`${API_URL}/api/v1/validations/${validationId}/progress`, { headers });
         if (!response.ok) { startSimulation(); return; }
         const data = await response.json();
         setProgress(data);
@@ -361,7 +370,7 @@ export default function ValidationProgressPage() {
     };
     fetchProgress();
     return () => { if (simulationIntervalRef.current) clearInterval(simulationIntervalRef.current); };
-  }, [validationId, startSimulation]);
+  }, [validationId, startSimulation, isSignedIn, getToken]);
 
   const getAgent = (id: string) => AGENTS.find(a => a.id === id);
   const getAgentStatus = (id: string) => progress?.agentProgress?.find(ap => ap.agentId === id);

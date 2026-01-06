@@ -2,12 +2,14 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@clerk/nextjs';
 import Link from 'next/link';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://validation-production.up.railway.app';
 
 export default function ValidatePage() {
   const router = useRouter();
+  const { getToken, isSignedIn } = useAuth();
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -31,11 +33,21 @@ export default function ValidatePage() {
     }
 
     try {
+      // Get auth token if user is signed in
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (isSignedIn) {
+        const token = await getToken();
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+      }
+
       const response = await fetch(`${API_URL}/api/v1/validations`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({
           title: formData.title,
           description: formData.description,
