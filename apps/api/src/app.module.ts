@@ -3,7 +3,7 @@
  * Registers all feature modules and providers
  */
 
-import { Module, Logger } from '@nestjs/common';
+import { Module, Logger, DynamicModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { BullModule } from '@nestjs/bull';
@@ -31,6 +31,48 @@ import { PaymentsModule } from './payments/payments.module';
 // Health check
 import { HealthController } from './health/health.controller';
 
+// Check if Redis is configured at module load time
+const isRedisConfigured = !!(process.env.REDIS_URL || process.env.REDIS_HOST);
+
+// Conditionally include Bull module
+const conditionalBullModule = isRedisConfigured
+  ? [
+      BullModule.forRootAsync({
+        imports: [ConfigModule],
+        useFactory: async (configService: ConfigService) => {
+          const redisUrl = configService.get('REDIS_URL');
+          const redisHost = configService.get('REDIS_HOST');
+
+          logger.log('Configuring Bull with Redis...');
+
+          return {
+            redis: redisUrl
+              ? redisUrl
+              : {
+                  host: redisHost || 'localhost',
+                  port: configService.get('REDIS_PORT', 6379),
+                  password: configService.get('REDIS_PASSWORD'),
+                },
+            defaultJobOptions: {
+              removeOnComplete: 100,
+              removeOnFail: 50,
+              attempts: 3,
+              backoff: {
+                type: 'exponential',
+                delay: 1000,
+              },
+            },
+          };
+        },
+        inject: [ConfigService],
+      }),
+    ]
+  : [];
+
+if (!isRedisConfigured) {
+  logger.warn('Redis not configured - Bull job queue disabled');
+}
+
 @Module({
   imports: [
     // Configuration
@@ -50,63 +92,25 @@ import { HealthController } from './health/health.controller';
       ignoreErrors: false,
     }),
 
-    // Redis-backed job queue (optional - falls back gracefully if Redis unavailable)
-    BullModule.forRootAsync({
-      imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => {
-        const redisHost = configService.get('REDIS_HOST');
-        const redisUrl = configService.get('REDIS_URL');
+    // Conditionally include Bull module
+    ...conditionalBullModule,
 
-        // Only configure Redis if explicitly set
-        if (!redisHost && !redisUrl) {
-          logger.warn('Redis not configured. Job queue features will be limited.');
-          // Return minimal config - Bull will fail gracefully on queue operations
-          return {
-            redis: {
-              host: 'localhost',
-              port: 6379,
-              maxRetriesPerRequest: 1,
-              retryStrategy: () => null, // Don't retry connection
-              lazyConnect: true,
-              enableOfflineQueue: false,
-            },
-          };
-        }
-
-        return {
-          redis: redisUrl
-            ? redisUrl
-            : {
-                host: redisHost || 'localhost',
-                port: configService.get('REDIS_PORT', 6379),
-                password: configService.get('REDIS_PASSWORD'),
-              },
-          defaultJobOptions: {
-            removeOnComplete: 100,
-            removeOnFail: 50,
-            attempts: 3,
-            backoff: {
-              type: 'exponential',
-              delay: 1000,
-            },
-          },
-        };
-      },
-      inject: [ConfigService],
-    }),
-
-    // Redis-backed caching
+    // Redis-backed caching (falls back to in-memory)
     CacheModule.registerAsync({
       isGlobal: true,
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => {
         const redisUrl = configService.get('REDIS_URL');
         if (redisUrl) {
-          return {
-            store: redisStore,
-            url: redisUrl,
-            ttl: 60 * 60 * 1000, // 1 hour default TTL
-          };
+          try {
+            return {
+              store: redisStore,
+              url: redisUrl,
+              ttl: 60 * 60 * 1000, // 1 hour default TTL
+            };
+          } catch (error) {
+            logger.warn('Failed to configure Redis cache, using in-memory');
+          }
         }
         // Fallback to in-memory cache
         return {
@@ -129,7 +133,7 @@ import { HealthController } from './health/health.controller';
     AuthModule,
 
     // Core feature modules
-    ValidationModule,
+    ValidationModule.register(),
     AgentsModule,
     OrchestratorModule,
     EvidenceModule,
