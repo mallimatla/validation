@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 export default function Home() {
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white">
@@ -62,9 +64,12 @@ export default function Home() {
           </div>
 
           <div className="mt-16">
-            <button className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-3 rounded-lg font-semibold transition-colors">
+            <Link
+              href="/validate"
+              className="inline-block bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-3 rounded-lg font-semibold transition-colors"
+            >
               Start Validating
-            </button>
+            </Link>
           </div>
         </div>
       </div>

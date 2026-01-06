@@ -7,6 +7,9 @@ const inter = Inter({ subsets: ['latin'] });
 export const metadata: Metadata = {
   title: 'Validation Council - AI-Powered Startup Validation',
   description: 'Validate your startup idea with 12 specialized AI agents',
+  icons: {
+    icon: '/favicon.svg',
+  },
 };
 
 export default function RootLayout({
