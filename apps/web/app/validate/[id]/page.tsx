@@ -359,11 +359,21 @@ export default function ValidationProgressPage() {
           }
         }
         const response = await fetch(`${API_URL}/api/v1/validations/${validationId}/progress`, { headers });
-        if (!response.ok) { startSimulation(); return; }
+        if (!response.ok) {
+          startSimulation();
+          return;
+        }
         const data = await response.json();
-        setProgress(data);
-        setIsLoading(false);
-        if (data.status === 'COMPLETE') setIsComplete(true);
+
+        // If validation is complete, show the real data
+        if (data.status === 'COMPLETE') {
+          setProgress(data);
+          setIsLoading(false);
+          setIsComplete(true);
+        } else {
+          // For non-complete validations, run the simulation
+          startSimulation();
+        }
       } catch {
         startSimulation();
       }
