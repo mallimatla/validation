@@ -8,7 +8,6 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { BullModule } from '@nestjs/bull';
 import { CacheModule } from '@nestjs/cache-manager';
-import { redisStore } from 'cache-manager-redis-yet';
 
 const logger = new Logger('AppModule');
 
@@ -95,7 +94,7 @@ if (!isRedisConfigured) {
     // Conditionally include Bull module
     ...conditionalBullModule,
 
-    // Redis-backed caching (falls back to in-memory)
+    // In-memory caching (Redis support can be added via env vars)
     CacheModule.registerAsync({
       isGlobal: true,
       imports: [ConfigModule],
@@ -103,16 +102,20 @@ if (!isRedisConfigured) {
         const redisUrl = configService.get('REDIS_URL');
         if (redisUrl) {
           try {
+            // Dynamic import to avoid loading redis dependencies when not needed
+            const { redisStore } = await import('cache-manager-redis-yet');
+            logger.log('Configuring Redis cache...');
             return {
               store: redisStore,
               url: redisUrl,
               ttl: 60 * 60 * 1000, // 1 hour default TTL
             };
           } catch (error) {
-            logger.warn('Failed to configure Redis cache, using in-memory');
+            logger.warn('Failed to configure Redis cache, using in-memory:', error);
           }
         }
         // Fallback to in-memory cache
+        logger.log('Using in-memory cache');
         return {
           ttl: 60 * 60 * 1000,
         };
