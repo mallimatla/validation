@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 
@@ -72,6 +72,23 @@ interface ValidationReport {
   ninetyDayPlan: Array<{ week: number; tasks: string[] }>;
 }
 
+// Generate stable scores based on validation ID and agent ID (deterministic)
+function generateStableScore(validationId: string, agentId: string, type: 'score' | 'confidence'): number {
+  let hash = 0;
+  const str = `${validationId}-${agentId}-${type}`;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  const normalized = Math.abs(hash) / 2147483647;
+
+  if (type === 'score') {
+    return Math.floor(60 + normalized * 35); // 60-95 range
+  }
+  return Math.floor(70 + normalized * 25); // 70-95 range
+}
+
 export default function ValidationProgressPage() {
   const params = useParams();
   const validationId = params.id as string;
@@ -81,172 +98,208 @@ export default function ValidationProgressPage() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch progress
+  // Refs to prevent multiple simulations and track state
+  const simulationStartedRef = useRef(false);
+  const simulationStartTimeRef = useRef<number | null>(null);
+  const simulationIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isSimulatingRef = useRef(false);
+
+  // Pre-generate stable scores for all agents
+  const stableScoresRef = useRef<Map<string, { score: number; confidence: number }>>(new Map());
+
+  // Initialize stable scores once
   useEffect(() => {
-    const fetchProgress = async () => {
-      try {
-        // For demo mode, simulate progress
-        const response = await fetch(`${API_URL}/api/v1/validations/${validationId}/progress`);
+    if (stableScoresRef.current.size === 0) {
+      AGENTS.forEach(agent => {
+        stableScoresRef.current.set(agent.id, {
+          score: generateStableScore(validationId, agent.id, 'score'),
+          confidence: generateStableScore(validationId, agent.id, 'confidence'),
+        });
+      });
+    }
+  }, [validationId]);
 
-        if (response.status === 404) {
-          // Validation not found - might be demo mode
-          simulateProgress();
-          return;
-        }
+  // Generate demo report with stable scores
+  const generateDemoReport = useCallback((agentProgress: AgentProgress[]) => {
+    const scores = agentProgress.map(a => a.score || 75);
+    const overallScore = Math.round(scores.reduce((sum, s) => sum + s, 0) / scores.length);
 
-        if (!response.ok) {
-          // For demo, simulate progress
-          simulateProgress();
-          return;
-        }
+    setReport({
+      validation: {
+        id: validationId,
+        title: 'Your Startup Idea',
+        description: 'Validation complete',
+        status: 'COMPLETE',
+        overallScore,
+        overallConfidence: 82,
+        recommendation: overallScore >= 70 ? 'PROCEED' : overallScore >= 50 ? 'PROCEED_WITH_CAUTION' : 'RECONSIDER',
+        successProbability: overallScore,
+      },
+      summary: {
+        overallScore,
+        overallConfidence: 82,
+        recommendation: overallScore >= 70 ? 'PROCEED' : overallScore >= 50 ? 'PROCEED_WITH_CAUTION' : 'RECONSIDER',
+        successProbability: overallScore,
+      },
+      agentReports: agentProgress.map((ap, index) => ({
+        id: `report-${index}`,
+        agentId: ap.agentId,
+        score: ap.score || 75,
+        confidence: ap.confidence || 80,
+        analysis: `Comprehensive analysis completed by ${AGENTS[index].name}.`,
+        strengths: ['Strong market potential', 'Clear value proposition', 'Scalable model'],
+        weaknesses: ['Market competition', 'Execution risk'],
+        recommendations: ['Focus on differentiation', 'Build strong team', 'Validate with customers'],
+      })),
+      fatalFlaws: [],
+      ninetyDayPlan: [
+        { week: 1, tasks: ['Finalize MVP scope', 'Set up development environment'] },
+        { week: 2, tasks: ['Begin core feature development', 'Create landing page'] },
+        { week: 4, tasks: ['Launch beta version', 'Start user testing'] },
+        { week: 8, tasks: ['Iterate based on feedback', 'Prepare for launch'] },
+        { week: 12, tasks: ['Official launch', 'Begin growth marketing'] },
+      ],
+    });
+  }, [validationId]);
 
-        const data = await response.json();
-        setProgress(data);
-        setIsLoading(false);
+  // Update simulated progress (called by interval)
+  const updateSimulatedProgress = useCallback(() => {
+    if (!simulationStartTimeRef.current) return;
 
-        // If complete, fetch the full report
-        if (data.status === 'COMPLETE') {
-          fetchReport();
-        }
-      } catch (err) {
-        // For demo, simulate progress
-        simulateProgress();
+    const totalDuration = 60000; // 60 seconds
+    const elapsed = Date.now() - simulationStartTimeRef.current;
+    const progressPercent = Math.min(100, (elapsed / totalDuration) * 100);
+    const completedAgents = Math.floor((progressPercent / 100) * AGENTS.length);
+
+    const agentProgress: AgentProgress[] = AGENTS.map((agent, index) => {
+      const stableData = stableScoresRef.current.get(agent.id);
+
+      if (index < completedAgents) {
+        return {
+          agentId: agent.id,
+          status: 'complete' as const,
+          score: stableData?.score || 75,
+          confidence: stableData?.confidence || 80,
+        };
+      } else if (index === completedAgents) {
+        return {
+          agentId: agent.id,
+          status: 'processing' as const,
+        };
+      } else {
+        return {
+          agentId: agent.id,
+          status: 'pending' as const,
+        };
       }
-    };
+    });
 
-    // Simulate progress for demo mode
-    const simulateProgress = () => {
+    const currentPhase = progressPercent < 20 ? 'initialization'
+      : progressPercent < 80 ? 'analysis'
+      : progressPercent < 95 ? 'synthesis'
+      : 'finalization';
+
+    const status = progressPercent >= 100 ? 'COMPLETE' : 'PROCESSING';
+
+    setProgress({
+      validationId,
+      status,
+      overallProgress: Math.round(progressPercent),
+      currentPhase,
+      agentProgress,
+      startedAt: new Date(simulationStartTimeRef.current).toISOString(),
+      estimatedCompletion: new Date(simulationStartTimeRef.current + totalDuration).toISOString(),
+    });
+
+    // Generate report when complete
+    if (progressPercent >= 100) {
+      if (simulationIntervalRef.current) {
+        clearInterval(simulationIntervalRef.current);
+        simulationIntervalRef.current = null;
+      }
+      isSimulatingRef.current = false;
+      generateDemoReport(agentProgress);
+    }
+  }, [validationId, generateDemoReport]);
+
+  // Start simulation (only once)
+  const startSimulation = useCallback(() => {
+    if (simulationStartedRef.current || isSimulatingRef.current) {
+      return; // Already started
+    }
+
+    simulationStartedRef.current = true;
+    isSimulatingRef.current = true;
+    simulationStartTimeRef.current = Date.now();
+    setIsLoading(false);
+
+    // Initial update
+    updateSimulatedProgress();
+
+    // Set up interval for updates
+    simulationIntervalRef.current = setInterval(updateSimulatedProgress, 1000);
+  }, [updateSimulatedProgress]);
+
+  // Fetch progress from API
+  const fetchProgress = useCallback(async () => {
+    // Don't fetch if we're simulating or have a report
+    if (isSimulatingRef.current || report) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/api/v1/validations/${validationId}/progress`);
+
+      if (!response.ok) {
+        // API doesn't have this validation - start simulation
+        startSimulation();
+        return;
+      }
+
+      const data = await response.json();
+      setProgress(data);
       setIsLoading(false);
 
-      // Create simulated progress that advances over time
-      const startTime = Date.now();
-      const totalDuration = 60000; // 60 seconds for full simulation
-
-      const updateSimulatedProgress = () => {
-        const elapsed = Date.now() - startTime;
-        const progressPercent = Math.min(100, (elapsed / totalDuration) * 100);
-
-        // Determine which agents are complete based on progress
-        const completedAgents = Math.floor((progressPercent / 100) * AGENTS.length);
-
-        const agentProgress: AgentProgress[] = AGENTS.map((agent, index) => {
-          if (index < completedAgents) {
-            return {
-              agentId: agent.id,
-              status: 'complete' as const,
-              score: 60 + Math.floor(Math.random() * 30),
-              confidence: 70 + Math.floor(Math.random() * 25),
-            };
-          } else if (index === completedAgents) {
-            return {
-              agentId: agent.id,
-              status: 'processing' as const,
-            };
-          } else {
-            return {
-              agentId: agent.id,
-              status: 'pending' as const,
-            };
-          }
-        });
-
-        const currentPhase = progressPercent < 20 ? 'initialization'
-          : progressPercent < 80 ? 'analysis'
-          : progressPercent < 95 ? 'synthesis'
-          : 'finalization';
-
-        const status = progressPercent >= 100 ? 'COMPLETE' : 'PROCESSING';
-
-        setProgress({
-          validationId,
-          status,
-          overallProgress: Math.round(progressPercent),
-          currentPhase,
-          agentProgress,
-          startedAt: new Date(startTime).toISOString(),
-          estimatedCompletion: new Date(startTime + totalDuration).toISOString(),
-        });
-
-        // Generate report when complete
-        if (progressPercent >= 100) {
-          generateDemoReport(agentProgress);
-          return;
+      // If complete, fetch the full report
+      if (data.status === 'COMPLETE') {
+        const reportResponse = await fetch(`${API_URL}/api/v1/validations/${validationId}/report`);
+        if (reportResponse.ok) {
+          const reportData = await reportResponse.json();
+          setReport(reportData);
         }
-
-        // Continue updating
-        setTimeout(updateSimulatedProgress, 1000);
-      };
-
-      updateSimulatedProgress();
-    };
-
-    // Generate demo report
-    const generateDemoReport = (agentProgress: AgentProgress[]) => {
-      const overallScore = Math.round(
-        agentProgress.reduce((sum, a) => sum + (a.score || 75), 0) / agentProgress.length
-      );
-
-      setReport({
-        validation: {
-          id: validationId,
-          title: 'Your Startup Idea',
-          description: 'Validation complete',
-          status: 'COMPLETE',
-          overallScore,
-          overallConfidence: 82,
-          recommendation: overallScore >= 70 ? 'PROCEED' : overallScore >= 50 ? 'PROCEED_WITH_CAUTION' : 'RECONSIDER',
-          successProbability: overallScore,
-        },
-        summary: {
-          overallScore,
-          overallConfidence: 82,
-          recommendation: overallScore >= 70 ? 'PROCEED' : overallScore >= 50 ? 'PROCEED_WITH_CAUTION' : 'RECONSIDER',
-          successProbability: overallScore,
-        },
-        agentReports: agentProgress.map((ap, index) => ({
-          id: `report-${index}`,
-          agentId: ap.agentId,
-          score: ap.score || 75,
-          confidence: ap.confidence || 80,
-          analysis: `Comprehensive analysis completed by ${AGENTS[index].name}.`,
-          strengths: ['Strong market potential', 'Clear value proposition', 'Scalable model'],
-          weaknesses: ['Market competition', 'Execution risk'],
-          recommendations: ['Focus on differentiation', 'Build strong team', 'Validate with customers'],
-        })),
-        fatalFlaws: [],
-        ninetyDayPlan: [
-          { week: 1, tasks: ['Finalize MVP scope', 'Set up development environment'] },
-          { week: 2, tasks: ['Begin core feature development', 'Create landing page'] },
-          { week: 4, tasks: ['Launch beta version', 'Start user testing'] },
-          { week: 8, tasks: ['Iterate based on feedback', 'Prepare for launch'] },
-          { week: 12, tasks: ['Official launch', 'Begin growth marketing'] },
-        ],
-      });
-    };
-
-    const fetchReport = async () => {
-      try {
-        const response = await fetch(`${API_URL}/api/v1/validations/${validationId}/report`);
-        if (response.ok) {
-          const data = await response.json();
-          setReport(data);
-        }
-      } catch (err) {
-        console.error('Failed to fetch report:', err);
       }
-    };
+    } catch (err) {
+      // API error - start simulation
+      startSimulation();
+    }
+  }, [validationId, report, startSimulation]);
 
+  // Initial fetch
+  useEffect(() => {
     fetchProgress();
 
-    // Poll for updates every 3 seconds if not complete
-    const interval = setInterval(() => {
-      if (!report) {
+    // Cleanup on unmount
+    return () => {
+      if (simulationIntervalRef.current) {
+        clearInterval(simulationIntervalRef.current);
+      }
+    };
+  }, [fetchProgress]);
+
+  // Polling for real API progress (only if not simulating)
+  useEffect(() => {
+    if (isSimulatingRef.current || report) {
+      return;
+    }
+
+    const pollInterval = setInterval(() => {
+      if (!isSimulatingRef.current && !report) {
         fetchProgress();
       }
-    }, 3000);
+    }, 5000);
 
-    return () => clearInterval(interval);
-  }, [validationId, report]);
+    return () => clearInterval(pollInterval);
+  }, [fetchProgress, report]);
 
   const getAgentStatus = (agentId: string): AgentProgress | undefined => {
     return progress?.agentProgress?.find(ap => ap.agentId === agentId);
