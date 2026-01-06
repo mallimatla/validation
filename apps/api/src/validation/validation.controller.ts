@@ -36,11 +36,14 @@ export class ValidationController {
   constructor(private readonly validationService: ValidationService) {}
 
   @Post()
+  @Public()
   @ApiOperation({ summary: 'Create a new validation request' })
   @ApiResponse({ status: 201, description: 'Validation created successfully' })
   @ApiResponse({ status: 400, description: 'Invalid request' })
   async create(@Body() dto: CreateValidationDto, @Request() req: any) {
-    return this.validationService.create(req.user.id, dto);
+    // Use anonymous user ID if not authenticated
+    const userId = req.user?.id || 'anonymous';
+    return this.validationService.create(userId, dto);
   }
 
   @Get()
