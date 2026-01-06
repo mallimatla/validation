@@ -31,6 +31,8 @@ export class ValidationService {
    * Create a new validation request
    */
   async create(userId: string | null, dto: CreateValidationDto) {
+    this.logger.log(`Creating validation - userId: ${userId}, title: ${dto.title}`);
+
     // Skip subscription check for anonymous users (demo mode)
     if (userId && userId !== 'anonymous') {
       await this.checkSubscriptionLimits(userId);
@@ -38,30 +40,36 @@ export class ValidationService {
 
     // Use null for anonymous users (no foreign key constraint)
     const actualUserId = userId === 'anonymous' ? null : userId;
+    this.logger.log(`Actual userId for database: ${actualUserId}`);
 
-    const validation = await this.prisma.validation.create({
-      data: {
-        userId: actualUserId,
-        title: dto.title,
-        description: dto.description,
-        problemStatement: dto.problemStatement,
-        solution: dto.solution,
-        targetCustomer: dto.targetCustomer,
-        industry: dto.industry,
-        businessModel: dto.businessModel,
-        stage: dto.stage || 'idea',
-        geography: dto.geography || [],
-        founderData: dto.founderData || {},
-        tier: dto.tier || 'STANDARD',
-        requestedAgents: dto.requestedAgents || [],
-        status: 'PENDING',
-      },
-    });
+    try {
+      const validation = await this.prisma.validation.create({
+        data: {
+          userId: actualUserId,
+          title: dto.title,
+          description: dto.description,
+          problemStatement: dto.problemStatement,
+          solution: dto.solution,
+          targetCustomer: dto.targetCustomer,
+          industry: dto.industry,
+          businessModel: dto.businessModel,
+          stage: dto.stage || 'idea',
+          geography: dto.geography || [],
+          founderData: dto.founderData || {},
+          tier: dto.tier || 'STANDARD',
+          requestedAgents: dto.requestedAgents || [],
+          status: 'PENDING',
+        },
+      });
 
-    this.eventEmitter.emit('validation.created', { validation });
-    this.logger.log(`Validation created: ${validation.id}`);
+      this.eventEmitter.emit('validation.created', { validation });
+      this.logger.log(`Validation created successfully: ${validation.id}`);
 
-    return validation;
+      return validation;
+    } catch (error) {
+      this.logger.error(`Failed to create validation: ${error.message}`, error.stack);
+      throw error;
+    }
   }
 
   /**

@@ -1,6 +1,6 @@
 # Validation Council API - Production Dockerfile
 # Multi-stage build for optimized image size
-# Force rebuild: 2026-01-06T05:35
+# Force rebuild: 2026-01-06T05:55-v2
 
 # Stage 1: Dependencies (all deps for building)
 FROM node:20-alpine AS deps
@@ -32,8 +32,8 @@ COPY . .
 # Generate Prisma client
 RUN cd apps/api && npx prisma generate
 
-# Build packages in correct order using Turbo (handles dependencies automatically)
-RUN npx turbo run build --filter=@validation-council/api
+# Build packages in correct order using Turbo (force fresh build, no cache)
+RUN npx turbo run build --filter=@validation-council/api --force
 
 # Stage 3: Production dependencies
 FROM node:20-alpine AS prod-deps
