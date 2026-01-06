@@ -5,8 +5,8 @@
 FROM node:20-alpine AS deps
 WORKDIR /app
 
-# Install dependencies for native modules
-RUN apk add --no-cache libc6-compat
+# Install dependencies for native modules and Prisma
+RUN apk add --no-cache libc6-compat openssl
 
 # Copy package files
 COPY package.json package-lock.json* ./
@@ -20,6 +20,9 @@ RUN npm ci
 # Stage 2: Builder
 FROM node:20-alpine AS builder
 WORKDIR /app
+
+# Install OpenSSL for Prisma
+RUN apk add --no-cache openssl
 
 # Copy dependencies
 COPY --from=deps /app/node_modules ./node_modules
@@ -35,7 +38,8 @@ RUN npx turbo run build --filter=@validation-council/api
 FROM node:20-alpine AS prod-deps
 WORKDIR /app
 
-RUN apk add --no-cache libc6-compat
+# Install dependencies for native modules and Prisma
+RUN apk add --no-cache libc6-compat openssl
 
 COPY package.json package-lock.json* ./
 COPY apps/api/package.json ./apps/api/
@@ -48,6 +52,9 @@ RUN npm ci --omit=dev
 # Stage 4: Runner
 FROM node:20-alpine AS runner
 WORKDIR /app
+
+# Install OpenSSL for Prisma runtime
+RUN apk add --no-cache openssl
 
 # Set production environment
 ENV NODE_ENV=production
@@ -63,6 +70,10 @@ COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=builder /app/apps/api/dist ./dist
 COPY --from=builder /app/apps/api/package.json ./package.json
 COPY --from=builder /app/apps/api/prisma ./prisma
+
+# Copy Prisma client from builder (it's generated in node_modules)
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma/client ./node_modules/@prisma/client
 
 # Set permissions
 RUN chown -R nestjs:nodejs /app
