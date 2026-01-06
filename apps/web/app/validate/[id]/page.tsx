@@ -401,7 +401,11 @@ export default function ValidationProgressPage() {
     <main className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white">
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-6xl mx-auto">
-          <Link href="/validate" className="text-slate-400 hover:text-white mb-6 inline-block">&larr; New Validation</Link>
+          <div className="flex items-center gap-4 mb-6">
+            <Link href="/dashboard" className="text-slate-400 hover:text-white">&larr; Dashboard</Link>
+            <span className="text-slate-600">|</span>
+            <Link href="/validate" className="text-slate-400 hover:text-white">+ New Validation</Link>
+          </div>
 
           <div className="mb-8">
             <h1 className="text-3xl font-bold mb-2">Validation Council Analysis</h1>

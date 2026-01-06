@@ -34,12 +34,23 @@ export class AuthGuard implements CanActivate {
       context.getClass(),
     ]);
 
-    if (isPublic) {
-      return true;
-    }
-
     const request = context.switchToHttp().getRequest();
     const authHeader = request.headers.authorization;
+
+    // For public routes, still try to extract user if token is present
+    if (isPublic) {
+      if (authHeader?.startsWith('Bearer ')) {
+        try {
+          const token = authHeader.substring(7);
+          const { userId } = await this.authService.verifyToken(token);
+          const user = await this.authService.getOrCreateUser(userId);
+          request.user = user;
+        } catch {
+          // Ignore auth errors on public routes - just proceed without user
+        }
+      }
+      return true;
+    }
 
     if (!authHeader) {
       throw new UnauthorizedException('No authorization header');
