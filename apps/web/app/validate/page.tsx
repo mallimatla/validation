@@ -7,9 +7,9 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://validation-productio
 
 export default function ValidatePage() {
   const [formData, setFormData] = useState({
-    ideaName: '',
+    title: '',
     description: '',
-    targetMarket: '',
+    targetCustomer: '',
     businessModel: '',
     industry: '',
   });
@@ -22,6 +22,13 @@ export default function ValidatePage() {
     setIsSubmitting(true);
     setError(null);
 
+    // Validate description length
+    if (formData.description.length < 50) {
+      setError('Description must be at least 50 characters long');
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
       const response = await fetch(`${API_URL}/api/v1/validations`, {
         method: 'POST',
@@ -29,11 +36,11 @@ export default function ValidatePage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          ideaName: formData.ideaName,
+          title: formData.title,
           description: formData.description,
-          targetMarket: formData.targetMarket,
-          businessModel: formData.businessModel,
-          industry: formData.industry,
+          targetCustomer: formData.targetCustomer || undefined,
+          businessModel: formData.businessModel || undefined,
+          industry: formData.industry || undefined,
         }),
       });
 
@@ -81,9 +88,9 @@ export default function ValidatePage() {
                   onClick={() => {
                     setResult(null);
                     setFormData({
-                      ideaName: '',
+                      title: '',
                       description: '',
-                      targetMarket: '',
+                      targetCustomer: '',
                       businessModel: '',
                       industry: '',
                     });
@@ -98,13 +105,15 @@ export default function ValidatePage() {
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Startup/Idea Name *
+                  Startup/Idea Title * <span className="text-slate-500">(3-200 characters)</span>
                 </label>
                 <input
                   type="text"
                   required
-                  value={formData.ideaName}
-                  onChange={(e) => setFormData({ ...formData, ideaName: e.target.value })}
+                  minLength={3}
+                  maxLength={200}
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-white"
                   placeholder="e.g., AI-Powered Recipe Generator"
                 />
@@ -112,27 +121,30 @@ export default function ValidatePage() {
 
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Description *
+                  Description * <span className="text-slate-500">(minimum 50 characters)</span>
                 </label>
                 <textarea
                   required
-                  rows={4}
+                  rows={5}
+                  minLength={50}
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-white"
-                  placeholder="Describe your startup idea in detail. What problem does it solve? How does it work?"
+                  placeholder="Describe your startup idea in detail. What problem does it solve? How does it work? Who are your target customers? What makes your solution unique?"
                 />
+                <p className="text-sm text-slate-500 mt-1">
+                  {formData.description.length}/50 characters minimum
+                </p>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Target Market *
+                  Target Customer
                 </label>
                 <input
                   type="text"
-                  required
-                  value={formData.targetMarket}
-                  onChange={(e) => setFormData({ ...formData, targetMarket: e.target.value })}
+                  value={formData.targetCustomer}
+                  onChange={(e) => setFormData({ ...formData, targetCustomer: e.target.value })}
                   className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-white"
                   placeholder="e.g., Home cooks, busy professionals, health-conscious millennials"
                 />
@@ -190,7 +202,7 @@ export default function ValidatePage() {
 
               <button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isSubmitting || formData.description.length < 50}
                 className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white px-8 py-3 rounded-lg font-semibold transition-colors"
               >
                 {isSubmitting ? 'Submitting...' : 'Start Validation'}
