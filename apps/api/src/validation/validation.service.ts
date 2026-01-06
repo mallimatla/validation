@@ -30,15 +30,18 @@ export class ValidationService {
   /**
    * Create a new validation request
    */
-  async create(userId: string, dto: CreateValidationDto) {
+  async create(userId: string | null, dto: CreateValidationDto) {
     // Skip subscription check for anonymous users (demo mode)
-    if (userId !== 'anonymous') {
+    if (userId && userId !== 'anonymous') {
       await this.checkSubscriptionLimits(userId);
     }
 
+    // Use null for anonymous users (no foreign key constraint)
+    const actualUserId = userId === 'anonymous' ? null : userId;
+
     const validation = await this.prisma.validation.create({
       data: {
-        userId,
+        userId: actualUserId,
         title: dto.title,
         description: dto.description,
         problemStatement: dto.problemStatement,
