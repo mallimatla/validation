@@ -1,6 +1,6 @@
 # Validation Council API - Production Dockerfile
 # Multi-stage build for optimized image size
-# Force rebuild: 2026-01-06T05:02
+# Force rebuild: 2026-01-06T05:35
 
 # Stage 1: Dependencies (all deps for building)
 FROM node:20-alpine AS deps
