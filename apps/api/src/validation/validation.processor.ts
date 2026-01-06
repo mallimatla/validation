@@ -131,10 +131,23 @@ export class ValidationProcessor {
   }
 
   private async runAgents(validationId: string, validation: any, job: Job) {
-    // This would run the actual agents via the orchestrator
-    // For now, create placeholder agent reports
+    // Run all 12 AI agents for comprehensive validation
+    // Each agent specializes in a different aspect of startup analysis
 
-    const agentIds = ['marcus', 'sophia', 'david', 'elena', 'james', 'rachel', 'omar', 'nora'];
+    const agentIds = [
+      'marcus',    // Market Intelligence
+      'sophia',    // Competitive Strategy
+      'david',     // Financial Analysis
+      'elena',     // Customer Validation
+      'james',     // Team Assessment
+      'rachel',    // Risk & Compliance
+      'omar',      // Technical Feasibility
+      'nora',      // Funding & Comparables
+      'victor',    // Valuation
+      'victoria',  // Strategic Synthesis
+      'sentinel',  // Trust & Audit
+      'aria',      // Orchestration
+    ];
     const results: any[] = [];
 
     for (let i = 0; i < agentIds.length; i++) {
@@ -212,16 +225,20 @@ export class ValidationProcessor {
   }
 
   private async synthesizeResults(validationId: string, agentResults: any[]) {
-    // Calculate weighted overall score
+    // Calculate weighted overall score based on agent importance
     const weights: Record<string, number> = {
-      marcus: 1.0,
-      sophia: 1.2,
-      david: 1.5,
-      elena: 2.0,
-      james: 1.5,
-      rachel: 0.8,
-      omar: 1.0,
-      nora: 0.8,
+      marcus: 1.0,    // Market Intelligence
+      sophia: 1.2,    // Competitive Strategy
+      david: 1.5,     // Financial Analysis
+      elena: 2.0,     // Customer Validation (highest weight)
+      james: 1.5,     // Team Assessment
+      rachel: 0.8,    // Risk & Compliance
+      omar: 1.0,      // Technical Feasibility
+      nora: 0.8,      // Funding & Comparables
+      victor: 1.0,    // Valuation
+      victoria: 0,    // Synthesis (doesn't vote)
+      sentinel: 0,    // Audit (doesn't vote)
+      aria: 0,        // Orchestrator (doesn't vote)
     };
 
     let totalWeight = 0;

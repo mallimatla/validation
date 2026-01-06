@@ -1,11 +1,13 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://validation-production.up.railway.app';
 
 export default function ValidatePage() {
+  const router = useRouter();
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -14,7 +16,6 @@ export default function ValidatePage() {
     industry: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -50,10 +51,10 @@ export default function ValidatePage() {
       }
 
       const data = await response.json();
-      setResult(data);
+      // Redirect to progress page
+      router.push(`/validate/${data.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to submit validation');
-    } finally {
       setIsSubmitting(false);
     }
   };
@@ -71,38 +72,7 @@ export default function ValidatePage() {
             Our 12 AI agents will analyze your startup idea and provide comprehensive feedback.
           </p>
 
-          {result ? (
-            <div className="bg-slate-800/50 p-6 rounded-lg border border-emerald-500">
-              <h2 className="text-2xl font-semibold text-emerald-400 mb-4">
-                Validation Started!
-              </h2>
-              <p className="text-slate-300 mb-4">
-                Your validation has been queued. The 12 agents are now analyzing your idea.
-              </p>
-              <div className="bg-slate-900/50 p-4 rounded-lg">
-                <p className="text-sm text-slate-400">Validation ID:</p>
-                <p className="font-mono text-emerald-400">{result.id}</p>
-              </div>
-              <div className="mt-6 flex gap-4">
-                <button
-                  onClick={() => {
-                    setResult(null);
-                    setFormData({
-                      title: '',
-                      description: '',
-                      targetCustomer: '',
-                      businessModel: '',
-                      industry: '',
-                    });
-                  }}
-                  className="bg-slate-700 hover:bg-slate-600 text-white px-6 py-2 rounded-lg transition-colors"
-                >
-                  Submit Another
-                </button>
-              </div>
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
                   Startup/Idea Title * <span className="text-slate-500">(3-200 characters)</span>
@@ -208,7 +178,6 @@ export default function ValidatePage() {
                 {isSubmitting ? 'Submitting...' : 'Start Validation'}
               </button>
             </form>
-          )}
         </div>
       </div>
     </main>
