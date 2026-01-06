@@ -9,6 +9,7 @@ import {
   ForbiddenException,
   BadRequestException,
   Logger,
+  Optional,
 } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
@@ -22,7 +23,7 @@ export class ValidationService {
 
   constructor(
     private readonly prisma: PrismaService,
-    @InjectQueue('validations') private readonly validationQueue: Queue,
+    @Optional() @InjectQueue('validations') private readonly validationQueue: Queue,
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
@@ -30,8 +31,10 @@ export class ValidationService {
    * Create a new validation request
    */
   async create(userId: string, dto: CreateValidationDto) {
-    // Check user's subscription limits
-    await this.checkSubscriptionLimits(userId);
+    // Skip subscription check for anonymous users (demo mode)
+    if (userId !== 'anonymous') {
+      await this.checkSubscriptionLimits(userId);
+    }
 
     const validation = await this.prisma.validation.create({
       data: {
@@ -138,10 +141,15 @@ export class ValidationService {
   async getProgress(id: string, userId: string) {
     const validation = await this.findOne(id, userId);
 
-    // Get job status from queue
-    const job = await this.validationQueue.getJob(id);
-    const jobState = job ? await job.getState() : null;
-    const jobProgress = job ? job.progress() : 0;
+    // Get job status from queue (if available)
+    let job = null;
+    let jobState = null;
+    let jobProgress = 0;
+    if (this.validationQueue) {
+      job = await this.validationQueue.getJob(id);
+      jobState = job ? await job.getState() : null;
+      jobProgress = job ? job.progress() : 0;
+    }
 
     return {
       validationId: id,
@@ -248,27 +256,31 @@ export class ValidationService {
       },
     });
 
-    // Add to processing queue
-    const job = await this.validationQueue.add(
-      'process',
-      { validationId: id, userId },
-      {
-        jobId: id,
-        attempts: 3,
-        backoff: {
-          type: 'exponential',
-          delay: 5000,
+    // Add to processing queue (if available)
+    let jobId = id;
+    if (this.validationQueue) {
+      const job = await this.validationQueue.add(
+        'process',
+        { validationId: id, userId },
+        {
+          jobId: id,
+          attempts: 3,
+          backoff: {
+            type: 'exponential',
+            delay: 5000,
+          },
+          timeout: 30 * 60 * 1000, // 30 minutes
         },
-        timeout: 30 * 60 * 1000, // 30 minutes
-      },
-    );
+      );
+      jobId = job.id as string;
+    }
 
-    this.eventEmitter.emit('validation.started', { validation, jobId: job.id });
+    this.eventEmitter.emit('validation.started', { validation, jobId });
     this.logger.log(`Validation processing started: ${id}`);
 
     return {
       message: 'Validation processing started',
-      jobId: job.id,
+      jobId,
       status: 'QUEUED',
     };
   }
@@ -283,10 +295,12 @@ export class ValidationService {
       throw new BadRequestException('Cannot cancel validation in current state');
     }
 
-    // Remove from queue if queued
-    const job = await this.validationQueue.getJob(id);
-    if (job) {
-      await job.remove();
+    // Remove from queue if queued (and queue is available)
+    if (this.validationQueue) {
+      const job = await this.validationQueue.getJob(id);
+      if (job) {
+        await job.remove();
+      }
     }
 
     await this.prisma.validation.update({
