@@ -26,6 +26,15 @@ async function bootstrap() {
 
     // CORS - supports multiple origins and Vercel preview deployments
     const allowedOrigins = (process.env.CORS_ORIGIN || '*').split(',').map(o => o.trim());
+
+    // Always allow these domains
+    const alwaysAllowedDomains = [
+      'startupverdict.com',
+      'www.startupverdict.com',
+      'ideajury.com',
+      'www.ideajury.com',
+    ];
+
     app.enableCors({
       origin: (origin, callback) => {
         // Allow requests with no origin (like mobile apps or curl)
@@ -36,6 +45,16 @@ async function bootstrap() {
         // Check if origin matches any allowed origin
         if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
           return callback(null, true);
+        }
+
+        // Check if origin matches always-allowed domains
+        try {
+          const originHost = new URL(origin).host;
+          if (alwaysAllowedDomains.includes(originHost)) {
+            return callback(null, true);
+          }
+        } catch {
+          // Invalid URL, continue to other checks
         }
 
         // Allow Vercel preview deployments (*.vercel.app)
