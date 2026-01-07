@@ -353,26 +353,11 @@ export class ValidationService {
         totalScore += reportData.score;
         totalConfidence += reportData.confidence;
 
-        // Use upsert to handle unique constraint (validationId + agentId)
-        const report = await this.prisma.agentReport.upsert({
-          where: {
-            validationId_agentId: {
-              validationId: validation.id,
-              agentId: agent.id,
-            },
-          },
-          update: {
-            agentVersion,
-            score: reportData.score,
-            confidence: reportData.confidence,
-            findings: reportData.findings,
-            risks: reportData.risks,
-            recommendations: reportData.recommendations,
-            citationCount: 3 + (hash(`${validation.id}-${agent.id}`) % 5),
-            signature: `sig-${validation.id}-${agent.id}-${Date.now()}`,
-            executionTimeMs: 1000 + (hash(`${validation.id}-${agent.id}`) % 2000),
-          },
-          create: {
+        // Note: Unique constraint on (validationId, agentId) added in schema
+        // After migration, this can be changed to upsert for safety
+        // Duplicates are prevented by disabling storeAgentReport in base agent
+        const report = await this.prisma.agentReport.create({
+          data: {
             validationId: validation.id,
             agentId: agent.id,
             agentVersion,
