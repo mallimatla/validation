@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import Link from 'next/link';
 
@@ -36,10 +36,10 @@ const SCORE_FILTERS = [
 ];
 
 const SORT_OPTIONS = [
-  { id: 'score_desc', label: 'Highest Score' },
-  { id: 'recent', label: 'Most Recent' },
-  { id: 'trending', label: 'Trending' },
-  { id: 'views', label: 'Most Viewed' },
+  { id: 'overallScore', label: 'Highest Score', order: 'desc' },
+  { id: 'createdAt', label: 'Most Recent', order: 'desc' },
+  { id: 'interestCount', label: 'Trending', order: 'desc' },
+  { id: 'viewCount', label: 'Most Viewed', order: 'desc' },
 ];
 
 interface StartupDeal {
@@ -49,176 +49,301 @@ interface StartupDeal {
   industry: string;
   stage: string;
   businessModel: string;
+  targetCustomer?: string;
   overallScore: number;
-  overallConfidence: number;
+  overallConfidence?: number;
   recommendation: string;
   verdict: string;
+  executiveSummary?: string;
   viewCount: number;
   saveCount: number;
   interestCount: number;
+  allowMeetings?: boolean;
+  allowMessages?: boolean;
+  founderLinkedIn?: string;
+  pitchDeckUrl?: string;
   createdAt: string;
+  completedAt?: string;
   founderData?: {
     currentMRR?: number;
     currentUsers?: number;
     fundingAsk?: number;
   };
-  // Investor's interaction with this deal
-  isSaved?: boolean;
-  myInterest?: string;
+  agentReports?: Array<{
+    agentId: string;
+    score: number;
+    confidence?: number;
+    findings?: any[];
+    recommendations?: any[];
+  }>;
 }
 
-// Mock data for demonstration
-const MOCK_DEALS: StartupDeal[] = [
-  {
-    id: '1',
-    title: 'AI-Powered Code Review Platform',
-    description: 'Automated code review using LLMs to catch bugs, security issues, and suggest improvements.',
-    industry: 'technology',
-    stage: 'mvp',
-    businessModel: 'saas',
-    overallScore: 87,
-    overallConfidence: 82,
-    recommendation: 'GREEN',
-    verdict: 'PROCEED',
-    viewCount: 234,
-    saveCount: 45,
-    interestCount: 12,
-    createdAt: '2026-01-05',
-    founderData: { currentMRR: 5000, currentUsers: 150, fundingAsk: 500000 },
-  },
-  {
-    id: '2',
-    title: 'HealthBuddy - AI Health Assistant',
-    description: 'Personal health assistant that monitors symptoms, suggests remedies, and connects with doctors.',
-    industry: 'healthcare',
-    stage: 'launched',
-    businessModel: 'subscription',
-    overallScore: 79,
-    overallConfidence: 75,
-    recommendation: 'GREEN',
-    verdict: 'PROCEED',
-    viewCount: 189,
-    saveCount: 38,
-    interestCount: 8,
-    createdAt: '2026-01-04',
-    founderData: { currentMRR: 12000, currentUsers: 800, fundingAsk: 1000000 },
-  },
-  {
-    id: '3',
-    title: 'LearnQuick - Micro-Learning Platform',
-    description: 'Bite-sized courses for busy professionals. Learn any skill in 5 minutes a day.',
-    industry: 'edtech',
-    stage: 'traction',
-    businessModel: 'freemium',
-    overallScore: 82,
-    overallConfidence: 78,
-    recommendation: 'GREEN',
-    verdict: 'PROCEED',
-    viewCount: 312,
-    saveCount: 67,
-    interestCount: 15,
-    createdAt: '2026-01-03',
-    founderData: { currentMRR: 25000, currentUsers: 5000, fundingAsk: 2000000 },
-  },
-  {
-    id: '4',
-    title: 'PayFlow - Instant B2B Payments',
-    description: 'Real-time B2B payments with built-in invoicing and automatic reconciliation.',
-    industry: 'fintech',
-    stage: 'scaling',
-    businessModel: 'transactional',
-    overallScore: 91,
-    overallConfidence: 88,
-    recommendation: 'GREEN',
-    verdict: 'PROCEED',
-    viewCount: 456,
-    saveCount: 98,
-    interestCount: 28,
-    createdAt: '2026-01-02',
-    founderData: { currentMRR: 80000, currentUsers: 200, fundingAsk: 5000000 },
-  },
-  {
-    id: '5',
-    title: 'GreenBite - Sustainable Food Delivery',
-    description: 'Eco-friendly food delivery with zero-waste packaging and carbon-neutral logistics.',
-    industry: 'foodtech',
-    stage: 'mvp',
-    businessModel: 'marketplace',
-    overallScore: 68,
-    overallConfidence: 65,
-    recommendation: 'YELLOW',
-    verdict: 'PROCEED_WITH_CAUTION',
-    viewCount: 145,
-    saveCount: 23,
-    interestCount: 5,
-    createdAt: '2026-01-06',
-    founderData: { currentMRR: 2000, currentUsers: 100, fundingAsk: 300000 },
-  },
-  {
-    id: '6',
-    title: 'PropMatch - AI Real Estate Matching',
-    description: 'AI matches renters with perfect properties based on lifestyle, not just filters.',
-    industry: 'proptech',
-    stage: 'launched',
-    businessModel: 'marketplace',
-    overallScore: 74,
-    overallConfidence: 71,
-    recommendation: 'GREEN',
-    verdict: 'PROCEED',
-    viewCount: 198,
-    saveCount: 41,
-    interestCount: 9,
-    createdAt: '2026-01-01',
-    founderData: { currentMRR: 8000, currentUsers: 450, fundingAsk: 750000 },
-  },
-];
+interface SavedDeal extends StartupDeal {
+  savedAt: string;
+  notes?: string;
+  tags?: string[];
+  folder?: string;
+}
+
+interface InterestedDeal extends StartupDeal {
+  interestType: string;
+  interestMessage?: string;
+  checkSize?: string;
+  expressedAt: string;
+}
+
+interface MeetingRequest {
+  id: string;
+  type: string;
+  message: string;
+  status: string;
+  preferredTimes: string[];
+  calendlyLink?: string;
+  founderResponse?: string;
+  scheduledAt?: string;
+  meetingLink?: string;
+  createdAt: string;
+  respondedAt?: string;
+  validation: {
+    id: string;
+    title: string;
+    industry?: string;
+    overallScore?: number;
+  };
+}
 
 export default function InvestorDashboard() {
   const { isSignedIn, getToken } = useAuth();
   const [activeTab, setActiveTab] = useState<'browse' | 'saved' | 'interested' | 'meetings'>('browse');
-  const [deals, setDeals] = useState<StartupDeal[]>(MOCK_DEALS);
-  const [savedDeals, setSavedDeals] = useState<Set<string>>(new Set());
+  const [deals, setDeals] = useState<StartupDeal[]>([]);
+  const [topDeals, setTopDeals] = useState<StartupDeal[]>([]);
+  const [savedDeals, setSavedDeals] = useState<SavedDeal[]>([]);
+  const [interestedDeals, setInterestedDeals] = useState<InterestedDeal[]>([]);
+  const [meetingRequests, setMeetingRequests] = useState<MeetingRequest[]>([]);
+  const [savedDealIds, setSavedDealIds] = useState<Set<string>>(new Set());
+  const [isLoading, setIsLoading] = useState(true);
   const [filters, setFilters] = useState({
     industry: 'all',
     stage: 'all',
     score: 'all',
-    sort: 'score_desc',
+    sortBy: 'overallScore',
+    sortOrder: 'desc' as 'asc' | 'desc',
   });
   const [selectedDeal, setSelectedDeal] = useState<StartupDeal | null>(null);
   const [showInterestModal, setShowInterestModal] = useState(false);
   const [showMeetingModal, setShowMeetingModal] = useState(false);
+  const [interestForm, setInterestForm] = useState({ type: 'INTERESTED', message: '', checkSize: '' });
+  const [meetingForm, setMeetingForm] = useState({ type: 'INTRO_CALL', message: '', calendlyLink: '' });
+  const [pagination, setPagination] = useState({ total: 0, hasMore: false });
 
-  // Filter deals based on current filters
-  const filteredDeals = deals.filter(deal => {
-    if (filters.industry !== 'all' && deal.industry !== filters.industry) return false;
-    if (filters.stage !== 'all' && deal.stage !== filters.stage) return false;
-    if (filters.score !== 'all') {
-      const minScore = SCORE_FILTERS.find(s => s.id === filters.score)?.min || 0;
-      if (deal.overallScore < minScore) return false;
+  const fetchWithAuth = useCallback(async (url: string, options: RequestInit = {}) => {
+    const token = isSignedIn ? await getToken() : null;
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...options.headers as Record<string, string>,
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
     }
-    return true;
-  }).sort((a, b) => {
-    switch (filters.sort) {
-      case 'score_desc': return b.overallScore - a.overallScore;
-      case 'recent': return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      case 'views': return b.viewCount - a.viewCount;
-      case 'trending': return (b.interestCount + b.saveCount) - (a.interestCount + a.saveCount);
-      default: return 0;
-    }
-  });
+    return fetch(url, { ...options, headers });
+  }, [isSignedIn, getToken]);
 
-  const topDeals = [...deals].sort((a, b) => b.overallScore - a.overallScore).slice(0, 3);
-
-  const toggleSave = (dealId: string) => {
-    setSavedDeals(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(dealId)) {
-        newSet.delete(dealId);
-      } else {
-        newSet.add(dealId);
+  // Fetch deals from API
+  const fetchDeals = useCallback(async () => {
+    try {
+      const params = new URLSearchParams();
+      if (filters.industry !== 'all') params.append('industry', filters.industry);
+      if (filters.stage !== 'all') params.append('stage', filters.stage);
+      if (filters.score !== 'all') {
+        const minScore = SCORE_FILTERS.find(s => s.id === filters.score)?.min || 0;
+        params.append('minScore', minScore.toString());
       }
-      return newSet;
-    });
+      params.append('sortBy', filters.sortBy);
+      params.append('sortOrder', filters.sortOrder);
+      params.append('limit', '20');
+
+      const response = await fetchWithAuth(`${API_URL}/api/v1/investor/deals?${params}`);
+      if (response.ok) {
+        const data = await response.json();
+        setDeals(data.data || []);
+        setPagination(data.pagination || { total: 0, hasMore: false });
+      }
+    } catch (error) {
+      console.error('Failed to fetch deals:', error);
+    }
+  }, [filters, fetchWithAuth]);
+
+  // Fetch top deals
+  const fetchTopDeals = useCallback(async () => {
+    try {
+      const response = await fetchWithAuth(`${API_URL}/api/v1/investor/deals/top?limit=3`);
+      if (response.ok) {
+        const data = await response.json();
+        setTopDeals(data || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch top deals:', error);
+    }
+  }, [fetchWithAuth]);
+
+  // Fetch saved deals
+  const fetchSavedDeals = useCallback(async () => {
+    if (!isSignedIn) return;
+    try {
+      const response = await fetchWithAuth(`${API_URL}/api/v1/investor/saved`);
+      if (response.ok) {
+        const data = await response.json();
+        setSavedDeals(data || []);
+        setSavedDealIds(new Set((data || []).map((d: SavedDeal) => d.id)));
+      }
+    } catch (error) {
+      console.error('Failed to fetch saved deals:', error);
+    }
+  }, [isSignedIn, fetchWithAuth]);
+
+  // Fetch interested deals
+  const fetchInterestedDeals = useCallback(async () => {
+    if (!isSignedIn) return;
+    try {
+      const response = await fetchWithAuth(`${API_URL}/api/v1/investor/interests`);
+      if (response.ok) {
+        const data = await response.json();
+        setInterestedDeals(data || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch interested deals:', error);
+    }
+  }, [isSignedIn, fetchWithAuth]);
+
+  // Fetch meeting requests
+  const fetchMeetingRequests = useCallback(async () => {
+    if (!isSignedIn) return;
+    try {
+      const response = await fetchWithAuth(`${API_URL}/api/v1/investor/meetings`);
+      if (response.ok) {
+        const data = await response.json();
+        setMeetingRequests(data || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch meetings:', error);
+    }
+  }, [isSignedIn, fetchWithAuth]);
+
+  // Initial data load
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true);
+      await Promise.all([
+        fetchDeals(),
+        fetchTopDeals(),
+        fetchSavedDeals(),
+        fetchInterestedDeals(),
+        fetchMeetingRequests(),
+      ]);
+      setIsLoading(false);
+    };
+    loadData();
+  }, [fetchDeals, fetchTopDeals, fetchSavedDeals, fetchInterestedDeals, fetchMeetingRequests]);
+
+  // Refetch deals when filters change
+  useEffect(() => {
+    fetchDeals();
+  }, [filters, fetchDeals]);
+
+  // Save/unsave deal
+  const toggleSave = async (dealId: string) => {
+    if (!isSignedIn) {
+      alert('Please sign in to save deals');
+      return;
+    }
+
+    try {
+      if (savedDealIds.has(dealId)) {
+        // Unsave
+        const response = await fetchWithAuth(`${API_URL}/api/v1/investor/deals/${dealId}/save`, {
+          method: 'DELETE',
+        });
+        if (response.ok) {
+          setSavedDealIds(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(dealId);
+            return newSet;
+          });
+          setSavedDeals(prev => prev.filter(d => d.id !== dealId));
+        }
+      } else {
+        // Save
+        const response = await fetchWithAuth(`${API_URL}/api/v1/investor/deals/${dealId}/save`, {
+          method: 'POST',
+          body: JSON.stringify({}),
+        });
+        if (response.ok) {
+          setSavedDealIds(prev => new Set([...prev, dealId]));
+          fetchSavedDeals();
+        }
+      }
+    } catch (error) {
+      console.error('Failed to toggle save:', error);
+    }
+  };
+
+  // Express interest
+  const submitInterest = async () => {
+    if (!isSignedIn || !selectedDeal) {
+      alert('Please sign in to express interest');
+      return;
+    }
+
+    try {
+      const response = await fetchWithAuth(`${API_URL}/api/v1/investor/deals/${selectedDeal.id}/interest`, {
+        method: 'POST',
+        body: JSON.stringify(interestForm),
+      });
+      if (response.ok) {
+        setShowInterestModal(false);
+        setInterestForm({ type: 'INTERESTED', message: '', checkSize: '' });
+        fetchInterestedDeals();
+        alert('Interest submitted! The founder will be notified.');
+      } else {
+        const data = await response.json();
+        alert(data.message || 'Failed to submit interest');
+      }
+    } catch (error) {
+      console.error('Failed to submit interest:', error);
+      alert('Failed to submit interest');
+    }
+  };
+
+  // Request meeting
+  const submitMeetingRequest = async () => {
+    if (!isSignedIn || !selectedDeal) {
+      alert('Please sign in to request a meeting');
+      return;
+    }
+
+    if (!meetingForm.message.trim()) {
+      alert('Please provide a reason for the meeting');
+      return;
+    }
+
+    try {
+      const response = await fetchWithAuth(`${API_URL}/api/v1/investor/deals/${selectedDeal.id}/meeting`, {
+        method: 'POST',
+        body: JSON.stringify(meetingForm),
+      });
+      if (response.ok) {
+        setShowMeetingModal(false);
+        setMeetingForm({ type: 'INTRO_CALL', message: '', calendlyLink: '' });
+        fetchMeetingRequests();
+        alert('Meeting request sent! The founder will respond soon.');
+      } else {
+        const data = await response.json();
+        alert(data.message || 'Failed to request meeting');
+      }
+    } catch (error) {
+      console.error('Failed to request meeting:', error);
+      alert('Failed to request meeting');
+    }
   };
 
   const formatMoney = (amount: number) => {
@@ -245,6 +370,16 @@ export default function InvestorDashboard() {
     return INDUSTRIES.find(i => i.id === industry)?.icon || '🌐';
   };
 
+  const getMeetingStatusColor = (status: string) => {
+    switch (status) {
+      case 'ACCEPTED': return 'text-emerald-400 bg-emerald-500/20';
+      case 'DECLINED': return 'text-red-400 bg-red-500/20';
+      case 'SCHEDULED': return 'text-blue-400 bg-blue-500/20';
+      case 'COMPLETED': return 'text-slate-400 bg-slate-500/20';
+      default: return 'text-yellow-400 bg-yellow-500/20';
+    }
+  };
+
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white">
       <div className="container mx-auto px-4 py-8">
@@ -259,7 +394,7 @@ export default function InvestorDashboard() {
               Switch to Founder View
             </Link>
             <div className="bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-2 rounded-lg">
-              <span className="text-sm font-medium">🎯 {filteredDeals.length} Deals Available</span>
+              <span className="text-sm font-medium">{pagination.total} Deals Available</span>
             </div>
           </div>
         </div>
@@ -268,66 +403,68 @@ export default function InvestorDashboard() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
             <p className="text-slate-400 text-sm">Total Deals</p>
-            <p className="text-2xl font-bold">{deals.length}</p>
+            <p className="text-2xl font-bold">{pagination.total}</p>
           </div>
           <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
             <p className="text-slate-400 text-sm">Top Rated (80+)</p>
-            <p className="text-2xl font-bold text-emerald-400">{deals.filter(d => d.overallScore >= 80).length}</p>
+            <p className="text-2xl font-bold text-emerald-400">{topDeals.length}</p>
           </div>
           <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
             <p className="text-slate-400 text-sm">Saved Deals</p>
-            <p className="text-2xl font-bold text-blue-400">{savedDeals.size}</p>
+            <p className="text-2xl font-bold text-blue-400">{savedDeals.length}</p>
           </div>
           <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
-            <p className="text-slate-400 text-sm">New This Week</p>
-            <p className="text-2xl font-bold text-purple-400">12</p>
+            <p className="text-slate-400 text-sm">Meeting Requests</p>
+            <p className="text-2xl font-bold text-purple-400">{meetingRequests.length}</p>
           </div>
         </div>
 
         {/* Top Deals Highlight */}
-        <div className="mb-8">
-          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-            <span>🏆</span> Top Rated This Week
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {topDeals.map((deal, idx) => (
-              <div
-                key={deal.id}
-                onClick={() => setSelectedDeal(deal)}
-                className={`relative cursor-pointer rounded-xl p-4 border-2 transition-all hover:scale-[1.02] ${
-                  idx === 0 ? 'bg-gradient-to-br from-yellow-500/20 to-orange-500/20 border-yellow-500/50' :
-                  idx === 1 ? 'bg-gradient-to-br from-slate-400/20 to-slate-500/20 border-slate-400/50' :
-                  'bg-gradient-to-br from-orange-600/20 to-orange-700/20 border-orange-600/50'
-                }`}
-              >
-                <div className="absolute top-2 right-2">
-                  <span className="text-2xl">{idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'}</span>
+        {topDeals.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <span>🏆</span> Top Rated This Week
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {topDeals.map((deal, idx) => (
+                <div
+                  key={deal.id}
+                  onClick={() => setSelectedDeal(deal)}
+                  className={`relative cursor-pointer rounded-xl p-4 border-2 transition-all hover:scale-[1.02] ${
+                    idx === 0 ? 'bg-gradient-to-br from-yellow-500/20 to-orange-500/20 border-yellow-500/50' :
+                    idx === 1 ? 'bg-gradient-to-br from-slate-400/20 to-slate-500/20 border-slate-400/50' :
+                    'bg-gradient-to-br from-orange-600/20 to-orange-700/20 border-orange-600/50'
+                  }`}
+                >
+                  <div className="absolute top-2 right-2">
+                    <span className="text-2xl">{idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'}</span>
+                  </div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xl">{getIndustryIcon(deal.industry || '')}</span>
+                    <h3 className="font-semibold truncate pr-8">{deal.title}</h3>
+                  </div>
+                  <p className="text-slate-400 text-sm mb-3 line-clamp-2">{deal.description}</p>
+                  <div className="flex items-center justify-between">
+                    <span className={`text-2xl font-bold ${getScoreColor(deal.overallScore || 0)}`}>
+                      {deal.overallScore}
+                    </span>
+                    <span className="text-sm text-slate-400">
+                      {deal.founderData?.fundingAsk ? `Raising ${formatMoney(deal.founderData.fundingAsk)}` : 'Open to investment'}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-xl">{getIndustryIcon(deal.industry)}</span>
-                  <h3 className="font-semibold truncate pr-8">{deal.title}</h3>
-                </div>
-                <p className="text-slate-400 text-sm mb-3 line-clamp-2">{deal.description}</p>
-                <div className="flex items-center justify-between">
-                  <span className={`text-2xl font-bold ${getScoreColor(deal.overallScore)}`}>
-                    {deal.overallScore}
-                  </span>
-                  <span className="text-sm text-slate-400">
-                    {deal.founderData?.fundingAsk ? `Raising ${formatMoney(deal.founderData.fundingAsk)}` : 'Open to investment'}
-                  </span>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Tabs */}
         <div className="flex gap-2 mb-6 border-b border-slate-700">
           {[
             { id: 'browse', label: 'Browse Deals', icon: '🔍' },
-            { id: 'saved', label: 'Saved', icon: '⭐', count: savedDeals.size },
-            { id: 'interested', label: 'Interested', icon: '💰', count: 3 },
-            { id: 'meetings', label: 'Meetings', icon: '📅', count: 2 },
+            { id: 'saved', label: 'Saved', icon: '⭐', count: savedDeals.length },
+            { id: 'interested', label: 'Interested', icon: '💰', count: interestedDeals.length },
+            { id: 'meetings', label: 'Meetings', icon: '📅', count: meetingRequests.length },
           ].map(tab => (
             <button
               key={tab.id}
@@ -347,203 +484,326 @@ export default function InvestorDashboard() {
           ))}
         </div>
 
-        {/* Browse Tab */}
-        {activeTab === 'browse' && (
-          <>
-            {/* Filters */}
-            <div className="flex flex-wrap gap-3 mb-6">
-              <select
-                value={filters.industry}
-                onChange={(e) => setFilters(f => ({ ...f, industry: e.target.value }))}
-                className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm"
-              >
-                {INDUSTRIES.map(i => (
-                  <option key={i.id} value={i.id}>{i.icon} {i.label}</option>
-                ))}
-              </select>
-
-              <select
-                value={filters.stage}
-                onChange={(e) => setFilters(f => ({ ...f, stage: e.target.value }))}
-                className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm"
-              >
-                {STAGES.map(s => (
-                  <option key={s.id} value={s.id}>{s.label}</option>
-                ))}
-              </select>
-
-              <select
-                value={filters.score}
-                onChange={(e) => setFilters(f => ({ ...f, score: e.target.value }))}
-                className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm"
-              >
-                {SCORE_FILTERS.map(s => (
-                  <option key={s.id} value={s.id}>{s.label}</option>
-                ))}
-              </select>
-
-              <select
-                value={filters.sort}
-                onChange={(e) => setFilters(f => ({ ...f, sort: e.target.value }))}
-                className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm ml-auto"
-              >
-                {SORT_OPTIONS.map(s => (
-                  <option key={s.id} value={s.id}>Sort: {s.label}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Deal Cards */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {filteredDeals.map(deal => (
-                <div
-                  key={deal.id}
-                  className={`rounded-xl border p-5 transition-all hover:border-slate-600 ${getScoreBg(deal.overallScore)}`}
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">{getIndustryIcon(deal.industry)}</span>
-                      <div>
-                        <h3 className="font-semibold text-lg">{deal.title}</h3>
-                        <div className="flex items-center gap-2 text-xs text-slate-400">
-                          <span className="capitalize">{deal.stage}</span>
-                          <span>•</span>
-                          <span className="capitalize">{deal.businessModel}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <span className={`text-3xl font-bold ${getScoreColor(deal.overallScore)}`}>
-                        {deal.overallScore}
-                      </span>
-                      <p className="text-xs text-slate-400">{deal.overallConfidence}% conf</p>
-                    </div>
-                  </div>
-
-                  <p className="text-slate-300 text-sm mb-4 line-clamp-2">{deal.description}</p>
-
-                  {/* Metrics */}
-                  <div className="grid grid-cols-3 gap-2 mb-4">
-                    {deal.founderData?.currentMRR !== undefined && (
-                      <div className="bg-slate-800/50 rounded-lg p-2 text-center">
-                        <p className="text-xs text-slate-400">MRR</p>
-                        <p className="font-semibold">{formatMoney(deal.founderData.currentMRR)}</p>
-                      </div>
-                    )}
-                    {deal.founderData?.currentUsers !== undefined && (
-                      <div className="bg-slate-800/50 rounded-lg p-2 text-center">
-                        <p className="text-xs text-slate-400">Users</p>
-                        <p className="font-semibold">{deal.founderData.currentUsers.toLocaleString()}</p>
-                      </div>
-                    )}
-                    {deal.founderData?.fundingAsk !== undefined && (
-                      <div className="bg-slate-800/50 rounded-lg p-2 text-center">
-                        <p className="text-xs text-slate-400">Raising</p>
-                        <p className="font-semibold text-emerald-400">{formatMoney(deal.founderData.fundingAsk)}</p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Engagement Stats */}
-                  <div className="flex items-center gap-4 text-xs text-slate-400 mb-4">
-                    <span>👀 {deal.viewCount} views</span>
-                    <span>⭐ {deal.saveCount} saved</span>
-                    <span>💰 {deal.interestCount} interested</span>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setSelectedDeal(deal)}
-                      className="flex-1 bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                    >
-                      View Details
-                    </button>
-                    <button
-                      onClick={() => toggleSave(deal.id)}
-                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                        savedDeals.has(deal.id)
-                          ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50'
-                          : 'bg-slate-700 hover:bg-slate-600'
-                      }`}
-                    >
-                      {savedDeals.has(deal.id) ? '⭐ Saved' : '☆ Save'}
-                    </button>
-                    <button
-                      onClick={() => { setSelectedDeal(deal); setShowInterestModal(true); }}
-                      className="px-4 py-2 rounded-lg text-sm font-medium bg-emerald-600 hover:bg-emerald-700 transition-colors"
-                    >
-                      💰 Interested
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-
-        {/* Saved Tab */}
-        {activeTab === 'saved' && (
+        {isLoading ? (
           <div className="text-center py-12">
-            {savedDeals.size === 0 ? (
-              <div>
-                <span className="text-4xl mb-4 block">⭐</span>
-                <h3 className="text-xl font-semibold mb-2">No saved deals yet</h3>
-                <p className="text-slate-400">Browse deals and save the ones you're interested in</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {deals.filter(d => savedDeals.has(d.id)).map(deal => (
-                  <div key={deal.id} className={`rounded-xl border p-5 ${getScoreBg(deal.overallScore)}`}>
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-3">
-                        <span className="text-2xl">{getIndustryIcon(deal.industry)}</span>
-                        <div>
-                          <h3 className="font-semibold text-lg">{deal.title}</h3>
-                          <p className="text-xs text-slate-400 capitalize">{deal.stage} • {deal.businessModel}</p>
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-500 mx-auto mb-4"></div>
+            <p className="text-slate-400">Loading deals...</p>
+          </div>
+        ) : (
+          <>
+            {/* Browse Tab */}
+            {activeTab === 'browse' && (
+              <>
+                {/* Filters */}
+                <div className="flex flex-wrap gap-3 mb-6">
+                  <select
+                    value={filters.industry}
+                    onChange={(e) => setFilters(f => ({ ...f, industry: e.target.value }))}
+                    className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm"
+                  >
+                    {INDUSTRIES.map(i => (
+                      <option key={i.id} value={i.id}>{i.icon} {i.label}</option>
+                    ))}
+                  </select>
+
+                  <select
+                    value={filters.stage}
+                    onChange={(e) => setFilters(f => ({ ...f, stage: e.target.value }))}
+                    className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm"
+                  >
+                    {STAGES.map(s => (
+                      <option key={s.id} value={s.id}>{s.label}</option>
+                    ))}
+                  </select>
+
+                  <select
+                    value={filters.score}
+                    onChange={(e) => setFilters(f => ({ ...f, score: e.target.value }))}
+                    className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm"
+                  >
+                    {SCORE_FILTERS.map(s => (
+                      <option key={s.id} value={s.id}>{s.label}</option>
+                    ))}
+                  </select>
+
+                  <select
+                    value={filters.sortBy}
+                    onChange={(e) => {
+                      const option = SORT_OPTIONS.find(o => o.id === e.target.value);
+                      setFilters(f => ({ ...f, sortBy: e.target.value, sortOrder: (option?.order || 'desc') as 'asc' | 'desc' }));
+                    }}
+                    className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm ml-auto"
+                  >
+                    {SORT_OPTIONS.map(s => (
+                      <option key={s.id} value={s.id}>Sort: {s.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {deals.length === 0 ? (
+                  <div className="text-center py-12">
+                    <span className="text-4xl mb-4 block">🔍</span>
+                    <h3 className="text-xl font-semibold mb-2">No deals found</h3>
+                    <p className="text-slate-400">Try adjusting your filters or check back later</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {deals.map(deal => (
+                      <div
+                        key={deal.id}
+                        className={`rounded-xl border p-5 transition-all hover:border-slate-600 ${getScoreBg(deal.overallScore || 0)}`}
+                      >
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <span className="text-2xl">{getIndustryIcon(deal.industry || '')}</span>
+                            <div>
+                              <h3 className="font-semibold text-lg">{deal.title}</h3>
+                              <div className="flex items-center gap-2 text-xs text-slate-400">
+                                <span className="capitalize">{deal.stage}</span>
+                                <span>•</span>
+                                <span className="capitalize">{deal.businessModel}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <span className={`text-3xl font-bold ${getScoreColor(deal.overallScore || 0)}`}>
+                              {deal.overallScore}
+                            </span>
+                            <p className="text-xs text-slate-400">{deal.overallConfidence || 0}% conf</p>
+                          </div>
+                        </div>
+
+                        <p className="text-slate-300 text-sm mb-4 line-clamp-2">{deal.description}</p>
+
+                        {/* Metrics */}
+                        <div className="grid grid-cols-3 gap-2 mb-4">
+                          {deal.founderData?.currentMRR !== undefined && (
+                            <div className="bg-slate-800/50 rounded-lg p-2 text-center">
+                              <p className="text-xs text-slate-400">MRR</p>
+                              <p className="font-semibold">{formatMoney(deal.founderData.currentMRR)}</p>
+                            </div>
+                          )}
+                          {deal.founderData?.currentUsers !== undefined && (
+                            <div className="bg-slate-800/50 rounded-lg p-2 text-center">
+                              <p className="text-xs text-slate-400">Users</p>
+                              <p className="font-semibold">{deal.founderData.currentUsers.toLocaleString()}</p>
+                            </div>
+                          )}
+                          {deal.founderData?.fundingAsk !== undefined && (
+                            <div className="bg-slate-800/50 rounded-lg p-2 text-center">
+                              <p className="text-xs text-slate-400">Raising</p>
+                              <p className="font-semibold text-emerald-400">{formatMoney(deal.founderData.fundingAsk)}</p>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Engagement Stats */}
+                        <div className="flex items-center gap-4 text-xs text-slate-400 mb-4">
+                          <span>👀 {deal.viewCount || 0} views</span>
+                          <span>⭐ {deal.saveCount || 0} saved</span>
+                          <span>💰 {deal.interestCount || 0} interested</span>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setSelectedDeal(deal)}
+                            className="flex-1 bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                          >
+                            View Details
+                          </button>
+                          <button
+                            onClick={() => toggleSave(deal.id)}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                              savedDealIds.has(deal.id)
+                                ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50'
+                                : 'bg-slate-700 hover:bg-slate-600'
+                            }`}
+                          >
+                            {savedDealIds.has(deal.id) ? '⭐ Saved' : '☆ Save'}
+                          </button>
+                          <button
+                            onClick={() => { setSelectedDeal(deal); setShowInterestModal(true); }}
+                            className="px-4 py-2 rounded-lg text-sm font-medium bg-emerald-600 hover:bg-emerald-700 transition-colors"
+                          >
+                            💰 Interested
+                          </button>
                         </div>
                       </div>
-                      <span className={`text-3xl font-bold ${getScoreColor(deal.overallScore)}`}>
-                        {deal.overallScore}
-                      </span>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setSelectedDeal(deal)}
-                        className="flex-1 bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg text-sm"
-                      >
-                        View Details
-                      </button>
-                      <button
-                        onClick={() => toggleSave(deal.id)}
-                        className="px-4 py-2 rounded-lg text-sm bg-red-500/20 text-red-400 hover:bg-red-500/30"
-                      >
-                        Remove
-                      </button>
-                    </div>
+                    ))}
                   </div>
-                ))}
+                )}
+              </>
+            )}
+
+            {/* Saved Tab */}
+            {activeTab === 'saved' && (
+              <div>
+                {savedDeals.length === 0 ? (
+                  <div className="text-center py-12">
+                    <span className="text-4xl mb-4 block">⭐</span>
+                    <h3 className="text-xl font-semibold mb-2">No saved deals yet</h3>
+                    <p className="text-slate-400">Browse deals and save the ones you're interested in</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {savedDeals.map(deal => (
+                      <div key={deal.id} className={`rounded-xl border p-5 ${getScoreBg(deal.overallScore || 0)}`}>
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <span className="text-2xl">{getIndustryIcon(deal.industry || '')}</span>
+                            <div>
+                              <h3 className="font-semibold text-lg">{deal.title}</h3>
+                              <p className="text-xs text-slate-400 capitalize">{deal.stage} • {deal.businessModel}</p>
+                            </div>
+                          </div>
+                          <span className={`text-3xl font-bold ${getScoreColor(deal.overallScore || 0)}`}>
+                            {deal.overallScore}
+                          </span>
+                        </div>
+                        <p className="text-slate-400 text-xs mb-3">
+                          Saved {new Date(deal.savedAt).toLocaleDateString()}
+                        </p>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setSelectedDeal(deal)}
+                            className="flex-1 bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg text-sm"
+                          >
+                            View Details
+                          </button>
+                          <button
+                            onClick={() => toggleSave(deal.id)}
+                            className="px-4 py-2 rounded-lg text-sm bg-red-500/20 text-red-400 hover:bg-red-500/30"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
-          </div>
-        )}
 
-        {/* Interested Tab */}
-        {activeTab === 'interested' && (
-          <div className="text-center py-12">
-            <span className="text-4xl mb-4 block">💰</span>
-            <h3 className="text-xl font-semibold mb-2">No interests expressed yet</h3>
-            <p className="text-slate-400">Express interest in deals to let founders know you might invest</p>
-          </div>
-        )}
+            {/* Interested Tab */}
+            {activeTab === 'interested' && (
+              <div>
+                {interestedDeals.length === 0 ? (
+                  <div className="text-center py-12">
+                    <span className="text-4xl mb-4 block">💰</span>
+                    <h3 className="text-xl font-semibold mb-2">No interests expressed yet</h3>
+                    <p className="text-slate-400">Express interest in deals to let founders know you might invest</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {interestedDeals.map(deal => (
+                      <div key={deal.id} className={`rounded-xl border p-5 ${getScoreBg(deal.overallScore || 0)}`}>
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <span className="text-2xl">{getIndustryIcon(deal.industry || '')}</span>
+                            <div>
+                              <h3 className="font-semibold text-lg">{deal.title}</h3>
+                              <p className="text-xs text-slate-400 capitalize">{deal.stage}</p>
+                            </div>
+                          </div>
+                          <span className={`text-3xl font-bold ${getScoreColor(deal.overallScore || 0)}`}>
+                            {deal.overallScore}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 mb-3">
+                          <span className={`px-2 py-1 rounded-full text-xs ${
+                            deal.interestType === 'VERY_INTERESTED' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-blue-500/20 text-blue-400'
+                          }`}>
+                            {deal.interestType === 'VERY_INTERESTED' ? '🔥 Very Interested' : '💰 Interested'}
+                          </span>
+                          {deal.checkSize && (
+                            <span className="px-2 py-1 rounded-full text-xs bg-slate-700 text-slate-300">
+                              {deal.checkSize}
+                            </span>
+                          )}
+                        </div>
+                        {deal.interestMessage && (
+                          <p className="text-slate-400 text-sm mb-3 italic">"{deal.interestMessage}"</p>
+                        )}
+                        <p className="text-slate-500 text-xs mb-3">
+                          Expressed {new Date(deal.expressedAt).toLocaleDateString()}
+                        </p>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setSelectedDeal(deal)}
+                            className="flex-1 bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg text-sm"
+                          >
+                            View Details
+                          </button>
+                          <button
+                            onClick={() => { setSelectedDeal(deal); setShowMeetingModal(true); }}
+                            className="px-4 py-2 rounded-lg text-sm bg-blue-600 hover:bg-blue-700"
+                          >
+                            📅 Request Meeting
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
-        {/* Meetings Tab */}
-        {activeTab === 'meetings' && (
-          <div className="text-center py-12">
-            <span className="text-4xl mb-4 block">📅</span>
-            <h3 className="text-xl font-semibold mb-2">No meeting requests yet</h3>
-            <p className="text-slate-400">Request meetings with founders to learn more about their startups</p>
-          </div>
+            {/* Meetings Tab */}
+            {activeTab === 'meetings' && (
+              <div>
+                {meetingRequests.length === 0 ? (
+                  <div className="text-center py-12">
+                    <span className="text-4xl mb-4 block">📅</span>
+                    <h3 className="text-xl font-semibold mb-2">No meeting requests yet</h3>
+                    <p className="text-slate-400">Request meetings with founders to learn more about their startups</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {meetingRequests.map(meeting => (
+                      <div key={meeting.id} className="rounded-xl border border-slate-700 p-5 bg-slate-800/50">
+                        <div className="flex items-start justify-between mb-3">
+                          <div>
+                            <h3 className="font-semibold text-lg">{meeting.validation.title}</h3>
+                            <p className="text-xs text-slate-400 capitalize">{meeting.type.replace('_', ' ')}</p>
+                          </div>
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${getMeetingStatusColor(meeting.status)}`}>
+                            {meeting.status}
+                          </span>
+                        </div>
+                        <p className="text-slate-300 text-sm mb-3">"{meeting.message}"</p>
+                        {meeting.founderResponse && (
+                          <div className="bg-slate-700/50 rounded-lg p-3 mb-3">
+                            <p className="text-xs text-slate-400 mb-1">Founder Response:</p>
+                            <p className="text-sm">{meeting.founderResponse}</p>
+                          </div>
+                        )}
+                        {meeting.scheduledAt && (
+                          <div className="flex items-center gap-2 text-sm text-emerald-400 mb-3">
+                            <span>📅</span>
+                            <span>Scheduled: {new Date(meeting.scheduledAt).toLocaleString()}</span>
+                          </div>
+                        )}
+                        {meeting.meetingLink && (
+                          <a
+                            href={meeting.meetingLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-block bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-medium"
+                          >
+                            Join Meeting
+                          </a>
+                        )}
+                        <p className="text-slate-500 text-xs mt-3">
+                          Requested {new Date(meeting.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </>
         )}
 
         {/* Deal Detail Modal */}
@@ -553,7 +813,7 @@ export default function InvestorDashboard() {
               <div className="p-6 border-b border-slate-700">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <span className="text-3xl">{getIndustryIcon(selectedDeal.industry)}</span>
+                    <span className="text-3xl">{getIndustryIcon(selectedDeal.industry || '')}</span>
                     <div>
                       <h2 className="text-2xl font-bold">{selectedDeal.title}</h2>
                       <p className="text-slate-400 capitalize">{selectedDeal.industry} • {selectedDeal.stage} • {selectedDeal.businessModel}</p>
@@ -565,11 +825,11 @@ export default function InvestorDashboard() {
 
               <div className="p-6 space-y-6">
                 {/* Score Card */}
-                <div className={`rounded-xl p-4 ${getScoreBg(selectedDeal.overallScore)}`}>
+                <div className={`rounded-xl p-4 ${getScoreBg(selectedDeal.overallScore || 0)}`}>
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-slate-400">AI Validation Score</p>
-                      <p className={`text-4xl font-bold ${getScoreColor(selectedDeal.overallScore)}`}>
+                      <p className={`text-4xl font-bold ${getScoreColor(selectedDeal.overallScore || 0)}`}>
                         {selectedDeal.overallScore}/100
                       </p>
                     </div>
@@ -577,16 +837,32 @@ export default function InvestorDashboard() {
                       <p className={`text-lg font-semibold ${selectedDeal.verdict === 'PROCEED' ? 'text-emerald-400' : 'text-yellow-400'}`}>
                         {selectedDeal.verdict?.replace('_', ' ')}
                       </p>
-                      <p className="text-sm text-slate-400">{selectedDeal.overallConfidence}% confidence</p>
+                      <p className="text-sm text-slate-400">{selectedDeal.overallConfidence || 0}% confidence</p>
                     </div>
                   </div>
                 </div>
+
+                {/* Executive Summary */}
+                {selectedDeal.executiveSummary && (
+                  <div>
+                    <h3 className="font-semibold mb-2">Executive Summary</h3>
+                    <p className="text-slate-300 text-sm">{selectedDeal.executiveSummary}</p>
+                  </div>
+                )}
 
                 {/* Description */}
                 <div>
                   <h3 className="font-semibold mb-2">About</h3>
                   <p className="text-slate-300">{selectedDeal.description}</p>
                 </div>
+
+                {/* Target Customer */}
+                {selectedDeal.targetCustomer && (
+                  <div>
+                    <h3 className="font-semibold mb-2">Target Customer</h3>
+                    <p className="text-slate-300">{selectedDeal.targetCustomer}</p>
+                  </div>
+                )}
 
                 {/* Metrics */}
                 <div>
@@ -607,11 +883,40 @@ export default function InvestorDashboard() {
                   </div>
                 </div>
 
+                {/* Founder Info */}
+                {(selectedDeal.founderLinkedIn || selectedDeal.pitchDeckUrl) && (
+                  <div>
+                    <h3 className="font-semibold mb-3">Founder Resources</h3>
+                    <div className="flex gap-3">
+                      {selectedDeal.founderLinkedIn && (
+                        <a
+                          href={selectedDeal.founderLinkedIn}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium"
+                        >
+                          LinkedIn Profile
+                        </a>
+                      )}
+                      {selectedDeal.pitchDeckUrl && (
+                        <a
+                          href={selectedDeal.pitchDeckUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-4 py-2 bg-orange-600 hover:bg-orange-700 rounded-lg text-sm font-medium"
+                        >
+                          View Pitch Deck
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Engagement */}
                 <div className="flex items-center justify-between text-sm text-slate-400 py-3 border-t border-b border-slate-700">
-                  <span>👀 {selectedDeal.viewCount} views</span>
-                  <span>⭐ {selectedDeal.saveCount} investors saved</span>
-                  <span>💰 {selectedDeal.interestCount} expressed interest</span>
+                  <span>👀 {selectedDeal.viewCount || 0} views</span>
+                  <span>⭐ {selectedDeal.saveCount || 0} investors saved</span>
+                  <span>💰 {selectedDeal.interestCount || 0} expressed interest</span>
                 </div>
 
                 {/* Actions */}
@@ -619,12 +924,12 @@ export default function InvestorDashboard() {
                   <button
                     onClick={() => toggleSave(selectedDeal.id)}
                     className={`flex-1 py-3 rounded-xl font-semibold transition-colors ${
-                      savedDeals.has(selectedDeal.id)
+                      savedDealIds.has(selectedDeal.id)
                         ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50'
                         : 'bg-slate-700 hover:bg-slate-600'
                     }`}
                   >
-                    {savedDeals.has(selectedDeal.id) ? '⭐ Saved' : '☆ Save Deal'}
+                    {savedDealIds.has(selectedDeal.id) ? '⭐ Saved' : '☆ Save Deal'}
                   </button>
                   <button
                     onClick={() => setShowInterestModal(true)}
@@ -632,12 +937,14 @@ export default function InvestorDashboard() {
                   >
                     💰 Express Interest
                   </button>
-                  <button
-                    onClick={() => setShowMeetingModal(true)}
-                    className="flex-1 bg-blue-600 hover:bg-blue-700 py-3 rounded-xl font-semibold transition-colors"
-                  >
-                    📅 Request Meeting
-                  </button>
+                  {selectedDeal.allowMeetings !== false && (
+                    <button
+                      onClick={() => setShowMeetingModal(true)}
+                      className="flex-1 bg-blue-600 hover:bg-blue-700 py-3 rounded-xl font-semibold transition-colors"
+                    >
+                      📅 Request Meeting
+                    </button>
+                  )}
                 </div>
 
                 <Link
@@ -664,12 +971,17 @@ export default function InvestorDashboard() {
                   <label className="block text-sm font-medium mb-2">Interest Level</label>
                   <div className="grid grid-cols-2 gap-2">
                     {[
-                      { id: 'interested', label: '🤔 Interested', desc: 'I want to learn more' },
-                      { id: 'very_interested', label: '🔥 Very Interested', desc: 'Ready to discuss terms' },
+                      { id: 'INTERESTED', label: '🤔 Interested', desc: 'I want to learn more' },
+                      { id: 'VERY_INTERESTED', label: '🔥 Very Interested', desc: 'Ready to discuss terms' },
                     ].map(level => (
                       <button
                         key={level.id}
-                        className="p-3 rounded-lg border border-slate-600 hover:border-emerald-500 text-left"
+                        onClick={() => setInterestForm(f => ({ ...f, type: level.id }))}
+                        className={`p-3 rounded-lg border text-left transition-colors ${
+                          interestForm.type === level.id
+                            ? 'border-emerald-500 bg-emerald-500/20'
+                            : 'border-slate-600 hover:border-slate-500'
+                        }`}
                       >
                         <p className="font-medium">{level.label}</p>
                         <p className="text-xs text-slate-400">{level.desc}</p>
@@ -679,18 +991,24 @@ export default function InvestorDashboard() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-2">Potential Check Size (optional)</label>
-                  <select className="w-full px-4 py-3 bg-slate-700 rounded-lg border border-slate-600">
+                  <select
+                    value={interestForm.checkSize}
+                    onChange={(e) => setInterestForm(f => ({ ...f, checkSize: e.target.value }))}
+                    className="w-full px-4 py-3 bg-slate-700 rounded-lg border border-slate-600"
+                  >
                     <option value="">Select range</option>
-                    <option value="25-50k">$25K - $50K</option>
-                    <option value="50-100k">$50K - $100K</option>
-                    <option value="100-250k">$100K - $250K</option>
-                    <option value="250k+">$250K+</option>
+                    <option value="$25K - $50K">$25K - $50K</option>
+                    <option value="$50K - $100K">$50K - $100K</option>
+                    <option value="$100K - $250K">$100K - $250K</option>
+                    <option value="$250K+">$250K+</option>
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-2">Message to Founder (optional)</label>
                   <textarea
                     rows={3}
+                    value={interestForm.message}
+                    onChange={(e) => setInterestForm(f => ({ ...f, message: e.target.value }))}
                     placeholder="Share why you're interested..."
                     className="w-full px-4 py-3 bg-slate-700 rounded-lg border border-slate-600"
                   />
@@ -703,7 +1021,7 @@ export default function InvestorDashboard() {
                     Cancel
                   </button>
                   <button
-                    onClick={() => { setShowInterestModal(false); alert('Interest submitted! The founder will be notified.'); }}
+                    onClick={submitInterest}
                     className="flex-1 bg-emerald-600 hover:bg-emerald-700 py-3 rounded-xl font-medium"
                   >
                     Submit Interest
@@ -727,14 +1045,19 @@ export default function InvestorDashboard() {
                   <label className="block text-sm font-medium mb-2">Meeting Type</label>
                   <div className="space-y-2">
                     {[
-                      { id: 'intro', label: '☕ Intro Call', time: '15 min', desc: 'Quick introduction and Q&A' },
-                      { id: 'deep_dive', label: '📊 Deep Dive', time: '30-45 min', desc: 'Detailed discussion about the business' },
-                      { id: 'demo', label: '🎥 Product Demo', time: '30 min', desc: 'See the product in action' },
-                      { id: 'pitch', label: '🎯 Full Pitch', time: '60 min', desc: 'Complete pitch presentation' },
+                      { id: 'INTRO_CALL', label: '☕ Intro Call', time: '15 min', desc: 'Quick introduction and Q&A' },
+                      { id: 'DEEP_DIVE', label: '📊 Deep Dive', time: '30-45 min', desc: 'Detailed discussion about the business' },
+                      { id: 'DEMO', label: '🎥 Product Demo', time: '30 min', desc: 'See the product in action' },
+                      { id: 'PITCH', label: '🎯 Full Pitch', time: '60 min', desc: 'Complete pitch presentation' },
                     ].map(type => (
                       <button
                         key={type.id}
-                        className="w-full p-3 rounded-lg border border-slate-600 hover:border-blue-500 text-left flex items-center justify-between"
+                        onClick={() => setMeetingForm(f => ({ ...f, type: type.id }))}
+                        className={`w-full p-3 rounded-lg border text-left flex items-center justify-between transition-colors ${
+                          meetingForm.type === type.id
+                            ? 'border-blue-500 bg-blue-500/20'
+                            : 'border-slate-600 hover:border-slate-500'
+                        }`}
                       >
                         <div>
                           <p className="font-medium">{type.label}</p>
@@ -746,10 +1069,22 @@ export default function InvestorDashboard() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-2">Why do you want to meet?</label>
+                  <label className="block text-sm font-medium mb-2">Why do you want to meet? *</label>
                   <textarea
                     rows={3}
+                    value={meetingForm.message}
+                    onChange={(e) => setMeetingForm(f => ({ ...f, message: e.target.value }))}
                     placeholder="I'm interested in learning more about..."
+                    className="w-full px-4 py-3 bg-slate-700 rounded-lg border border-slate-600"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Your Calendly Link (optional)</label>
+                  <input
+                    type="url"
+                    value={meetingForm.calendlyLink}
+                    onChange={(e) => setMeetingForm(f => ({ ...f, calendlyLink: e.target.value }))}
+                    placeholder="https://calendly.com/yourusername"
                     className="w-full px-4 py-3 bg-slate-700 rounded-lg border border-slate-600"
                   />
                 </div>
@@ -761,7 +1096,7 @@ export default function InvestorDashboard() {
                     Cancel
                   </button>
                   <button
-                    onClick={() => { setShowMeetingModal(false); alert('Meeting request sent! The founder will respond soon.'); }}
+                    onClick={submitMeetingRequest}
                     className="flex-1 bg-blue-600 hover:bg-blue-700 py-3 rounded-xl font-medium"
                   >
                     Send Request
