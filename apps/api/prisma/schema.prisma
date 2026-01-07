@@ -226,29 +226,9 @@ model Validation {
   fatalFlaws      FatalFlaw[]
   ninetyDayPlan   NinetyDayPlan?
 
-  // Investor visibility settings
-  isPublic        Boolean       @default(false)
-  pitchDeckUrl    String?
-  contactEmail    String?
-  allowMeetings   Boolean       @default(true)
-  allowMessages   Boolean       @default(true)
-  founderLinkedIn String?
-
-  // Investor engagement tracking
-  viewCount       Int           @default(0)
-  saveCount       Int           @default(0)
-  interestCount   Int           @default(0)
-
-  // Relations for investor features
-  investorSaves     InvestorSave[]
-  investorInterests InvestorInterest[]
-  investorViews     InvestorView[]
-  meetingRequests   MeetingRequest[]
-
   @@index([userId])
   @@index([status])
   @@index([createdAt])
-  @@index([isPublic, status, overallScore])
 }
 
 enum ValidationTier {
@@ -589,107 +569,9 @@ enum RefundStatus {
   PROCESSED
 }
 
-// ============================================================================
-// Investor Models
-// ============================================================================
-
-model InvestorSave {
-  id              String      @id @default(cuid())
-  investorId      String      // User ID of investor
-  validationId    String
-  validation      Validation  @relation(fields: [validationId], references: [id], onDelete: Cascade)
-
-  notes           String?     // Private notes from investor
-  tags            String[]    // Custom tags for organization
-  folder          String?     // Folder/list name
-
-  savedAt         DateTime    @default(now())
-
-  @@unique([investorId, validationId])
-  @@index([investorId])
-  @@index([validationId])
-}
-
-model InvestorInterest {
-  id              String      @id @default(cuid())
-  investorId      String      // User ID of investor
-  validationId    String
-  validation      Validation  @relation(fields: [validationId], references: [id], onDelete: Cascade)
-
-  type            InterestType
-  message         String?     // Optional message to founder
-  checkSize       String?     // Potential investment amount
-
-  createdAt       DateTime    @default(now())
-
-  @@unique([investorId, validationId])
-  @@index([investorId])
-  @@index([validationId])
-}
-
-enum InterestType {
-  INTERESTED      // "I might invest"
-  VERY_INTERESTED // "I want to invest"
-  PASSED          // "Not for me"
-  WATCHING        // "Keep me updated"
-}
-
-model InvestorView {
-  id              String      @id @default(cuid())
-  investorId      String?     // Null for anonymous views
-  validationId    String
-  validation      Validation  @relation(fields: [validationId], references: [id], onDelete: Cascade)
-
-  source          String?     // How they found it: "browse", "search", "shared", "featured"
-  duration        Int?        // Seconds spent viewing
-
-  viewedAt        DateTime    @default(now())
-
-  @@index([investorId])
-  @@index([validationId])
-  @@index([viewedAt])
-}
-
-model MeetingRequest {
-  id              String      @id @default(cuid())
-  investorId      String
-  validationId    String
-  validation      Validation  @relation(fields: [validationId], references: [id], onDelete: Cascade)
-
-  type            MeetingType
-  message         String      // Why they want to meet
-  preferredTimes  String[]    // Suggested times
-  calendlyLink    String?     // Investor's calendly
-
-  status          MeetingStatus @default(PENDING)
-  founderResponse String?
-  scheduledAt     DateTime?
-  meetingLink     String?
-
-  createdAt       DateTime    @default(now())
-  respondedAt     DateTime?
-
-  @@unique([investorId, validationId])
-  @@index([investorId])
-  @@index([validationId])
-  @@index([status])
-}
-
-enum MeetingType {
-  INTRO_CALL      // 15 min intro
-  DEEP_DIVE       // 30-60 min detailed discussion
-  DEMO            // Product demo request
-  PITCH           // Full pitch meeting
-}
-
-enum MeetingStatus {
-  PENDING
-  ACCEPTED
-  DECLINED
-  SCHEDULED
-  COMPLETED
-  CANCELLED
-}
+// Note: Investor marketplace models (InvestorSave, InvestorInterest, InvestorView, MeetingRequest)
+// are defined but require database migration before use.
+// See investor.service.ts for graceful handling when tables don't exist.
 
 model InvestorIntroRequest {
   id                String      @id @default(cuid())
