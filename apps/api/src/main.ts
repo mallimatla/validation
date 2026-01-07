@@ -24,9 +24,33 @@ async function bootstrap() {
     // Security
     app.use(helmet());
 
-    // CORS
+    // CORS - supports multiple origins and Vercel preview deployments
+    const allowedOrigins = (process.env.CORS_ORIGIN || '*').split(',').map(o => o.trim());
     app.enableCors({
-      origin: process.env.CORS_ORIGIN || '*',
+      origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps or curl)
+        if (!origin) {
+          return callback(null, true);
+        }
+
+        // Check if origin matches any allowed origin
+        if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+          return callback(null, true);
+        }
+
+        // Allow Vercel preview deployments (*.vercel.app)
+        if (origin.endsWith('.vercel.app')) {
+          return callback(null, true);
+        }
+
+        // Allow localhost for development
+        if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+          return callback(null, true);
+        }
+
+        logger.warn(`CORS blocked origin: ${origin}`);
+        callback(new Error('Not allowed by CORS'));
+      },
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
       credentials: true,
     });
