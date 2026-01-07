@@ -298,6 +298,7 @@ model AgentReport {
   // Relations
   citations       Citation[]
 
+  @@unique([validationId, agentId]) // Prevent duplicate reports per agent
   @@index([validationId])
   @@index([agentId])
 }

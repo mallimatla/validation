@@ -172,8 +172,9 @@ export abstract class BaseAnalysisAgent {
         },
       };
 
-      // Store agent report
-      await this.storeAgentReport(output);
+      // NOTE: Agent report storage is handled by ValidationService
+      // to ensure consistent score transformation (1-10 to 0-100 scale)
+      // await this.storeAgentReport(output);
 
       // Emit completion event
       this.eventEmitter.emit('agent.analysis.completed', {
