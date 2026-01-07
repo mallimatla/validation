@@ -17,6 +17,46 @@ The investor feature allows:
 
 ---
 
+## User Role System (NEW)
+
+### Role Types
+- **FOUNDER** - Creates validations, wants to raise funding
+- **INVESTOR** - Browses deals, invests in startups
+- **ADMIN** - Platform administration
+
+### Feature Access by Role
+
+| Feature | Founder | Investor |
+|---------|---------|----------|
+| Create validations | ✅ | ❌ |
+| Browse deals | ❌ | ✅ |
+| Save deals | ❌ | ✅ (Premium) |
+| Express interest | ❌ | ✅ (Premium) |
+| Request meetings | ❌ | ✅ (Premium) |
+| See who's interested | ✅ | ❌ |
+| Respond to meetings | ✅ | ❌ |
+
+### Pricing Tiers
+
+**For Founders:**
+- **Free**: 1 validation per month, private only
+- **Starter ($49/mo)**: 5 validations, public listing, investor notifications
+- **Professional ($149/mo)**: Unlimited validations, priority listing, analytics
+
+**For Investors:**
+- **Free**: Browse 10 deals/month, view only
+- **Premium ($99/mo)**: Unlimited browsing, save, interest, meetings
+- **Enterprise ($499/mo)**: API access, custom alerts, dedicated support
+
+### Onboarding Flow
+1. User signs up via Clerk
+2. Redirected to `/onboarding` page
+3. Selects role (Founder or Investor)
+4. Completes role-specific profile
+5. Redirected to appropriate dashboard
+
+---
+
 ## Current Status: PARTIALLY IMPLEMENTED
 
 ### What's Working
@@ -30,6 +70,10 @@ The investor feature allows:
 | Founder Dashboard | ✅ Working | Shows engagement stats (mock data) |
 | Validation Form | ✅ Working | Multi-step wizard form |
 | Core Validation API | ✅ Working | Create/read validations |
+| Onboarding Flow | ✅ Working | Role selection with profile setup |
+| Pricing Page | ✅ Working | Founder and Investor tiers |
+| Role-based Navigation | ✅ Working | Different menus per role |
+| User Profile API | ✅ Working | `/users/me`, `/users/onboarding` |
 
 ### What's Pending (Requires Database Migration)
 
@@ -72,6 +116,24 @@ apps/api/src/investor/
 - `POST /api/v1/investor/founder/deals/:id/public` - Make validation public (placeholder)
 - `GET /api/v1/investor/founder/stats` - Get engagement stats (returns zeros)
 
+#### API - User Management
+
+```
+apps/api/src/users/
+├── users.module.ts      # Module with controller registration
+├── users.controller.ts  # REST API endpoints
+├── users.service.ts     # User profile and onboarding logic
+└── users.dto.ts         # DTOs for user operations
+```
+
+**User Endpoints:**
+- `GET /api/v1/users/me` - Get current user profile
+- `POST /api/v1/users/onboarding` - Complete onboarding with role
+- `PUT /api/v1/users/me` - Update user info
+- `PUT /api/v1/users/me/profile` - Update founder/investor profile
+- `POST /api/v1/users/me/switch-type` - Switch user type
+- `GET /api/v1/users/me/usage` - Get subscription usage/limits
+
 #### Frontend (Next.js)
 
 ```
@@ -80,8 +142,18 @@ apps/web/app/
 │   └── page.tsx           # Investor dashboard with deal browsing
 ├── dashboard/
 │   └── page.tsx           # Founder dashboard with engagement stats
+├── onboarding/
+│   └── page.tsx           # Role selection and profile setup
+├── pricing/
+│   └── page.tsx           # Pricing tiers for founders and investors
 └── validate/
     └── page.tsx           # Multi-step validation wizard form
+
+apps/web/components/
+└── Navigation.tsx         # Shared nav with role-based menus
+
+apps/web/contexts/
+└── UserContext.tsx        # User state and role management
 ```
 
 ---
@@ -232,13 +304,15 @@ npx prisma generate
 
 | Commit | Description |
 |--------|-------------|
-| `da8f0dc` | Redesign validation form with dynamic wizard |
-| `3619535` | Add investor dashboard and engagement features |
-| `1cef9e6` | Update founder dashboard with investor engagement |
-| `0d58521` | Add investor API endpoints and connect frontend |
-| `cb2ff6d` | Fix Set iteration for TypeScript compatibility |
-| `77ebbba` | Make investor service resilient to missing database tables |
+| `0fea9d0` | Add user role system with founder/investor separation |
+| `69b1d7e` | Add investor feature status documentation |
 | `eae29c7` | Remove investor schema columns to fix 500 errors |
+| `77ebbba` | Make investor service resilient to missing database tables |
+| `cb2ff6d` | Fix Set iteration for TypeScript compatibility |
+| `0d58521` | Add investor API endpoints and connect frontend |
+| `1cef9e6` | Update founder dashboard with investor engagement |
+| `3619535` | Add investor dashboard and engagement features |
+| `da8f0dc` | Redesign validation form with dynamic wizard |
 
 ---
 
