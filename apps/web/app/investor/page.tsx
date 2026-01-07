@@ -5,8 +5,7 @@ import { useAuth } from '@clerk/nextjs';
 import Link from 'next/link';
 import Navigation from '../../components/Navigation';
 import { useUserContext } from '../../contexts/UserContext';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://validation-production.up.railway.app';
+import { API_URL } from '../../lib/config';
 
 // Industry options for filtering
 const INDUSTRIES = [

@@ -12,7 +12,7 @@ export default function SignUpPage() {
             &larr; Back to Home
           </Link>
           <h1 className="text-3xl font-bold">Get Started</h1>
-          <p className="text-slate-400 mt-2">Create your Validation Council account</p>
+          <p className="text-slate-400 mt-2">Create your Startup Verdict account</p>
         </div>
 
         <div className="flex justify-center">

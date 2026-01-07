@@ -3,8 +3,7 @@
 import { useState } from 'react';
 import { useUser, useAuth } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://validation-production.up.railway.app';
+import { API_URL } from '../../lib/config';
 
 type UserRole = 'FOUNDER' | 'INVESTOR';
 

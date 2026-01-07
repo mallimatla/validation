@@ -8,7 +8,7 @@ export default function Home() {
       <header className="border-b border-slate-700/50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/" className="text-2xl font-bold">
-            <span className="text-emerald-400">Validation</span> Council
+            <span className="text-emerald-400">Startup</span> Verdict
           </Link>
           <nav className="flex items-center gap-4">
             <SignedIn>
@@ -38,8 +38,9 @@ export default function Home() {
       <div className="container mx-auto px-4 py-16">
         <div className="max-w-4xl mx-auto text-center">
           <h1 className="text-5xl font-bold mb-6">
-            The Validation Council
+            <span className="text-emerald-400">Startup</span> Verdict
           </h1>
+          <p className="text-lg text-slate-400 mb-4">The AI Validation Council for Startup Ideas</p>
           <p className="text-xl text-slate-300 mb-8">
             AI-powered startup idea validation with 12 specialized agents.
             Every claim backed by evidence. Every prediction tracked for accuracy.

@@ -6,8 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Navigation from '../../components/Navigation';
 import { useUserContext } from '../../contexts/UserContext';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://validation-production.up.railway.app';
+import { API_URL } from '../../lib/config';
 
 interface Validation {
   id: string;

@@ -3,8 +3,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useUser, useAuth } from '@clerk/nextjs';
 import { useRouter, usePathname } from 'next/navigation';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://validation-production.up.railway.app';
+import { API_URL } from '../lib/config';
 
 export type UserType = 'FOUNDER' | 'INVESTOR' | 'ADMIN';
 export type SubscriptionPlan = 'FREE' | 'STARTER' | 'PROFESSIONAL' | 'ENTERPRISE';

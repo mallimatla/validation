@@ -4,8 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useUser, useAuth } from '@clerk/nextjs';
 import Navigation from '../../components/Navigation';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://validation-production.up.railway.app';
+import { API_URL } from '../../lib/config';
 
 type PlanType = 'founder' | 'investor';
 

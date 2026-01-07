@@ -12,7 +12,7 @@ export default function SignInPage() {
             &larr; Back to Home
           </Link>
           <h1 className="text-3xl font-bold">Welcome Back</h1>
-          <p className="text-slate-400 mt-2">Sign in to your Validation Council account</p>
+          <p className="text-slate-400 mt-2">Sign in to your Startup Verdict account</p>
         </div>
 
         <div className="flex justify-center">

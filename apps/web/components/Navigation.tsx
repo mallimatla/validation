@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { SignedIn, SignedOut, UserButton } from '@clerk/nextjs';
 import { useUserContext } from '../contexts/UserContext';
+import { APP_NAME } from '../lib/config';
 
 export default function Navigation() {
   const pathname = usePathname();
@@ -34,8 +35,8 @@ export default function Navigation() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link href="/" className="text-xl font-bold flex items-center gap-2">
-            <span className="text-emerald-400">Validation</span>
-            <span className="text-white">Council</span>
+            <span className="text-emerald-400">Startup</span>
+            <span className="text-white">Verdict</span>
           </Link>
 
           {/* Desktop Navigation */}
