@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useUser, useAuth } from '@clerk/nextjs';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -16,20 +16,28 @@ interface Validation {
   status: string;
   overallScore: number | null;
   createdAt: string;
-  isPublic?: boolean;
-  viewCount?: number;
-  saveCount?: number;
-  interestCount?: number;
+}
+
+interface EngagementStats {
+  totalViews: number;
+  totalSaves: number;
+  totalInterests: number;
+  totalMeetings: number;
 }
 
 export default function DashboardPage() {
   const { user, isLoaded } = useUser();
   const { getToken } = useAuth();
   const router = useRouter();
-  const { userProfile, isInvestor, canCreateValidation } = useUserContext();
+  const { userProfile, isInvestor } = useUserContext();
   const [validations, setValidations] = useState<Validation[]>([]);
+  const [engagementStats, setEngagementStats] = useState<EngagementStats>({
+    totalViews: 0,
+    totalSaves: 0,
+    totalInterests: 0,
+    totalMeetings: 0,
+  });
   const [isLoading, setIsLoading] = useState(true);
-  const [showInvestorBanner, setShowInvestorBanner] = useState(true);
 
   // Redirect investors to their dashboard
   useEffect(() => {
@@ -38,37 +46,43 @@ export default function DashboardPage() {
     }
   }, [userProfile, isInvestor, router]);
 
+  const fetchWithAuth = useCallback(async (url: string) => {
+    const token = await getToken();
+    return fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+  }, [getToken]);
+
   useEffect(() => {
     if (isLoaded && user) {
-      fetchValidations();
+      fetchData();
     } else if (isLoaded && !user) {
       setIsLoading(false);
     }
   }, [isLoaded, user]);
 
-  const fetchValidations = async () => {
+  const fetchData = async () => {
     try {
-      const token = await getToken();
-      const response = await fetch(`${API_URL}/api/v1/validations`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      // Fetch validations and engagement stats in parallel
+      const [validationsRes, statsRes] = await Promise.all([
+        fetchWithAuth(`${API_URL}/api/v1/validations`),
+        fetchWithAuth(`${API_URL}/api/v1/investor/founder/stats`),
+      ]);
 
-      if (response.ok) {
-        const data = await response.json();
-        // Add mock engagement data for demo
-        const validationsWithEngagement = (data.data || []).map((v: Validation) => ({
-          ...v,
-          isPublic: Math.random() > 0.5,
-          viewCount: Math.floor(Math.random() * 100) + 10,
-          saveCount: Math.floor(Math.random() * 20) + 2,
-          interestCount: Math.floor(Math.random() * 5),
-        }));
-        setValidations(validationsWithEngagement);
+      if (validationsRes.ok) {
+        const data = await validationsRes.json();
+        // Use ONLY real data from API - no mock data
+        setValidations(data.data || []);
+      }
+
+      if (statsRes.ok) {
+        const statsData = await statsRes.json();
+        setEngagementStats(statsData);
       }
     } catch (error) {
-      console.error('Failed to fetch validations:', error);
+      console.error('Failed to fetch data:', error);
     } finally {
       setIsLoading(false);
     }
@@ -97,12 +111,6 @@ export default function DashboardPage() {
     return 'text-red-400';
   };
 
-  // Calculate totals
-  const totalViews = validations.reduce((sum, v) => sum + (v.viewCount || 0), 0);
-  const totalSaves = validations.reduce((sum, v) => sum + (v.saveCount || 0), 0);
-  const totalInterests = validations.reduce((sum, v) => sum + (v.interestCount || 0), 0);
-  const publicCount = validations.filter(v => v.isPublic).length;
-
   if (!isLoaded) {
     return (
       <main className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white flex items-center justify-center">
@@ -128,37 +136,31 @@ export default function DashboardPage() {
     );
   }
 
+  const hasEngagement = engagementStats.totalInterests > 0 || engagementStats.totalSaves > 0;
+
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white">
       <Navigation />
 
       <div className="container mx-auto px-4 py-8">
-        {/* Investor Interest Banner */}
-        {showInvestorBanner && totalInterests > 0 && (
+        {/* Investor Interest Banner - Only show if there's REAL engagement */}
+        {hasEngagement && (
           <div className="mb-6 bg-gradient-to-r from-purple-600/20 to-pink-600/20 border border-purple-500/30 rounded-xl p-4 flex items-center justify-between">
             <div className="flex items-center gap-4">
               <span className="text-3xl">🔥</span>
               <div>
                 <h3 className="font-semibold">Investors are interested in your ideas!</h3>
                 <p className="text-sm text-slate-300">
-                  {totalInterests} investors have expressed interest • {totalSaves} saved your ideas • {totalViews} total views
+                  {engagementStats.totalInterests} interests • {engagementStats.totalSaves} saves • {engagementStats.totalViews} views
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <Link
-                href="/founder/interests"
-                className="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg text-sm font-medium"
-              >
-                View Interests →
-              </Link>
-              <button
-                onClick={() => setShowInvestorBanner(false)}
-                className="text-slate-400 hover:text-white"
-              >
-                ×
-              </button>
-            </div>
+            <Link
+              href="/founder/interests"
+              className="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg text-sm font-medium"
+            >
+              View Details →
+            </Link>
           </div>
         )}
 
@@ -170,33 +172,27 @@ export default function DashboardPage() {
           <p className="text-slate-400">Track your startup validations and investor interest.</p>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-8">
+        {/* Stats Cards - Only REAL data */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
             <div className="text-2xl font-bold text-emerald-400">{validations.length}</div>
             <div className="text-slate-400 text-xs">Validations</div>
           </div>
           <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
             <div className="text-2xl font-bold text-blue-400">
+              {validations.filter(v => v.status === 'COMPLETE').length}
+            </div>
+            <div className="text-slate-400 text-xs">Completed</div>
+          </div>
+          <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
+            <div className="text-2xl font-bold text-yellow-400">
               {validations.filter(v => v.status === 'PROCESSING').length}
             </div>
             <div className="text-slate-400 text-xs">Processing</div>
           </div>
           <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
-            <div className="text-2xl font-bold text-green-400">{publicCount}</div>
-            <div className="text-slate-400 text-xs">Public</div>
-          </div>
-          <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
-            <div className="text-2xl font-bold text-cyan-400">👀 {totalViews}</div>
-            <div className="text-slate-400 text-xs">Investor Views</div>
-          </div>
-          <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
-            <div className="text-2xl font-bold text-yellow-400">⭐ {totalSaves}</div>
-            <div className="text-slate-400 text-xs">Saved by Investors</div>
-          </div>
-          <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
-            <div className="text-2xl font-bold text-pink-400">💰 {totalInterests}</div>
-            <div className="text-slate-400 text-xs">Interested</div>
+            <div className="text-2xl font-bold text-pink-400">{engagementStats.totalInterests}</div>
+            <div className="text-slate-400 text-xs">Investor Interests</div>
           </div>
         </div>
 
@@ -213,22 +209,25 @@ export default function DashboardPage() {
             <p className="text-sm text-slate-400">Get your startup idea validated by 12 AI agents</p>
           </Link>
           <Link
-            href="/investor"
+            href="/founder/interests"
             className="bg-gradient-to-r from-purple-600/20 to-pink-600/20 border border-purple-500/30 rounded-xl p-5 hover:border-purple-500/50 transition-all group"
           >
             <div className="flex items-center gap-3 mb-2">
               <span className="text-2xl">💰</span>
-              <h3 className="font-semibold group-hover:text-purple-400">Browse as Investor</h3>
+              <h3 className="font-semibold group-hover:text-purple-400">Investor Interest</h3>
             </div>
-            <p className="text-sm text-slate-400">See how investors view your ideas on the platform</p>
+            <p className="text-sm text-slate-400">See who's interested in your validated ideas</p>
           </Link>
-          <div className="bg-gradient-to-r from-blue-600/20 to-indigo-600/20 border border-blue-500/30 rounded-xl p-5">
+          <Link
+            href="/investor"
+            className="bg-gradient-to-r from-blue-600/20 to-indigo-600/20 border border-blue-500/30 rounded-xl p-5 hover:border-blue-500/50 transition-all group"
+          >
             <div className="flex items-center gap-3 mb-2">
-              <span className="text-2xl">📊</span>
-              <h3 className="font-semibold">Engagement Analytics</h3>
+              <span className="text-2xl">🔍</span>
+              <h3 className="font-semibold group-hover:text-blue-400">Browse as Investor</h3>
             </div>
-            <p className="text-sm text-slate-400">Track investor interest in real-time</p>
-          </div>
+            <p className="text-sm text-slate-400">Preview how investors see deals on the platform</p>
+          </Link>
         </div>
 
         {/* Validations List */}
@@ -276,30 +275,11 @@ export default function DashboardPage() {
                           {validation.title}
                         </Link>
                         {getStatusBadge(validation.status)}
-                        {validation.isPublic && (
-                          <span className="px-2 py-0.5 bg-purple-500/20 text-purple-400 rounded-full text-xs">
-                            🌐 Public
-                          </span>
-                        )}
                       </div>
                       <p className="text-slate-400 text-sm line-clamp-1 mb-2">
                         {validation.description}
                       </p>
-
-                      {/* Engagement Stats */}
-                      {validation.isPublic && validation.status === 'COMPLETE' && (
-                        <div className="flex items-center gap-4 text-xs text-slate-500">
-                          <span>👀 {validation.viewCount} views</span>
-                          <span>⭐ {validation.saveCount} saved</span>
-                          {validation.interestCount && validation.interestCount > 0 && (
-                            <span className="text-pink-400 font-medium">
-                              💰 {validation.interestCount} interested!
-                            </span>
-                          )}
-                        </div>
-                      )}
-
-                      <p className="text-slate-600 text-xs mt-2">
+                      <p className="text-slate-600 text-xs">
                         Created {new Date(validation.createdAt).toLocaleDateString()}
                       </p>
                     </div>
@@ -316,24 +296,12 @@ export default function DashboardPage() {
                       )}
 
                       {/* Actions */}
-                      <div className="flex flex-col gap-2">
-                        <Link
-                          href={`/validate/${validation.id}`}
-                          className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs text-center"
-                        >
-                          View Report
-                        </Link>
-                        {validation.status === 'COMPLETE' && !validation.isPublic && (
-                          <button className="px-3 py-1.5 bg-purple-600/20 hover:bg-purple-600/30 text-purple-400 border border-purple-500/30 rounded-lg text-xs">
-                            Make Public
-                          </button>
-                        )}
-                        {validation.interestCount && validation.interestCount > 0 && (
-                          <button className="px-3 py-1.5 bg-pink-600/20 hover:bg-pink-600/30 text-pink-400 border border-pink-500/30 rounded-lg text-xs animate-pulse">
-                            {validation.interestCount} Interest{validation.interestCount > 1 ? 's' : ''}
-                          </button>
-                        )}
-                      </div>
+                      <Link
+                        href={`/validate/${validation.id}`}
+                        className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm"
+                      >
+                        View Report
+                      </Link>
                     </div>
                   </div>
                 </div>
@@ -342,9 +310,9 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* How It Works for Investors Section */}
+        {/* How It Works Section */}
         <div className="mt-8 bg-gradient-to-r from-slate-800/50 to-slate-700/50 rounded-xl border border-slate-700 p-6">
-          <h3 className="text-lg font-semibold mb-4">🎯 How Investors Discover Your Ideas</h3>
+          <h3 className="text-lg font-semibold mb-4">🎯 How It Works</h3>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
             <div className="flex items-start gap-3">
               <span className="text-2xl">1️⃣</span>
@@ -356,22 +324,22 @@ export default function DashboardPage() {
             <div className="flex items-start gap-3">
               <span className="text-2xl">2️⃣</span>
               <div>
-                <p className="font-medium">Make It Public</p>
-                <p className="text-slate-400">Choose to list on the investor marketplace</p>
+                <p className="font-medium">Review Analysis</p>
+                <p className="text-slate-400">See detailed reports from each agent</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
               <span className="text-2xl">3️⃣</span>
               <div>
                 <p className="font-medium">Get Discovered</p>
-                <p className="text-slate-400">Investors browse, save, and express interest</p>
+                <p className="text-slate-400">Investors can find and save your idea</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
               <span className="text-2xl">4️⃣</span>
               <div>
                 <p className="font-medium">Connect & Raise</p>
-                <p className="text-slate-400">Accept meetings and start conversations</p>
+                <p className="text-slate-400">Accept meetings with interested investors</p>
               </div>
             </div>
           </div>

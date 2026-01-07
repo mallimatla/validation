@@ -381,16 +381,16 @@ export class InvestorService {
   }
 
   /**
-   * Get founder engagement stats (placeholder - returns zeros)
+   * Get founder engagement stats (returns real zeros until tables exist)
    */
   async getFounderEngagementStats(userId: string) {
-    this.logger.warn('getFounderEngagementStats: Investor tables not yet created.');
+    // Return actual zeros - no fake data
+    // Once investor tables are created, this will return real counts
     return {
       totalViews: 0,
       totalSaves: 0,
       totalInterests: 0,
-      publicDeals: 0,
-      recentInterests: [],
+      totalMeetings: 0,
     };
   }
 }
