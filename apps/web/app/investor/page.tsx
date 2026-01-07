@@ -278,7 +278,7 @@ export default function InvestorDashboard() {
           body: JSON.stringify({}),
         });
         if (response.ok) {
-          setSavedDealIds(prev => new Set([...prev, dealId]));
+          setSavedDealIds(prev => new Set([...Array.from(prev), dealId]));
           fetchSavedDeals();
         }
       }
