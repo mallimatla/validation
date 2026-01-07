@@ -206,7 +206,7 @@ export class ValidationService {
     this.logger.log(`Actual userId for database: ${actualUserId}`);
 
     try {
-      // Create validation
+      // Create validation with PROCESSING status
       const validation = await this.prisma.validation.create({
         data: {
           userId: actualUserId,
@@ -227,187 +227,205 @@ export class ValidationService {
         },
       });
 
-      // Generate and save agent reports
-      const agentReports = [];
-      let totalScore = 0;
-      let totalConfidence = 0;
+      this.logger.log(`Validation created: ${validation.id}, starting background processing...`);
+      this.eventEmitter.emit('validation.created', { validation });
 
-      // Build standard analysis input
-      const analysisInput = {
-        validationId: validation.id,
-        idea: {
-          title: dto.title,
-          description: dto.description,
-          industry: dto.industry,
-          targetCustomer: dto.targetCustomer,
-          businessModel: dto.businessModel,
-          stage: dto.stage,
-          geography: dto.geography,
-        },
-        founderData: dto.founderData || {},
-        fundingContext: {
-          targetStage: dto.stage || 'seed',
-          currentMRR: dto.founderData?.currentMRR || 0,
-          currentUsers: dto.founderData?.currentUsers || 0,
-          hasProduct: dto.founderData?.hasProduct !== false,
-          growthRate: dto.founderData?.growthRate || 0,
-        },
-      };
-
-      for (const agent of AGENTS) {
-        let reportData;
-        let agentVersion = '1.0.0';
-
-        try {
-          // Run investor-grade agents
-          switch (agent.id) {
-            case 'marcus':
-              if (this.marcusAgent) {
-                this.logger.log('Running REAL Marcus agent (Market Intel) v3.0...');
-                const output = await this.marcusAgent.analyze(analysisInput);
-                reportData = this.transformAgentOutput(output);
-                agentVersion = '3.0.0';
-                this.logger.log(`Marcus complete: score=${reportData.score}`);
-              }
-              break;
-
-            case 'sophia':
-              if (this.sophiaAgent) {
-                this.logger.log('Running REAL Sophia agent (Competition) v3.0...');
-                const output = await this.sophiaAgent.analyze(analysisInput);
-                reportData = this.transformAgentOutput(output);
-                agentVersion = '3.0.0';
-                this.logger.log(`Sophia complete: score=${reportData.score}`);
-              }
-              break;
-
-            case 'david':
-              if (this.davidAgent) {
-                this.logger.log('Running REAL David agent (Financial) v3.0...');
-                const output = await this.davidAgent.analyze(analysisInput);
-                reportData = this.transformAgentOutput(output);
-                agentVersion = '3.0.0';
-                this.logger.log(`David complete: score=${reportData.score}`);
-              }
-              break;
-
-            case 'james':
-              if (this.jamesAgent) {
-                this.logger.log('Running REAL James agent (Team) v3.0...');
-                const output = await this.jamesAgent.analyze(analysisInput);
-                reportData = this.transformAgentOutput(output);
-                agentVersion = '3.0.0';
-                this.logger.log(`James complete: score=${reportData.score}`);
-              }
-              break;
-
-            case 'rachel':
-              if (this.rachelAgent) {
-                this.logger.log('Running REAL Rachel agent (Legal/Risk) v3.0...');
-                const output = await this.rachelAgent.analyze(analysisInput);
-                reportData = this.transformAgentOutput(output);
-                agentVersion = '3.0.0';
-                this.logger.log(`Rachel complete: score=${reportData.score}`);
-              }
-              break;
-
-            case 'omar':
-              if (this.omarAgent) {
-                this.logger.log('Running REAL Omar agent (Technology) v3.0...');
-                const output = await this.omarAgent.analyze(analysisInput);
-                reportData = this.transformAgentOutput(output);
-                agentVersion = '3.0.0';
-                this.logger.log(`Omar complete: score=${reportData.score}`);
-              }
-              break;
-
-            case 'nora':
-              if (this.noraAgent) {
-                this.logger.log('Running REAL Nora agent (Funding) v3.0...');
-                const output = await this.noraAgent.analyze(analysisInput);
-                reportData = this.transformAgentOutput(output);
-                agentVersion = '3.0.0';
-                this.logger.log(`Nora complete: score=${reportData.score}`);
-              }
-              break;
-
-            case 'victor':
-              if (this.victorAgent) {
-                this.logger.log('Running REAL Victor agent (Valuation) v3.0...');
-                const output = await this.victorAgent.analyze(analysisInput);
-                reportData = this.transformAgentOutput(output);
-                agentVersion = '3.0.0';
-                this.logger.log(`Victor complete: score=${reportData.score}`);
-              }
-              break;
-          }
-        } catch (error) {
-          this.logger.error(`${agent.name} analysis failed, using fallback: ${(error as Error).message}`);
-        }
-
-        // Fallback for agents without real implementation or on error
-        if (!reportData) {
-          reportData = this.generateAgentReportData(validation.id, agent.id, dto.title, dto.description);
-        }
-
-        totalScore += reportData.score;
-        totalConfidence += reportData.confidence;
-
-        // Note: Unique constraint on (validationId, agentId) added in schema
-        // After migration, this can be changed to upsert for safety
-        // Duplicates are prevented by disabling storeAgentReport in base agent
-        const report = await this.prisma.agentReport.create({
-          data: {
-            validationId: validation.id,
-            agentId: agent.id,
-            agentVersion,
-            score: reportData.score,
-            confidence: reportData.confidence,
-            findings: reportData.findings,
-            risks: reportData.risks,
-            recommendations: reportData.recommendations,
-            citationCount: 3 + (hash(`${validation.id}-${agent.id}`) % 5),
-            signature: `sig-${validation.id}-${agent.id}-${Date.now()}`,
-            executionTimeMs: 1000 + (hash(`${validation.id}-${agent.id}`) % 2000),
-          },
-        });
-        agentReports.push(report);
-      }
-
-      // Calculate overall scores
-      const overallScore = Math.round(totalScore / AGENTS.length);
-      const overallConfidence = Math.round(totalConfidence / AGENTS.length);
-      const recommendation = overallScore >= 70 ? 'GREEN' : overallScore >= 50 ? 'YELLOW' : 'RED';
-      const verdict = overallScore >= 70 ? 'PROCEED' : overallScore >= 50 ? 'PROCEED_WITH_CAUTION' : 'RECONSIDER';
-
-      // Update validation with results
-      const completedValidation = await this.prisma.validation.update({
-        where: { id: validation.id },
-        data: {
-          status: 'COMPLETE',
-          completedAt: new Date(),
-          overallScore,
-          overallConfidence,
-          recommendation,
-          verdict,
-          successProbability: overallScore / 100,
-          trustScore: 8.5,
-          executiveSummary: `Comprehensive analysis of "${dto.title}" completed by 12 AI agents. Overall score: ${overallScore}/100 with ${overallConfidence}% confidence. Recommendation: ${verdict}.`,
-        },
-        include: {
-          agentReports: true,
-        },
+      // Process agents in background (don't await)
+      this.processValidationAsync(validation.id, dto).catch((error) => {
+        this.logger.error(`Background processing failed for ${validation.id}: ${error.message}`);
       });
 
-      this.eventEmitter.emit('validation.created', { validation: completedValidation });
-      this.eventEmitter.emit('validation.completed', { validation: completedValidation });
-      this.logger.log(`Validation created and completed: ${validation.id}`);
-
-      return completedValidation;
+      // Return immediately so user can see progress
+      return validation;
     } catch (error) {
       this.logger.error(`Failed to create validation: ${error.message}`, error.stack);
       throw error;
     }
+  }
+
+  /**
+   * Process validation agents in the background
+   */
+  private async processValidationAsync(validationId: string, dto: CreateValidationDto) {
+    this.logger.log(`Starting async processing for validation ${validationId}`);
+
+    const agentReports = [];
+    let totalScore = 0;
+    let totalConfidence = 0;
+
+    // Build standard analysis input
+    const analysisInput = {
+      validationId,
+      idea: {
+        title: dto.title,
+        description: dto.description,
+        industry: dto.industry,
+        targetCustomer: dto.targetCustomer,
+        businessModel: dto.businessModel,
+        stage: dto.stage,
+        geography: dto.geography,
+      },
+      founderData: dto.founderData || {},
+      fundingContext: {
+        targetStage: dto.stage || 'seed',
+        currentMRR: dto.founderData?.currentMRR || 0,
+        currentUsers: dto.founderData?.currentUsers || 0,
+        hasProduct: dto.founderData?.hasProduct !== false,
+        growthRate: dto.founderData?.growthRate || 0,
+      },
+    };
+
+    for (const agent of AGENTS) {
+      let reportData;
+      let agentVersion = '1.0.0';
+
+      try {
+        // Run investor-grade agents
+        switch (agent.id) {
+          case 'marcus':
+            if (this.marcusAgent) {
+              this.logger.log('Running REAL Marcus agent (Market Intel) v3.0...');
+              const output = await this.marcusAgent.analyze(analysisInput);
+              reportData = this.transformAgentOutput(output);
+              agentVersion = '3.0.0';
+              this.logger.log(`Marcus complete: score=${reportData.score}`);
+            }
+            break;
+
+          case 'sophia':
+            if (this.sophiaAgent) {
+              this.logger.log('Running REAL Sophia agent (Competition) v3.0...');
+              const output = await this.sophiaAgent.analyze(analysisInput);
+              reportData = this.transformAgentOutput(output);
+              agentVersion = '3.0.0';
+              this.logger.log(`Sophia complete: score=${reportData.score}`);
+            }
+            break;
+
+          case 'david':
+            if (this.davidAgent) {
+              this.logger.log('Running REAL David agent (Financial) v3.0...');
+              const output = await this.davidAgent.analyze(analysisInput);
+              reportData = this.transformAgentOutput(output);
+              agentVersion = '3.0.0';
+              this.logger.log(`David complete: score=${reportData.score}`);
+            }
+            break;
+
+          case 'james':
+            if (this.jamesAgent) {
+              this.logger.log('Running REAL James agent (Team) v3.0...');
+              const output = await this.jamesAgent.analyze(analysisInput);
+              reportData = this.transformAgentOutput(output);
+              agentVersion = '3.0.0';
+              this.logger.log(`James complete: score=${reportData.score}`);
+            }
+            break;
+
+          case 'rachel':
+            if (this.rachelAgent) {
+              this.logger.log('Running REAL Rachel agent (Legal/Risk) v3.0...');
+              const output = await this.rachelAgent.analyze(analysisInput);
+              reportData = this.transformAgentOutput(output);
+              agentVersion = '3.0.0';
+              this.logger.log(`Rachel complete: score=${reportData.score}`);
+            }
+            break;
+
+          case 'omar':
+            if (this.omarAgent) {
+              this.logger.log('Running REAL Omar agent (Technology) v3.0...');
+              const output = await this.omarAgent.analyze(analysisInput);
+              reportData = this.transformAgentOutput(output);
+              agentVersion = '3.0.0';
+              this.logger.log(`Omar complete: score=${reportData.score}`);
+            }
+            break;
+
+          case 'nora':
+            if (this.noraAgent) {
+              this.logger.log('Running REAL Nora agent (Funding) v3.0...');
+              const output = await this.noraAgent.analyze(analysisInput);
+              reportData = this.transformAgentOutput(output);
+              agentVersion = '3.0.0';
+              this.logger.log(`Nora complete: score=${reportData.score}`);
+            }
+            break;
+
+          case 'victor':
+            if (this.victorAgent) {
+              this.logger.log('Running REAL Victor agent (Valuation) v3.0...');
+              const output = await this.victorAgent.analyze(analysisInput);
+              reportData = this.transformAgentOutput(output);
+              agentVersion = '3.0.0';
+              this.logger.log(`Victor complete: score=${reportData.score}`);
+            }
+            break;
+        }
+      } catch (error) {
+        this.logger.error(`${agent.name} analysis failed, using fallback: ${(error as Error).message}`);
+      }
+
+      // Fallback for agents without real implementation or on error
+      if (!reportData) {
+        reportData = this.generateAgentReportData(validationId, agent.id, dto.title, dto.description);
+      }
+
+      totalScore += reportData.score;
+      totalConfidence += reportData.confidence;
+
+      // Note: Unique constraint on (validationId, agentId) added in schema
+      // After migration, this can be changed to upsert for safety
+      // Duplicates are prevented by disabling storeAgentReport in base agent
+      const report = await this.prisma.agentReport.create({
+        data: {
+          validationId,
+          agentId: agent.id,
+          agentVersion,
+          score: reportData.score,
+          confidence: reportData.confidence,
+          findings: reportData.findings,
+          risks: reportData.risks,
+          recommendations: reportData.recommendations,
+          citationCount: 3 + (hash(`${validationId}-${agent.id}`) % 5),
+          signature: `sig-${validationId}-${agent.id}-${Date.now()}`,
+          executionTimeMs: 1000 + (hash(`${validationId}-${agent.id}`) % 2000),
+        },
+      });
+      agentReports.push(report);
+
+      this.logger.log(`Agent ${agent.id} report saved (${agentReports.length}/${AGENTS.length})`);
+    }
+
+    // Calculate overall scores
+    const overallScore = Math.round(totalScore / AGENTS.length);
+    const overallConfidence = Math.round(totalConfidence / AGENTS.length);
+    const recommendation = overallScore >= 70 ? 'GREEN' : overallScore >= 50 ? 'YELLOW' : 'RED';
+    const verdict = overallScore >= 70 ? 'PROCEED' : overallScore >= 50 ? 'PROCEED_WITH_CAUTION' : 'RECONSIDER';
+
+    // Update validation with results
+    const completedValidation = await this.prisma.validation.update({
+      where: { id: validationId },
+      data: {
+        status: 'COMPLETE',
+        completedAt: new Date(),
+        overallScore,
+        overallConfidence,
+        recommendation,
+        verdict,
+        successProbability: overallScore / 100,
+        trustScore: 8.5,
+        executiveSummary: `Comprehensive analysis of "${dto.title}" completed by 12 AI agents. Overall score: ${overallScore}/100 with ${overallConfidence}% confidence. Recommendation: ${verdict}.`,
+      },
+      include: {
+        agentReports: true,
+      },
+    });
+
+    this.eventEmitter.emit('validation.completed', { validation: completedValidation });
+    this.logger.log(`Validation processing complete: ${validationId}`);
+
+    return completedValidation;
   }
 
   /**
