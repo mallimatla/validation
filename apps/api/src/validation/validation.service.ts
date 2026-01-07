@@ -1,6 +1,9 @@
 /**
  * Validation Service
  * Core validation business logic
+ *
+ * Uses REAL agent analysis for Marcus (Market Intel)
+ * Other agents use fallback data until implemented
  */
 
 import {
@@ -16,6 +19,7 @@ import { Queue } from 'bull';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { CreateValidationDto, UpdateValidationDto, ValidationQueryDto } from './validation.dto';
+import { MarcusAgent } from '../agents/marcus/marcus.agent';
 
 // The 12 AI agents
 const AGENTS = [
@@ -51,6 +55,7 @@ export class ValidationService {
     private readonly prisma: PrismaService,
     @Optional() @InjectQueue('validations') private readonly validationQueue: Queue,
     private readonly eventEmitter: EventEmitter2,
+    @Optional() private readonly marcusAgent?: MarcusAgent,
   ) {}
 
   /**
@@ -183,7 +188,62 @@ export class ValidationService {
       let totalConfidence = 0;
 
       for (const agent of AGENTS) {
-        const reportData = this.generateAgentReportData(validation.id, agent.id, dto.title, dto.description);
+        let reportData;
+        let agentVersion = '1.0.0';
+
+        // Use REAL Marcus agent for market intelligence
+        if (agent.id === 'marcus' && this.marcusAgent) {
+          try {
+            this.logger.log('Running REAL Marcus agent analysis with web search...');
+            const marcusOutput = await this.marcusAgent.analyze({
+              validationId: validation.id,
+              idea: {
+                title: dto.title,
+                description: dto.description,
+                industry: dto.industry,
+                targetCustomer: dto.targetCustomer,
+                businessModel: dto.businessModel,
+                stage: dto.stage,
+                geography: dto.geography,
+              },
+              founderData: dto.founderData || {},
+            });
+
+            reportData = {
+              score: Math.round(marcusOutput.score * 10), // Convert 1-10 to percentage
+              confidence: Math.round(marcusOutput.confidence * 10),
+              findings: marcusOutput.findings.map(f => ({
+                title: f.title,
+                description: f.description,
+                type: f.type,
+                severity: f.severity,
+                evidence: f.evidence.map(e => e.source),
+              })),
+              risks: marcusOutput.risks.map(r => ({
+                title: r.title,
+                description: r.description,
+                probability: r.probability,
+                impact: r.impact,
+                mitigations: r.mitigations,
+              })),
+              recommendations: marcusOutput.recommendations.map(rec => ({
+                title: rec.title,
+                description: rec.description,
+                priority: rec.priority,
+                timeframe: rec.timeframe,
+              })),
+            };
+            agentVersion = '2.1.0'; // Real agent version
+            this.logger.log(`Marcus REAL analysis complete: score=${reportData.score}, citations=${marcusOutput.citations.length}`);
+          } catch (error) {
+            this.logger.error(`Marcus real analysis failed, using fallback: ${(error as Error).message}`);
+            reportData = this.generateAgentReportData(validation.id, agent.id, dto.title, dto.description);
+          }
+        } else {
+          // Use fallback for other agents (until they're updated)
+          reportData = this.generateAgentReportData(validation.id, agent.id, dto.title, dto.description);
+        }
+
         totalScore += reportData.score;
         totalConfidence += reportData.confidence;
 
@@ -191,7 +251,7 @@ export class ValidationService {
           data: {
             validationId: validation.id,
             agentId: agent.id,
-            agentVersion: '1.0.0',
+            agentVersion,
             score: reportData.score,
             confidence: reportData.confidence,
             findings: reportData.findings,

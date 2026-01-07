@@ -14,6 +14,7 @@ const logger = new Logger('AppModule');
 // Core modules
 import { PrismaModule } from './common/prisma/prisma.module';
 import { LLMModule } from './common/llm/llm.module';
+import { MarketDataModule } from './common/market-data/market-data.module';
 import { IntegrationsModule } from './integrations/integrations.module';
 import { AuthModule } from './auth/auth.module';
 
@@ -128,6 +129,9 @@ if (!isRedisConfigured) {
 
     // AI/LLM Services
     LLMModule,
+
+    // Market Data Services
+    MarketDataModule,
 
     // External Data Integrations
     IntegrationsModule,

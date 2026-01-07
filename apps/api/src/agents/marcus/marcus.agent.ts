@@ -4,12 +4,18 @@
  * Purpose: Validates market size, timing, and opportunity with quantitative evidence.
  * Personality: Quantitative, skeptical, demands data, hates hand-waving.
  * Scoring Weight: 1.0x
+ *
+ * REAL DATA SOURCES:
+ * - Web search for market reports (Serper/Brave API)
+ * - News API for recent market news
+ * - LLM analysis with real data context
  */
 
 import { Injectable, Optional } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { LLMService } from '../../common/llm/llm.service';
+import { MarketDataService, MarketResearchData } from '../../common/market-data/market-data.service';
 import { BaseAnalysisAgent, AnalysisInput, Citation } from '../base/base-analysis.agent';
 
 interface MarketData {
@@ -33,7 +39,7 @@ interface IndustryBenchmark {
 export class MarcusAgent extends BaseAnalysisAgent {
   protected readonly agentId = 'marcus';
   protected readonly agentName = 'Marcus';
-  protected readonly agentVersion = '2.0.0';
+  protected readonly agentVersion = '2.1.0'; // Updated for real data
   protected readonly scoringWeight = 1.0;
 
   protected readonly personality = `You are Marcus, Chief Market Intelligence Officer of the Validation Council.
@@ -44,14 +50,20 @@ PERSONALITY TRAITS:
 - Thorough: You consider market timing, growth rates, concentration, regulatory environment, and macro trends.
 - Honest: If the market is too small or declining, you say so directly. Founders need truth.
 
+CRITICAL: You have been provided with REAL market research data from web searches. Use this data to:
+1. Extract actual market size figures from the search results
+2. Cite the real sources with actual URLs
+3. Cross-reference multiple sources for accuracy
+4. Identify any discrepancies between sources
+
 ANALYSIS FRAMEWORK:
-1. TAM/SAM/SOM Analysis - Calculate addressable market with methodology
-2. Market Timing - Is this the right time? Too early? Too late?
-3. Growth Dynamics - What's driving growth? Is it sustainable?
-4. Competitive Landscape - Market concentration, barriers to entry
-5. Geographic Considerations - Regional variations, expansion potential
-6. Regulatory Environment - Government tailwinds or headwinds?
-7. Macro Sensitivity - How does this market perform in recessions?
+1. TAM/SAM/SOM Analysis - Extract from real market reports provided
+2. Market Timing - Based on news and trends data
+3. Growth Dynamics - Use actual CAGR figures from reports
+4. Competitive Landscape - Based on competitor search results
+5. Geographic Considerations - Regional data if available
+6. Regulatory Environment - From news and search results
+7. Macro Sensitivity - Industry resilience indicators
 
 SCORING CRITERIA (1-10):
 - 9-10: TAM >$100B, growing >20% CAGR, perfect timing, fragmented market
@@ -60,19 +72,50 @@ SCORING CRITERIA (1-10):
 - 3-4: TAM <$1B, slow growth <5%, challenging timing
 - 1-2: Declining market, saturated, regulatory headwinds
 
-You must cite real market research firms (Gartner, IDC, Grand View Research, etc.) when possible.`;
+IMPORTANT: Every market size claim MUST include the source URL. If data is estimated, clearly state it's an estimate.`;
 
   private marketData: MarketData | null = null;
+  private realMarketResearch: MarketResearchData | null = null;
 
   constructor(
     prisma: PrismaService,
     eventEmitter: EventEmitter2,
     @Optional() llm?: LLMService,
+    @Optional() private readonly marketDataService?: MarketDataService,
   ) {
     super(prisma, eventEmitter, llm);
   }
 
   protected buildAnalysisPrompt(input: AnalysisInput): string {
+    // Build prompt with real market data if available
+    let marketDataContext = '';
+
+    if (this.realMarketResearch) {
+      // Include real search results
+      if (this.realMarketResearch.searchResults.length > 0) {
+        marketDataContext += `\n\n=== REAL MARKET RESEARCH DATA (from web search) ===\n`;
+        for (const result of this.realMarketResearch.searchResults) {
+          marketDataContext += `\nSOURCE: ${result.source}\nURL: ${result.url}\nTITLE: ${result.title}\nEXCERPT: ${result.snippet}\n`;
+        }
+      }
+
+      // Include news
+      if (this.realMarketResearch.newsItems.length > 0) {
+        marketDataContext += `\n\n=== RECENT MARKET NEWS ===\n`;
+        for (const news of this.realMarketResearch.newsItems.slice(0, 5)) {
+          marketDataContext += `\n[${news.publishedAt}] ${news.title}\nSource: ${news.source}\nURL: ${news.url}\nSummary: ${news.description}\n`;
+        }
+      }
+
+      // Include competitor data
+      if (this.realMarketResearch.competitors.length > 0) {
+        marketDataContext += `\n\n=== IDENTIFIED COMPETITORS ===\n`;
+        for (const comp of this.realMarketResearch.competitors) {
+          marketDataContext += `\n- ${comp.name}: ${comp.description}\n  Website: ${comp.website}\n`;
+        }
+      }
+    }
+
     return `Analyze the market opportunity for this startup:
 
 STARTUP: ${input.idea.title}
@@ -82,20 +125,31 @@ TARGET CUSTOMER: ${input.idea.targetCustomer || 'Not specified'}
 GEOGRAPHY: ${input.idea.geography?.join(', ') || 'Global'}
 BUSINESS MODEL: ${input.idea.businessModel || 'Not specified'}
 STAGE: ${input.idea.stage || 'Early Stage'}
+${marketDataContext}
+
+INSTRUCTIONS:
+1. Use the REAL market research data provided above to extract actual market figures
+2. For every market size or growth claim, CITE THE SOURCE URL
+3. If multiple sources give different numbers, note the range and discrepancy
+4. If no real data is available for a metric, clearly state it's an ESTIMATE based on comparable markets
 
 Provide comprehensive market analysis including:
-1. TAM/SAM/SOM with calculation methodology and sources
-2. Market growth rate with supporting data
-3. Market timing assessment (emerging/growing/mature/declining)
-4. Competitive landscape analysis
-5. Key market risks and opportunities
-6. Specific recommendations for market validation
+1. TAM/SAM/SOM with actual sources and URLs
+2. Market growth rate (CAGR) with source citation
+3. Market timing assessment with evidence from news
+4. Competitive landscape from the competitor data
+5. Key market risks based on news and trends
+6. Specific, actionable recommendations
 
-Be brutally honest. If the market is too small, say so. If timing is wrong, explain why.`;
+Be brutally honest. If the market is too small, say so. If timing is wrong, explain why.
+EVERY CLAIM MUST HAVE A SOURCE.`;
   }
 
   protected async performAnalysis(input: AnalysisInput): Promise<void> {
     this.logger.log('Starting comprehensive market intelligence analysis');
+
+    // Step 0: Fetch REAL market data from external sources
+    await this.fetchRealMarketData(input);
 
     // Step 1: Analyze market size with multiple methodologies
     await this.analyzeMarketSize(input);
@@ -128,23 +182,105 @@ Be brutally honest. If the market is too small, say so. If timing is wrong, expl
     this.buildRawAnalysis();
   }
 
+  /**
+   * Fetch REAL market data from external APIs
+   */
+  private async fetchRealMarketData(input: AnalysisInput): Promise<void> {
+    if (!this.marketDataService?.isAvailable()) {
+      this.logger.warn('Market data service not available - using fallback estimates');
+      return;
+    }
+
+    try {
+      this.logger.log('Fetching real market data from external sources...');
+
+      this.realMarketResearch = await this.marketDataService.fetchMarketResearch(
+        input.idea.industry || 'technology',
+        input.idea.description,
+        input.idea.targetCustomer || '',
+        input.idea.geography || ['Global'],
+      );
+
+      // Add citations from real search results
+      for (const citation of this.realMarketResearch.citations) {
+        this.addCitation({
+          claim: citation.claim,
+          source: citation.source,
+          sourceUrl: citation.url,
+          confidence: citation.confidence,
+          dataType: 'secondary',
+        });
+      }
+
+      // Extract market size from search results
+      for (const result of this.realMarketResearch.searchResults) {
+        const marketSize = this.marketDataService.parseMarketSize(result.snippet);
+        const growthRate = this.marketDataService.parseGrowthRate(result.snippet);
+
+        if (marketSize) {
+          this.logger.log(`Found market size: $${marketSize} from ${result.source}`);
+        }
+        if (growthRate) {
+          this.logger.log(`Found growth rate: ${(growthRate * 100).toFixed(1)}% from ${result.source}`);
+        }
+      }
+
+      this.logger.log(`Real market data fetched: ${this.realMarketResearch.searchResults.length} search results, ${this.realMarketResearch.newsItems.length} news items`);
+    } catch (error) {
+      this.logger.error(`Failed to fetch real market data: ${(error as Error).message}`);
+    }
+  }
+
   private async analyzeMarketSize(input: AnalysisInput): Promise<void> {
     const industry = input.idea.industry || 'technology';
     const geography = input.idea.geography?.[0] || 'Global';
     const targetCustomer = input.idea.targetCustomer || '';
 
-    // Get industry benchmarks
+    // Try to extract REAL market size from search results first
+    let realTAM: number | null = null;
+    let realGrowthRate: number | null = null;
+    let tamSource: { source: string; url: string } | null = null;
+
+    if (this.realMarketResearch && this.marketDataService) {
+      for (const result of this.realMarketResearch.searchResults) {
+        if (!realTAM) {
+          const marketSize = this.marketDataService.parseMarketSize(result.snippet);
+          if (marketSize && marketSize > 1e6) { // Only use if > $1M
+            realTAM = marketSize;
+            tamSource = { source: result.source, url: result.url };
+            this.logger.log(`Using REAL TAM from ${result.source}: $${this.formatCurrency(realTAM)}`);
+          }
+        }
+        if (!realGrowthRate) {
+          const growth = this.marketDataService.parseGrowthRate(result.snippet);
+          if (growth && growth > 0 && growth < 1) { // Reasonable growth rate
+            realGrowthRate = growth;
+          }
+        }
+      }
+    }
+
+    // Get industry benchmarks as fallback
     const benchmark = this.getIndustryBenchmark(industry);
 
-    // Calculate TAM using bottom-up and top-down approaches
-    const topDownTAM = this.calculateTopDownTAM(industry, geography);
-    const bottomUpTAM = this.calculateBottomUpTAM(input);
+    // Use real TAM if found, otherwise calculate estimate
+    let tamEstimate: number;
+    let isEstimate = true;
 
-    // Use balanced estimate - when bottom-up data is limited, weight toward top-down
-    const hasCustomerData = targetCustomer && targetCustomer.length > 0;
-    const tamEstimate = hasCustomerData
-      ? Math.min(topDownTAM, bottomUpTAM * 3)  // Trust bottom-up more when we have customer data
-      : Math.max(topDownTAM * 0.3, bottomUpTAM * 5);  // Use larger portion of top-down when no customer data
+    if (realTAM) {
+      tamEstimate = realTAM;
+      isEstimate = false;
+    } else {
+      // Calculate TAM using bottom-up and top-down approaches
+      const topDownTAM = this.calculateTopDownTAM(industry, geography);
+      const bottomUpTAM = this.calculateBottomUpTAM(input);
+
+      // Use balanced estimate - when bottom-up data is limited, weight toward top-down
+      const hasCustomerData = targetCustomer && targetCustomer.length > 0;
+      tamEstimate = hasCustomerData
+        ? Math.min(topDownTAM, bottomUpTAM * 3)
+        : Math.max(topDownTAM * 0.3, bottomUpTAM * 5);
+    }
 
     // SAM calculation based on target segment
     const samMultiplier = this.calculateSAMMultiplier(targetCustomer, geography);
@@ -155,26 +291,29 @@ Be brutally honest. If the market is too small, say so. If timing is wrong, expl
     const somEstimate = samEstimate * somMultiplier;
 
     // Estimate competitive landscape
-    const competitorCount = this.estimateCompetitorCount(industry);
+    const competitorCount = this.realMarketResearch?.competitors?.length || this.estimateCompetitorCount(industry);
     const marketConcentration = this.assessMarketConcentration(competitorCount, industry);
+
+    // Use real growth rate if found
+    const growthRate = realGrowthRate || this.estimateGrowthRate(industry);
 
     this.marketData = {
       tam: tamEstimate,
       sam: samEstimate,
       som: somEstimate,
-      growthRate: this.estimateGrowthRate(industry),
+      growthRate,
       marketTiming: this.determineMarketTiming(industry),
       competitorCount,
       marketConcentration,
     };
 
-    // Add primary market size citation
+    // Add primary market size citation with REAL or estimated source
     const mainCitation = this.addCitation({
-      claim: `The ${industry} market in ${geography} has an estimated TAM of $${this.formatCurrency(tamEstimate)}`,
-      source: this.getMarketResearchSource(industry),
-      sourceUrl: this.getMarketResearchUrl(industry),
-      confidence: 0.75,
-      dataType: 'secondary',
+      claim: `The ${industry} market in ${geography} has ${isEstimate ? 'an estimated' : 'a reported'} TAM of $${this.formatCurrency(tamEstimate)}${isEstimate ? ' (estimate based on industry benchmarks)' : ''}`,
+      source: tamSource?.source || this.getMarketResearchSource(industry),
+      sourceUrl: tamSource?.url || this.getMarketResearchUrl(industry),
+      confidence: isEstimate ? 0.6 : 0.85,
+      dataType: isEstimate ? 'computed' : 'secondary',
     });
 
     // SAM citation

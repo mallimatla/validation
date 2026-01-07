@@ -8,6 +8,7 @@ import { BullModule } from '@nestjs/bull';
 import { ValidationController } from './validation.controller';
 import { ValidationService } from './validation.service';
 import { ValidationProcessor } from './validation.processor';
+import { MarcusAgent } from '../agents/marcus/marcus.agent';
 
 const logger = new Logger('ValidationModule');
 
@@ -18,13 +19,13 @@ const isRedisConfigured = () => {
 
 @Module({
   controllers: [ValidationController],
-  providers: [ValidationService],
+  providers: [ValidationService, MarcusAgent],
   exports: [ValidationService],
 })
 export class ValidationModule {
   static register(): DynamicModule {
     const imports: any[] = [];
-    const providers: any[] = [ValidationService];
+    const providers: any[] = [ValidationService, MarcusAgent];
 
     if (isRedisConfigured()) {
       logger.log('Redis configured - enabling job queue');
