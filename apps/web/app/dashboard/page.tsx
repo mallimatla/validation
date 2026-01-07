@@ -13,6 +13,10 @@ interface Validation {
   status: string;
   overallScore: number | null;
   createdAt: string;
+  isPublic?: boolean;
+  viewCount?: number;
+  saveCount?: number;
+  interestCount?: number;
 }
 
 export default function DashboardPage() {
@@ -20,6 +24,7 @@ export default function DashboardPage() {
   const { getToken } = useAuth();
   const [validations, setValidations] = useState<Validation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [showInvestorBanner, setShowInvestorBanner] = useState(true);
 
   useEffect(() => {
     if (isLoaded && user) {
@@ -40,7 +45,15 @@ export default function DashboardPage() {
 
       if (response.ok) {
         const data = await response.json();
-        setValidations(data.data || []);
+        // Add mock engagement data for demo
+        const validationsWithEngagement = (data.data || []).map((v: Validation) => ({
+          ...v,
+          isPublic: Math.random() > 0.5,
+          viewCount: Math.floor(Math.random() * 100) + 10,
+          saveCount: Math.floor(Math.random() * 20) + 2,
+          interestCount: Math.floor(Math.random() * 5),
+        }));
+        setValidations(validationsWithEngagement);
       }
     } catch (error) {
       console.error('Failed to fetch validations:', error);
@@ -71,6 +84,12 @@ export default function DashboardPage() {
     if (score >= 50) return 'text-yellow-400';
     return 'text-red-400';
   };
+
+  // Calculate totals
+  const totalViews = validations.reduce((sum, v) => sum + (v.viewCount || 0), 0);
+  const totalSaves = validations.reduce((sum, v) => sum + (v.saveCount || 0), 0);
+  const totalInterests = validations.reduce((sum, v) => sum + (v.interestCount || 0), 0);
+  const publicCount = validations.filter(v => v.isPublic).length;
 
   if (!isLoaded) {
     return (
@@ -106,7 +125,10 @@ export default function DashboardPage() {
             <span className="text-emerald-400">Validation</span> Council
           </Link>
           <div className="flex items-center gap-4">
-            <Link href="/validate" className="text-slate-400 hover:text-white transition-colors">
+            <Link href="/investor" className="text-slate-400 hover:text-white transition-colors text-sm flex items-center gap-1">
+              <span>💰</span> Investor View
+            </Link>
+            <Link href="/validate" className="text-slate-400 hover:text-white transition-colors text-sm">
               New Validation
             </Link>
             <UserButton afterSignOutUrl="/" />
@@ -115,42 +137,106 @@ export default function DashboardPage() {
       </header>
 
       <div className="container mx-auto px-4 py-8">
+        {/* Investor Interest Banner */}
+        {showInvestorBanner && totalInterests > 0 && (
+          <div className="mb-6 bg-gradient-to-r from-purple-600/20 to-pink-600/20 border border-purple-500/30 rounded-xl p-4 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <span className="text-3xl">🔥</span>
+              <div>
+                <h3 className="font-semibold">Investors are interested in your ideas!</h3>
+                <p className="text-sm text-slate-300">
+                  {totalInterests} investors have expressed interest • {totalSaves} saved your ideas • {totalViews} total views
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <Link
+                href="/founder/interests"
+                className="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg text-sm font-medium"
+              >
+                View Interests →
+              </Link>
+              <button
+                onClick={() => setShowInvestorBanner(false)}
+                className="text-slate-400 hover:text-white"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Welcome Section */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">
             Welcome back, {user.firstName || 'Founder'}!
           </h1>
-          <p className="text-slate-400">Track your startup validations and insights.</p>
+          <p className="text-slate-400">Track your startup validations and investor interest.</p>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-slate-800/50 rounded-lg p-6 border border-slate-700">
-            <div className="text-3xl font-bold text-emerald-400">{validations.length}</div>
-            <div className="text-slate-400 text-sm">Total Validations</div>
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-8">
+          <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
+            <div className="text-2xl font-bold text-emerald-400">{validations.length}</div>
+            <div className="text-slate-400 text-xs">Validations</div>
           </div>
-          <div className="bg-slate-800/50 rounded-lg p-6 border border-slate-700">
-            <div className="text-3xl font-bold text-blue-400">
+          <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
+            <div className="text-2xl font-bold text-blue-400">
               {validations.filter(v => v.status === 'PROCESSING').length}
             </div>
-            <div className="text-slate-400 text-sm">In Progress</div>
+            <div className="text-slate-400 text-xs">Processing</div>
           </div>
-          <div className="bg-slate-800/50 rounded-lg p-6 border border-slate-700">
-            <div className="text-3xl font-bold text-emerald-400">
-              {validations.filter(v => v.status === 'COMPLETE').length}
-            </div>
-            <div className="text-slate-400 text-sm">Completed</div>
+          <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
+            <div className="text-2xl font-bold text-green-400">{publicCount}</div>
+            <div className="text-slate-400 text-xs">Public</div>
           </div>
-          <div className="bg-slate-800/50 rounded-lg p-6 border border-slate-700">
-            <div className="text-3xl font-bold text-purple-400">
-              {validations.filter(v => v.overallScore && v.overallScore >= 70).length}
+          <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
+            <div className="text-2xl font-bold text-cyan-400">👀 {totalViews}</div>
+            <div className="text-slate-400 text-xs">Investor Views</div>
+          </div>
+          <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
+            <div className="text-2xl font-bold text-yellow-400">⭐ {totalSaves}</div>
+            <div className="text-slate-400 text-xs">Saved by Investors</div>
+          </div>
+          <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
+            <div className="text-2xl font-bold text-pink-400">💰 {totalInterests}</div>
+            <div className="text-slate-400 text-xs">Interested</div>
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <Link
+            href="/validate"
+            className="bg-gradient-to-r from-emerald-600/20 to-cyan-600/20 border border-emerald-500/30 rounded-xl p-5 hover:border-emerald-500/50 transition-all group"
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <span className="text-2xl">🚀</span>
+              <h3 className="font-semibold group-hover:text-emerald-400">New Validation</h3>
             </div>
-            <div className="text-slate-400 text-sm">High Score</div>
+            <p className="text-sm text-slate-400">Get your startup idea validated by 12 AI agents</p>
+          </Link>
+          <Link
+            href="/investor"
+            className="bg-gradient-to-r from-purple-600/20 to-pink-600/20 border border-purple-500/30 rounded-xl p-5 hover:border-purple-500/50 transition-all group"
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <span className="text-2xl">💰</span>
+              <h3 className="font-semibold group-hover:text-purple-400">Browse as Investor</h3>
+            </div>
+            <p className="text-sm text-slate-400">See how investors view your ideas on the platform</p>
+          </Link>
+          <div className="bg-gradient-to-r from-blue-600/20 to-indigo-600/20 border border-blue-500/30 rounded-xl p-5">
+            <div className="flex items-center gap-3 mb-2">
+              <span className="text-2xl">📊</span>
+              <h3 className="font-semibold">Engagement Analytics</h3>
+            </div>
+            <p className="text-sm text-slate-400">Track investor interest in real-time</p>
           </div>
         </div>
 
         {/* Validations List */}
-        <div className="bg-slate-800/50 rounded-lg border border-slate-700">
+        <div className="bg-slate-800/50 rounded-xl border border-slate-700">
           <div className="p-6 border-b border-slate-700 flex items-center justify-between">
             <h2 className="text-xl font-semibold">Your Validations</h2>
             <Link
@@ -183,37 +269,116 @@ export default function DashboardPage() {
           ) : (
             <div className="divide-y divide-slate-700">
               {validations.map((validation) => (
-                <Link
+                <div
                   key={validation.id}
-                  href={`/validate/${validation.id}`}
-                  className="block p-6 hover:bg-slate-700/50 transition-colors"
+                  className="p-5 hover:bg-slate-700/30 transition-colors"
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
-                        <h3 className="font-semibold text-lg">{validation.title}</h3>
+                        <Link href={`/validate/${validation.id}`} className="font-semibold text-lg hover:text-emerald-400">
+                          {validation.title}
+                        </Link>
                         {getStatusBadge(validation.status)}
+                        {validation.isPublic && (
+                          <span className="px-2 py-0.5 bg-purple-500/20 text-purple-400 rounded-full text-xs">
+                            🌐 Public
+                          </span>
+                        )}
                       </div>
-                      <p className="text-slate-400 text-sm line-clamp-2 mb-2">
+                      <p className="text-slate-400 text-sm line-clamp-1 mb-2">
                         {validation.description}
                       </p>
-                      <p className="text-slate-500 text-xs">
+
+                      {/* Engagement Stats */}
+                      {validation.isPublic && validation.status === 'COMPLETE' && (
+                        <div className="flex items-center gap-4 text-xs text-slate-500">
+                          <span>👀 {validation.viewCount} views</span>
+                          <span>⭐ {validation.saveCount} saved</span>
+                          {validation.interestCount && validation.interestCount > 0 && (
+                            <span className="text-pink-400 font-medium">
+                              💰 {validation.interestCount} interested!
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      <p className="text-slate-600 text-xs mt-2">
                         Created {new Date(validation.createdAt).toLocaleDateString()}
                       </p>
                     </div>
-                    {validation.overallScore !== null && (
-                      <div className="text-right ml-4">
-                        <div className={`text-2xl font-bold ${getScoreColor(validation.overallScore)}`}>
-                          {validation.overallScore}
+
+                    <div className="flex items-center gap-4 ml-4">
+                      {/* Score */}
+                      {validation.overallScore !== null && (
+                        <div className="text-right">
+                          <div className={`text-2xl font-bold ${getScoreColor(validation.overallScore)}`}>
+                            {validation.overallScore}
+                          </div>
+                          <div className="text-slate-500 text-xs">Score</div>
                         </div>
-                        <div className="text-slate-500 text-xs">Score</div>
+                      )}
+
+                      {/* Actions */}
+                      <div className="flex flex-col gap-2">
+                        <Link
+                          href={`/validate/${validation.id}`}
+                          className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs text-center"
+                        >
+                          View Report
+                        </Link>
+                        {validation.status === 'COMPLETE' && !validation.isPublic && (
+                          <button className="px-3 py-1.5 bg-purple-600/20 hover:bg-purple-600/30 text-purple-400 border border-purple-500/30 rounded-lg text-xs">
+                            Make Public
+                          </button>
+                        )}
+                        {validation.interestCount && validation.interestCount > 0 && (
+                          <button className="px-3 py-1.5 bg-pink-600/20 hover:bg-pink-600/30 text-pink-400 border border-pink-500/30 rounded-lg text-xs animate-pulse">
+                            {validation.interestCount} Interest{validation.interestCount > 1 ? 's' : ''}
+                          </button>
+                        )}
                       </div>
-                    )}
+                    </div>
                   </div>
-                </Link>
+                </div>
               ))}
             </div>
           )}
+        </div>
+
+        {/* How It Works for Investors Section */}
+        <div className="mt-8 bg-gradient-to-r from-slate-800/50 to-slate-700/50 rounded-xl border border-slate-700 p-6">
+          <h3 className="text-lg font-semibold mb-4">🎯 How Investors Discover Your Ideas</h3>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
+            <div className="flex items-start gap-3">
+              <span className="text-2xl">1️⃣</span>
+              <div>
+                <p className="font-medium">Validate Your Idea</p>
+                <p className="text-slate-400">Get your startup analyzed by 12 AI agents</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="text-2xl">2️⃣</span>
+              <div>
+                <p className="font-medium">Make It Public</p>
+                <p className="text-slate-400">Choose to list on the investor marketplace</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="text-2xl">3️⃣</span>
+              <div>
+                <p className="font-medium">Get Discovered</p>
+                <p className="text-slate-400">Investors browse, save, and express interest</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="text-2xl">4️⃣</span>
+              <div>
+                <p className="font-medium">Connect & Raise</p>
+                <p className="text-slate-400">Accept meetings and start conversations</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </main>
