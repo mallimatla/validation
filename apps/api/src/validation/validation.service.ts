@@ -2,8 +2,8 @@
  * Validation Service
  * Core validation business logic
  *
- * Uses REAL agent analysis for Marcus (Market Intel)
- * Other agents use fallback data until implemented
+ * Uses REAL investor-grade agent analysis for all upgraded agents
+ * Agents: Marcus, Sophia, David, James, Rachel, Omar, Nora, Victor
  */
 
 import {
@@ -20,6 +20,13 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { CreateValidationDto, UpdateValidationDto, ValidationQueryDto } from './validation.dto';
 import { MarcusAgent } from '../agents/marcus/marcus.agent';
+import { SophiaAgent } from '../agents/sophia/sophia.agent';
+import { DavidAgent } from '../agents/david/david.agent';
+import { JamesAgent } from '../agents/james/james.agent';
+import { RachelAgent } from '../agents/rachel/rachel.agent';
+import { OmarAgent } from '../agents/omar/omar.agent';
+import { NoraAgent } from '../agents/nora/nora.agent';
+import { VictorAgent } from '../agents/victor/victor.agent';
 
 // The 12 AI agents
 const AGENTS = [
@@ -56,7 +63,45 @@ export class ValidationService {
     @Optional() @InjectQueue('validations') private readonly validationQueue: Queue,
     private readonly eventEmitter: EventEmitter2,
     @Optional() private readonly marcusAgent?: MarcusAgent,
+    @Optional() private readonly sophiaAgent?: SophiaAgent,
+    @Optional() private readonly davidAgent?: DavidAgent,
+    @Optional() private readonly jamesAgent?: JamesAgent,
+    @Optional() private readonly rachelAgent?: RachelAgent,
+    @Optional() private readonly omarAgent?: OmarAgent,
+    @Optional() private readonly noraAgent?: NoraAgent,
+    @Optional() private readonly victorAgent?: VictorAgent,
   ) {}
+
+  /**
+   * Helper to transform agent output to report data with proper evidence serialization
+   */
+  private transformAgentOutput(output: any): any {
+    return {
+      score: Math.round(output.score * 10), // Convert 1-10 to percentage
+      confidence: Math.round(output.confidence * 10),
+      findings: output.findings.map((f: any) => ({
+        title: f.title,
+        description: f.description,
+        type: f.type,
+        severity: f.severity,
+        evidence: f.evidence.map((e: any) => typeof e === 'string' ? e : e.source || e.claim || String(e)),
+      })),
+      risks: output.risks.map((r: any) => ({
+        title: r.title,
+        description: r.description,
+        probability: r.probability,
+        impact: r.impact,
+        mitigations: r.mitigations,
+      })),
+      recommendations: output.recommendations.map((rec: any) => ({
+        title: rec.title,
+        description: rec.description,
+        priority: rec.priority,
+        timeframe: rec.timeframe,
+      })),
+      rawAnalysis: output.rawAnalysis,
+    };
+  }
 
   /**
    * Generate agent report data based on validation and agent
@@ -187,60 +232,121 @@ export class ValidationService {
       let totalScore = 0;
       let totalConfidence = 0;
 
+      // Build standard analysis input
+      const analysisInput = {
+        validationId: validation.id,
+        idea: {
+          title: dto.title,
+          description: dto.description,
+          industry: dto.industry,
+          targetCustomer: dto.targetCustomer,
+          businessModel: dto.businessModel,
+          stage: dto.stage,
+          geography: dto.geography,
+        },
+        founderData: dto.founderData || {},
+        fundingContext: {
+          targetStage: dto.stage || 'seed',
+          currentMRR: dto.founderData?.currentMRR || 0,
+          currentUsers: dto.founderData?.currentUsers || 0,
+          hasProduct: dto.founderData?.hasProduct !== false,
+          growthRate: dto.founderData?.growthRate || 0,
+        },
+      };
+
       for (const agent of AGENTS) {
         let reportData;
         let agentVersion = '1.0.0';
 
-        // Use REAL Marcus agent for market intelligence
-        if (agent.id === 'marcus' && this.marcusAgent) {
-          try {
-            this.logger.log('Running REAL Marcus agent analysis with web search...');
-            const marcusOutput = await this.marcusAgent.analyze({
-              validationId: validation.id,
-              idea: {
-                title: dto.title,
-                description: dto.description,
-                industry: dto.industry,
-                targetCustomer: dto.targetCustomer,
-                businessModel: dto.businessModel,
-                stage: dto.stage,
-                geography: dto.geography,
-              },
-              founderData: dto.founderData || {},
-            });
+        try {
+          // Run investor-grade agents
+          switch (agent.id) {
+            case 'marcus':
+              if (this.marcusAgent) {
+                this.logger.log('Running REAL Marcus agent (Market Intel) v3.0...');
+                const output = await this.marcusAgent.analyze(analysisInput);
+                reportData = this.transformAgentOutput(output);
+                agentVersion = '3.0.0';
+                this.logger.log(`Marcus complete: score=${reportData.score}`);
+              }
+              break;
 
-            reportData = {
-              score: Math.round(marcusOutput.score * 10), // Convert 1-10 to percentage
-              confidence: Math.round(marcusOutput.confidence * 10),
-              findings: marcusOutput.findings.map(f => ({
-                title: f.title,
-                description: f.description,
-                type: f.type,
-                severity: f.severity,
-                evidence: f.evidence.map(e => e.source),
-              })),
-              risks: marcusOutput.risks.map(r => ({
-                title: r.title,
-                description: r.description,
-                probability: r.probability,
-                impact: r.impact,
-                mitigations: r.mitigations,
-              })),
-              recommendations: marcusOutput.recommendations.map(rec => ({
-                title: rec.title,
-                description: rec.description,
-                priority: rec.priority,
-                timeframe: rec.timeframe,
-              })),
-            };
-            agentVersion = '2.1.0'; // Real agent version
-            this.logger.log(`Marcus REAL analysis complete: score=${reportData.score}, citations=${marcusOutput.citations.length}`);
-          } catch (error) {
-            this.logger.error(`Marcus real analysis failed, using fallback: ${(error as Error).message}`);
-            reportData = this.generateAgentReportData(validation.id, agent.id, dto.title, dto.description);
+            case 'sophia':
+              if (this.sophiaAgent) {
+                this.logger.log('Running REAL Sophia agent (Competition) v3.0...');
+                const output = await this.sophiaAgent.analyze(analysisInput);
+                reportData = this.transformAgentOutput(output);
+                agentVersion = '3.0.0';
+                this.logger.log(`Sophia complete: score=${reportData.score}`);
+              }
+              break;
+
+            case 'david':
+              if (this.davidAgent) {
+                this.logger.log('Running REAL David agent (Financial) v3.0...');
+                const output = await this.davidAgent.analyze(analysisInput);
+                reportData = this.transformAgentOutput(output);
+                agentVersion = '3.0.0';
+                this.logger.log(`David complete: score=${reportData.score}`);
+              }
+              break;
+
+            case 'james':
+              if (this.jamesAgent) {
+                this.logger.log('Running REAL James agent (Team) v3.0...');
+                const output = await this.jamesAgent.analyze(analysisInput);
+                reportData = this.transformAgentOutput(output);
+                agentVersion = '3.0.0';
+                this.logger.log(`James complete: score=${reportData.score}`);
+              }
+              break;
+
+            case 'rachel':
+              if (this.rachelAgent) {
+                this.logger.log('Running REAL Rachel agent (Legal/Risk) v3.0...');
+                const output = await this.rachelAgent.analyze(analysisInput);
+                reportData = this.transformAgentOutput(output);
+                agentVersion = '3.0.0';
+                this.logger.log(`Rachel complete: score=${reportData.score}`);
+              }
+              break;
+
+            case 'omar':
+              if (this.omarAgent) {
+                this.logger.log('Running REAL Omar agent (Technology) v3.0...');
+                const output = await this.omarAgent.analyze(analysisInput);
+                reportData = this.transformAgentOutput(output);
+                agentVersion = '3.0.0';
+                this.logger.log(`Omar complete: score=${reportData.score}`);
+              }
+              break;
+
+            case 'nora':
+              if (this.noraAgent) {
+                this.logger.log('Running REAL Nora agent (Funding) v3.0...');
+                const output = await this.noraAgent.analyze(analysisInput);
+                reportData = this.transformAgentOutput(output);
+                agentVersion = '3.0.0';
+                this.logger.log(`Nora complete: score=${reportData.score}`);
+              }
+              break;
+
+            case 'victor':
+              if (this.victorAgent) {
+                this.logger.log('Running REAL Victor agent (Valuation) v3.0...');
+                const output = await this.victorAgent.analyze(analysisInput);
+                reportData = this.transformAgentOutput(output);
+                agentVersion = '3.0.0';
+                this.logger.log(`Victor complete: score=${reportData.score}`);
+              }
+              break;
           }
-        } else {
-          // Use fallback for other agents (until they're updated)
+        } catch (error) {
+          this.logger.error(`${agent.name} analysis failed, using fallback: ${(error as Error).message}`);
+        }
+
+        // Fallback for agents without real implementation or on error
+        if (!reportData) {
           reportData = this.generateAgentReportData(validation.id, agent.id, dto.title, dto.description);
         }
 

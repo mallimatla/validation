@@ -115,6 +115,16 @@ export default function ValidationProgressPage() {
   const getScoreBg = (s: number) => s >= 70 ? 'bg-emerald-500/20 border-emerald-500/50' : s >= 50 ? 'bg-yellow-500/20 border-yellow-500/50' : 'bg-red-500/20 border-red-500/50';
   const getFindingColor = (t: string) => ({ strength: 'border-emerald-500/30 bg-emerald-500/10', weakness: 'border-red-500/30 bg-red-500/10', opportunity: 'border-blue-500/30 bg-blue-500/10', threat: 'border-orange-500/30 bg-orange-500/10', neutral: 'border-slate-500/30 bg-slate-500/10' }[t] || 'border-slate-500/30 bg-slate-500/10');
 
+  // Helper to safely format evidence (handles both string arrays and object arrays)
+  const formatEvidence = (evidence: any[] | undefined): string => {
+    if (!evidence || evidence.length === 0) return '';
+    return evidence.map((e: any) => {
+      if (typeof e === 'string') return e;
+      if (e && typeof e === 'object') return e.source || e.claim || e.title || JSON.stringify(e);
+      return String(e);
+    }).join(', ');
+  };
+
   const downloadPDF = () => {
     if (!validation) return;
 
@@ -147,8 +157,9 @@ export default function ValidationProgressPage() {
         report.findings.forEach((f, i) => {
           content += `  ${i + 1}. ${f.title}\n`;
           content += `     ${f.description}\n`;
-          if (f.evidence?.length) {
-            content += `     Evidence: ${f.evidence.join(', ')}\n`;
+          const evidenceStr = formatEvidence(f.evidence);
+          if (evidenceStr) {
+            content += `     Evidence: ${evidenceStr}\n`;
           }
         });
         content += `\n`;
@@ -363,7 +374,7 @@ export default function ValidationProgressPage() {
                             <h5 className="font-semibold">{finding.title}</h5>
                             <p className="text-slate-300 text-sm mt-1">{finding.description}</p>
                             {finding.evidence && finding.evidence.length > 0 && (
-                              <p className="text-xs text-slate-500 mt-2">Evidence: {finding.evidence.join(', ')}</p>
+                              <p className="text-xs text-slate-500 mt-2">Evidence: {formatEvidence(finding.evidence)}</p>
                             )}
                           </div>
                         ))}
