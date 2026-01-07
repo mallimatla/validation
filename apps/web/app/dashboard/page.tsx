@@ -1,8 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useUser, useAuth, UserButton } from '@clerk/nextjs';
+import { useUser, useAuth } from '@clerk/nextjs';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import Navigation from '../../components/Navigation';
+import { useUserContext } from '../../contexts/UserContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://validation-production.up.railway.app';
 
@@ -22,9 +25,18 @@ interface Validation {
 export default function DashboardPage() {
   const { user, isLoaded } = useUser();
   const { getToken } = useAuth();
+  const router = useRouter();
+  const { userProfile, isInvestor, canCreateValidation } = useUserContext();
   const [validations, setValidations] = useState<Validation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showInvestorBanner, setShowInvestorBanner] = useState(true);
+
+  // Redirect investors to their dashboard
+  useEffect(() => {
+    if (userProfile && isInvestor) {
+      router.push('/investor');
+    }
+  }, [userProfile, isInvestor, router]);
 
   useEffect(() => {
     if (isLoaded && user) {
@@ -118,23 +130,7 @@ export default function DashboardPage() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white">
-      {/* Header */}
-      <header className="border-b border-slate-700 bg-slate-900/50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="text-2xl font-bold">
-            <span className="text-emerald-400">Validation</span> Council
-          </Link>
-          <div className="flex items-center gap-4">
-            <Link href="/investor" className="text-slate-400 hover:text-white transition-colors text-sm flex items-center gap-1">
-              <span>💰</span> Investor View
-            </Link>
-            <Link href="/validate" className="text-slate-400 hover:text-white transition-colors text-sm">
-              New Validation
-            </Link>
-            <UserButton afterSignOutUrl="/" />
-          </div>
-        </div>
-      </header>
+      <Navigation />
 
       <div className="container mx-auto px-4 py-8">
         {/* Investor Interest Banner */}

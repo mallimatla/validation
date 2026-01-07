@@ -15,8 +15,8 @@ export default function Home() {
               <Link href="/dashboard" className="text-slate-400 hover:text-white transition-colors">
                 Dashboard
               </Link>
-              <Link href="/validate" className="text-slate-400 hover:text-white transition-colors">
-                New Validation
+              <Link href="/investor" className="text-slate-400 hover:text-white transition-colors">
+                Investor View
               </Link>
               <UserButton afterSignOutUrl="/" />
             </SignedIn>
@@ -95,13 +95,31 @@ export default function Home() {
             </div>
           </div>
 
+          {/* Dual CTA */}
           <div className="mt-16">
-            <Link
-              href="/validate"
-              className="inline-block bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-3 rounded-lg font-semibold transition-colors"
-            >
-              Start Validating
-            </Link>
+            <h2 className="text-2xl font-bold mb-6">Join the Platform</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
+              <Link
+                href="/sign-up"
+                className="bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-700 hover:to-cyan-700 text-white p-6 rounded-xl transition-all hover:scale-105"
+              >
+                <div className="text-3xl mb-3">🚀</div>
+                <h3 className="text-xl font-semibold mb-2">I'm a Founder</h3>
+                <p className="text-emerald-100 text-sm">
+                  Validate your startup idea and get discovered by investors
+                </p>
+              </Link>
+              <Link
+                href="/sign-up"
+                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white p-6 rounded-xl transition-all hover:scale-105"
+              >
+                <div className="text-3xl mb-3">💰</div>
+                <h3 className="text-xl font-semibold mb-2">I'm an Investor</h3>
+                <p className="text-purple-100 text-sm">
+                  Discover AI-validated startups and connect with founders
+                </p>
+              </Link>
+            </div>
           </div>
         </div>
       </div>

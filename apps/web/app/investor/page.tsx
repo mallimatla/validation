@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import Link from 'next/link';
+import Navigation from '../../components/Navigation';
+import { useUserContext } from '../../contexts/UserContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://validation-production.up.railway.app';
 
@@ -114,7 +116,9 @@ interface MeetingRequest {
 
 export default function InvestorDashboard() {
   const { isSignedIn, getToken } = useAuth();
+  const { userProfile, canContactFounders, isInvestor } = useUserContext();
   const [activeTab, setActiveTab] = useState<'browse' | 'saved' | 'interested' | 'meetings'>('browse');
+  const isPremium = userProfile?.subscription?.plan !== 'FREE';
   const [deals, setDeals] = useState<StartupDeal[]>([]);
   const [topDeals, setTopDeals] = useState<StartupDeal[]>([]);
   const [savedDeals, setSavedDeals] = useState<SavedDeal[]>([]);
@@ -382,7 +386,30 @@ export default function InvestorDashboard() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white">
+      <Navigation />
+
       <div className="container mx-auto px-4 py-8">
+        {/* Premium Upgrade Banner (for free users) */}
+        {!isPremium && isSignedIn && (
+          <div className="mb-6 bg-gradient-to-r from-purple-600/20 to-pink-600/20 border border-purple-500/30 rounded-xl p-4 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <span className="text-3xl">✨</span>
+              <div>
+                <h3 className="font-semibold">Upgrade to Premium</h3>
+                <p className="text-sm text-slate-300">
+                  Get unlimited browsing, save deals, express interest, and request meetings with founders
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/pricing"
+              className="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap"
+            >
+              Upgrade Now
+            </Link>
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
@@ -390,9 +417,6 @@ export default function InvestorDashboard() {
             <p className="text-slate-400 mt-1">Discover high-potential startups validated by AI</p>
           </div>
           <div className="flex items-center gap-4">
-            <Link href="/dashboard" className="text-slate-400 hover:text-white text-sm">
-              Switch to Founder View
-            </Link>
             <div className="bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-2 rounded-lg">
               <span className="text-sm font-medium">{pagination.total} Deals Available</span>
             </div>
@@ -612,22 +636,33 @@ export default function InvestorDashboard() {
                           >
                             View Details
                           </button>
-                          <button
-                            onClick={() => toggleSave(deal.id)}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                              savedDealIds.has(deal.id)
-                                ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50'
-                                : 'bg-slate-700 hover:bg-slate-600'
-                            }`}
-                          >
-                            {savedDealIds.has(deal.id) ? '⭐ Saved' : '☆ Save'}
-                          </button>
-                          <button
-                            onClick={() => { setSelectedDeal(deal); setShowInterestModal(true); }}
-                            className="px-4 py-2 rounded-lg text-sm font-medium bg-emerald-600 hover:bg-emerald-700 transition-colors"
-                          >
-                            💰 Interested
-                          </button>
+                          {isPremium ? (
+                            <>
+                              <button
+                                onClick={() => toggleSave(deal.id)}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                  savedDealIds.has(deal.id)
+                                    ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50'
+                                    : 'bg-slate-700 hover:bg-slate-600'
+                                }`}
+                              >
+                                {savedDealIds.has(deal.id) ? '⭐ Saved' : '☆ Save'}
+                              </button>
+                              <button
+                                onClick={() => { setSelectedDeal(deal); setShowInterestModal(true); }}
+                                className="px-4 py-2 rounded-lg text-sm font-medium bg-emerald-600 hover:bg-emerald-700 transition-colors"
+                              >
+                                💰 Interested
+                              </button>
+                            </>
+                          ) : (
+                            <Link
+                              href="/pricing"
+                              className="px-4 py-2 rounded-lg text-sm font-medium bg-purple-600/20 text-purple-400 border border-purple-500/50 hover:bg-purple-600/30 transition-colors"
+                            >
+                              ✨ Upgrade to Save
+                            </Link>
+                          )}
                         </div>
                       </div>
                     ))}
