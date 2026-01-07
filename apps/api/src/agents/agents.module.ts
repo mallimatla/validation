@@ -1,10 +1,12 @@
 /**
  * Agents Module
  * Registers all 12 Validation Council agents
+ * Enhanced with LLM integration for AI-powered analysis
  */
 
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../common/prisma/prisma.module';
+import { LLMModule } from '../common/llm/llm.module';
 import { AgentsController } from './agents.controller';
 import { AgentsService } from './agents.service';
 
@@ -56,7 +58,7 @@ const ariaServices = [
 ];
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, LLMModule],
   controllers: [AgentsController],
   providers: [
     AgentsService,

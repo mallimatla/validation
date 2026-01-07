@@ -4,11 +4,15 @@
  * Purpose: Calculates company valuation using multiple methodologies and comparable analysis.
  * Personality: Quantitative, methodical, conservative but fair.
  * Scoring Weight: 1.0x
+ *
+ * REAL DATA SOURCES:
+ * - LLM-powered valuation analysis
  */
 
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { LLMService } from '../../common/llm/llm.service';
 import { BaseAnalysisAgent, AnalysisInput, Citation } from '../base/base-analysis.agent';
 
 interface ValuationMethodology {
@@ -31,7 +35,7 @@ interface ValuationAnalysis {
 export class VictorAgent extends BaseAnalysisAgent {
   protected readonly agentId = 'victor';
   protected readonly agentName = 'Victor';
-  protected readonly agentVersion = '1.0.0';
+  protected readonly agentVersion = '2.0.0'; // Updated with LLM integration
   protected readonly scoringWeight = 1.0;
 
   protected readonly personality = `You are Victor, Chief Valuation Officer of the Validation Council.
@@ -61,8 +65,12 @@ Remember: Valuation is part art, part science. Be honest about uncertainty.`;
 
   private valuationAnalysis: ValuationAnalysis | null = null;
 
-  constructor(prisma: PrismaService, eventEmitter: EventEmitter2) {
-    super(prisma, eventEmitter);
+  constructor(
+    prisma: PrismaService,
+    eventEmitter: EventEmitter2,
+    @Optional() llm?: LLMService,
+  ) {
+    super(prisma, eventEmitter, llm);
   }
 
   protected buildAnalysisPrompt(input: AnalysisInput): string {

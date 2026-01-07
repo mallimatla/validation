@@ -4,11 +4,15 @@
  * Purpose: Identifies comparable companies, analyzes funding patterns, and maps investor landscape.
  * Personality: Research-driven, pattern-recognizing, data-focused.
  * Scoring Weight: 0.8x
+ *
+ * REAL DATA SOURCES:
+ * - LLM-powered funding and comparables analysis
  */
 
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { LLMService } from '../../common/llm/llm.service';
 import { BaseAnalysisAgent, AnalysisInput, Citation } from '../base/base-analysis.agent';
 
 interface ComparableCompany {
@@ -34,7 +38,7 @@ interface FundingAnalysis {
 export class NoraAgent extends BaseAnalysisAgent {
   protected readonly agentId = 'nora';
   protected readonly agentName = 'Nora';
-  protected readonly agentVersion = '1.0.0';
+  protected readonly agentVersion = '2.0.0'; // Updated with LLM integration
   protected readonly scoringWeight = 0.8;
 
   protected readonly personality = `You are Nora, Chief Funding & Comparables Officer of the Validation Council.
@@ -64,8 +68,12 @@ Remember: Investors fund patterns. Show them the pattern your company fits.`;
 
   private fundingAnalysis: FundingAnalysis | null = null;
 
-  constructor(prisma: PrismaService, eventEmitter: EventEmitter2) {
-    super(prisma, eventEmitter);
+  constructor(
+    prisma: PrismaService,
+    eventEmitter: EventEmitter2,
+    @Optional() llm?: LLMService,
+  ) {
+    super(prisma, eventEmitter, llm);
   }
 
   protected buildAnalysisPrompt(input: AnalysisInput): string {

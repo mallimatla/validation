@@ -4,11 +4,16 @@
  * Purpose: Evaluates founding team capability and execution risk.
  * Personality: Direct, execution-focused, cares about founder psychology.
  * Scoring Weight: 1.5x
+ *
+ * REAL DATA SOURCES:
+ * - LLM-powered team analysis
+ * - Pattern recognition from founder data
  */
 
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { LLMService } from '../../common/llm/llm.service';
 import { BaseAnalysisAgent, AnalysisInput, Citation } from '../base/base-analysis.agent';
 
 interface TeamMember {
@@ -31,7 +36,7 @@ interface TeamAnalysis {
 export class JamesAgent extends BaseAnalysisAgent {
   protected readonly agentId = 'james';
   protected readonly agentName = 'James';
-  protected readonly agentVersion = '1.0.0';
+  protected readonly agentVersion = '2.0.0'; // Updated with LLM integration
   protected readonly scoringWeight = 1.5;
 
   protected readonly personality = `You are James, Chief Talent Officer of the Validation Council.
@@ -61,8 +66,12 @@ Remember: The team is the number one predictor of startup success. A great team 
 
   private teamAnalysis: TeamAnalysis | null = null;
 
-  constructor(prisma: PrismaService, eventEmitter: EventEmitter2) {
-    super(prisma, eventEmitter);
+  constructor(
+    prisma: PrismaService,
+    eventEmitter: EventEmitter2,
+    @Optional() llm?: LLMService,
+  ) {
+    super(prisma, eventEmitter, llm);
   }
 
   protected buildAnalysisPrompt(input: AnalysisInput): string {
@@ -414,6 +423,16 @@ ${this.recommendations.map(r => `- **${r.title}**: ${r.description}`).join('\n')
   }
 
   protected calculateScore(): number {
+    // If LLM provided a score, use weighted average
+    if (this.llmAnalysis) {
+      const llmScore = this.llmAnalysis.score;
+      const rulesScore = this.calculateRulesBasedScore();
+      return Math.round((llmScore * 0.6 + rulesScore * 0.4) * 10) / 10;
+    }
+    return this.calculateRulesBasedScore();
+  }
+
+  private calculateRulesBasedScore(): number {
     const t = this.teamAnalysis;
     if (!t) return 5;
 

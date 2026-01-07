@@ -4,11 +4,16 @@
  * Purpose: Validates unit economics and financial viability with conservative math.
  * Personality: Conservative, math-obsessed, hates optimistic assumptions, protects founders from delusion.
  * Scoring Weight: 1.5x
+ *
+ * REAL DATA SOURCES:
+ * - LLM-powered financial analysis
+ * - Industry benchmarks for unit economics
  */
 
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { LLMService } from '../../common/llm/llm.service';
 import { BaseAnalysisAgent, AnalysisInput, Citation } from '../base/base-analysis.agent';
 
 interface UnitEconomics {
@@ -30,7 +35,7 @@ interface FinancialProjection {
 export class DavidAgent extends BaseAnalysisAgent {
   protected readonly agentId = 'david';
   protected readonly agentName = 'David';
-  protected readonly agentVersion = '1.0.0';
+  protected readonly agentVersion = '2.0.0'; // Updated with LLM integration
   protected readonly scoringWeight = 1.5;
 
   protected readonly personality = `You are David, Chief Financial Officer of the Validation Council.
@@ -61,8 +66,12 @@ Remember: Cash is oxygen. Run out and the company dies, regardless of how good t
   private unitEconomics: UnitEconomics | null = null;
   private financials: FinancialProjection | null = null;
 
-  constructor(prisma: PrismaService, eventEmitter: EventEmitter2) {
-    super(prisma, eventEmitter);
+  constructor(
+    prisma: PrismaService,
+    eventEmitter: EventEmitter2,
+    @Optional() llm?: LLMService,
+  ) {
+    super(prisma, eventEmitter, llm);
   }
 
   protected buildAnalysisPrompt(input: AnalysisInput): string {
@@ -386,6 +395,16 @@ ${this.recommendations.map(r => `- **${r.title}**: ${r.description}`).join('\n')
   }
 
   protected calculateScore(): number {
+    // If LLM provided a score, use weighted average
+    if (this.llmAnalysis) {
+      const llmScore = this.llmAnalysis.score;
+      const rulesScore = this.calculateRulesBasedScore();
+      return Math.round((llmScore * 0.6 + rulesScore * 0.4) * 10) / 10;
+    }
+    return this.calculateRulesBasedScore();
+  }
+
+  private calculateRulesBasedScore(): number {
     const u = this.unitEconomics;
     const f = this.financials;
 

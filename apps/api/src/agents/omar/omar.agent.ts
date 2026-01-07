@@ -4,11 +4,15 @@
  * Purpose: Assesses technical feasibility and estimates realistic timelines.
  * Personality: Pragmatic engineer, anti-over-engineering, realistic.
  * Scoring Weight: 1.0x
+ *
+ * REAL DATA SOURCES:
+ * - LLM-powered technical feasibility analysis
  */
 
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { LLMService } from '../../common/llm/llm.service';
 import { BaseAnalysisAgent, AnalysisInput, Citation } from '../base/base-analysis.agent';
 
 interface TechnicalAssessment {
@@ -25,7 +29,7 @@ interface TechnicalAssessment {
 export class OmarAgent extends BaseAnalysisAgent {
   protected readonly agentId = 'omar';
   protected readonly agentName = 'Omar';
-  protected readonly agentVersion = '1.0.0';
+  protected readonly agentVersion = '2.0.0'; // Updated with LLM integration
   protected readonly scoringWeight = 1.0;
 
   protected readonly personality = `You are Omar, Chief Technology Officer of the Validation Council.
@@ -55,8 +59,12 @@ Remember: The best code is no code. The second best is simple code. Complexity i
 
   private techAssessment: TechnicalAssessment | null = null;
 
-  constructor(prisma: PrismaService, eventEmitter: EventEmitter2) {
-    super(prisma, eventEmitter);
+  constructor(
+    prisma: PrismaService,
+    eventEmitter: EventEmitter2,
+    @Optional() llm?: LLMService,
+  ) {
+    super(prisma, eventEmitter, llm);
   }
 
   protected buildAnalysisPrompt(input: AnalysisInput): string {

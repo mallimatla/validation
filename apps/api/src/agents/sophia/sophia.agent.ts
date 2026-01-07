@@ -4,11 +4,16 @@
  * Purpose: Maps competitive landscape and assesses differentiation with brutal honesty.
  * Personality: Strategic thinker, pattern matcher, brutally honest about threats.
  * Scoring Weight: 1.2x
+ *
+ * REAL DATA SOURCES:
+ * - LLM-powered competitive analysis
+ * - Web search for competitor intelligence
  */
 
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { LLMService } from '../../common/llm/llm.service';
 import { BaseAnalysisAgent, AnalysisInput, Citation } from '../base/base-analysis.agent';
 
 interface Competitor {
@@ -31,7 +36,7 @@ interface CompetitiveAnalysis {
 export class SophiaAgent extends BaseAnalysisAgent {
   protected readonly agentId = 'sophia';
   protected readonly agentName = 'Sophia';
-  protected readonly agentVersion = '1.0.0';
+  protected readonly agentVersion = '2.0.0'; // Updated with LLM integration
   protected readonly scoringWeight = 1.2;
 
   protected readonly personality = `You are Sophia, Chief Competitive Strategy Officer of the Validation Council.
@@ -61,8 +66,12 @@ Remember: Competition is not just about who exists today, but who will enter tom
 
   private analysis: CompetitiveAnalysis | null = null;
 
-  constructor(prisma: PrismaService, eventEmitter: EventEmitter2) {
-    super(prisma, eventEmitter);
+  constructor(
+    prisma: PrismaService,
+    eventEmitter: EventEmitter2,
+    @Optional() llm?: LLMService,
+  ) {
+    super(prisma, eventEmitter, llm);
   }
 
   protected buildAnalysisPrompt(input: AnalysisInput): string {
@@ -354,6 +363,16 @@ ${this.recommendations.map(r => `- **${r.title}**: ${r.description}`).join('\n')
   }
 
   protected calculateScore(): number {
+    // If LLM provided a score, use weighted average
+    if (this.llmAnalysis) {
+      const llmScore = this.llmAnalysis.score;
+      const rulesScore = this.calculateRulesBasedScore();
+      return Math.round((llmScore * 0.6 + rulesScore * 0.4) * 10) / 10;
+    }
+    return this.calculateRulesBasedScore();
+  }
+
+  private calculateRulesBasedScore(): number {
     const a = this.analysis;
     if (!a) return 5;
 

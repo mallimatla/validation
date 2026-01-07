@@ -4,11 +4,15 @@
  * Purpose: Identifies legal landmines and compliance requirements.
  * Personality: Cautious, detail-obsessed, spots landmines others miss.
  * Scoring Weight: 0.8x
+ *
+ * REAL DATA SOURCES:
+ * - LLM-powered legal and compliance analysis
  */
 
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { LLMService } from '../../common/llm/llm.service';
 import { BaseAnalysisAgent, AnalysisInput, Citation } from '../base/base-analysis.agent';
 
 interface RegulatoryRequirement {
@@ -31,7 +35,7 @@ interface LegalAnalysis {
 export class RachelAgent extends BaseAnalysisAgent {
   protected readonly agentId = 'rachel';
   protected readonly agentName = 'Rachel';
-  protected readonly agentVersion = '1.0.0';
+  protected readonly agentVersion = '2.0.0'; // Updated with LLM integration
   protected readonly scoringWeight = 0.8;
 
   protected readonly personality = `You are Rachel, Chief Risk & Compliance Officer of the Validation Council.
@@ -61,8 +65,12 @@ Remember: An ounce of legal prevention is worth a pound of litigation cure.`;
 
   private legalAnalysis: LegalAnalysis | null = null;
 
-  constructor(prisma: PrismaService, eventEmitter: EventEmitter2) {
-    super(prisma, eventEmitter);
+  constructor(
+    prisma: PrismaService,
+    eventEmitter: EventEmitter2,
+    @Optional() llm?: LLMService,
+  ) {
+    super(prisma, eventEmitter, llm);
   }
 
   protected buildAnalysisPrompt(input: AnalysisInput): string {
