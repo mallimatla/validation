@@ -1,9 +1,9 @@
 # Validation Council API - Production Dockerfile
 # Multi-stage build for optimized image size
-# Force rebuild: 2026-01-06T05:55-v2
+# Force rebuild: 2026-01-07T14:50-v4
 
 # Stage 1: Dependencies (all deps for building)
-FROM node:20-alpine AS deps
+FROM node:20.10.0-alpine AS deps
 WORKDIR /app
 
 # Install dependencies for native modules and Prisma
@@ -19,7 +19,7 @@ COPY packages/agent-core/package.json ./packages/agent-core/
 RUN npm ci
 
 # Stage 2: Builder
-FROM node:20-alpine AS builder
+FROM node:20.10.0-alpine AS builder
 WORKDIR /app
 
 # Install OpenSSL for Prisma
@@ -36,7 +36,7 @@ RUN cd apps/api && npx prisma generate
 RUN npx turbo run build --filter=@validation-council/api --force
 
 # Stage 3: Production dependencies
-FROM node:20-alpine AS prod-deps
+FROM node:20.10.0-alpine AS prod-deps
 WORKDIR /app
 
 # Install dependencies for native modules and Prisma
@@ -51,7 +51,7 @@ COPY packages/agent-core/package.json ./packages/agent-core/
 RUN npm ci --omit=dev
 
 # Stage 4: Runner
-FROM node:20-alpine AS runner
+FROM node:20.10.0-alpine AS runner
 WORKDIR /app
 
 # Install OpenSSL for Prisma runtime
