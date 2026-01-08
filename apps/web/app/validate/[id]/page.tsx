@@ -473,8 +473,8 @@ export default function ValidationProgressPage() {
                     {/* Agent completion list */}
                     <div className="space-y-1.5">
                       {AGENTS.slice(0, 4).map((agent) => {
-                        const result = validation.agentResults?.[agent.id];
-                        const isComplete = !!result;
+                        const report = getAgentReport(agent.id);
+                        const isComplete = !!report;
                         return (
                           <div key={agent.id} className="flex items-center gap-2">
                             <span className={`w-2 h-2 rounded-full ${isComplete ? 'bg-emerald-500' : 'bg-slate-600'}`} />
