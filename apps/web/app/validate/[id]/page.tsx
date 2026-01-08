@@ -358,52 +358,152 @@ export default function ValidationProgressPage() {
                   </div>
                 </div>
 
-                {/* Quick Stats */}
-                <div className="lg:col-span-3 grid grid-cols-2 md:grid-cols-4 gap-4">
+                {/* Enhanced Quick Stats */}
+                <div className="lg:col-span-3 grid grid-cols-2 gap-4">
+                  {/* Findings Card */}
                   <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-2xl">🔍</span>
-                      <span className="text-slate-400 text-sm">Findings</span>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-2xl">🔍</span>
+                        <span className="text-slate-400 text-sm font-medium">Findings</span>
+                      </div>
+                      <div className="text-2xl font-bold text-white">{allFindings.length}</div>
                     </div>
-                    <div className="text-3xl font-bold text-white">{allFindings.length}</div>
-                    <div className="flex gap-2 mt-2 text-xs">
-                      <span className="text-emerald-400">{allFindings.filter(f => f.type === 'strength').length} strengths</span>
-                      <span className="text-red-400">{allFindings.filter(f => f.type === 'weakness').length} weaknesses</span>
+                    {/* Breakdown bars */}
+                    <div className="space-y-2">
+                      {[
+                        { label: 'Strengths', count: allFindings.filter(f => f.type === 'strength').length, color: 'bg-emerald-500', textColor: 'text-emerald-400' },
+                        { label: 'Weaknesses', count: allFindings.filter(f => f.type === 'weakness').length, color: 'bg-red-500', textColor: 'text-red-400' },
+                        { label: 'Opportunities', count: allFindings.filter(f => f.type === 'opportunity').length, color: 'bg-blue-500', textColor: 'text-blue-400' },
+                        { label: 'Threats', count: allFindings.filter(f => f.type === 'threat').length, color: 'bg-orange-500', textColor: 'text-orange-400' },
+                      ].map((item) => (
+                        <div key={item.label} className="flex items-center gap-2">
+                          <span className={`text-xs ${item.textColor} w-20`}>{item.label}</span>
+                          <div className="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full ${item.color} rounded-full transition-all`}
+                              style={{ width: `${allFindings.length > 0 ? (item.count / allFindings.length) * 100 : 0}%` }}
+                            />
+                          </div>
+                          <span className="text-xs text-slate-400 w-6 text-right">{item.count}</span>
+                        </div>
+                      ))}
                     </div>
                   </div>
 
+                  {/* Risks Card */}
                   <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-2xl">⚠️</span>
-                      <span className="text-slate-400 text-sm">Risks</span>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-2xl">⚠️</span>
+                        <span className="text-slate-400 text-sm font-medium">Risks</span>
+                      </div>
+                      <div className="text-2xl font-bold text-white">{allRisks.length}</div>
                     </div>
-                    <div className="text-3xl font-bold text-white">{allRisks.length}</div>
-                    <div className="flex gap-2 mt-2 text-xs">
-                      <span className="text-red-400">{allRisks.filter(r => r.probability === 'high').length} high</span>
-                      <span className="text-yellow-400">{allRisks.filter(r => r.probability === 'medium').length} medium</span>
+                    {/* Risk severity breakdown */}
+                    <div className="space-y-2">
+                      {[
+                        { label: 'High', count: allRisks.filter(r => r.probability === 'high').length, color: 'bg-red-500', textColor: 'text-red-400', icon: '🔴' },
+                        { label: 'Medium', count: allRisks.filter(r => r.probability === 'medium').length, color: 'bg-yellow-500', textColor: 'text-yellow-400', icon: '🟡' },
+                        { label: 'Low', count: allRisks.filter(r => r.probability === 'low').length, color: 'bg-emerald-500', textColor: 'text-emerald-400', icon: '🟢' },
+                      ].map((item) => (
+                        <div key={item.label} className="flex items-center gap-2">
+                          <span className="text-xs">{item.icon}</span>
+                          <span className={`text-xs ${item.textColor} w-14`}>{item.label}</span>
+                          <div className="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full ${item.color} rounded-full transition-all`}
+                              style={{ width: `${allRisks.length > 0 ? (item.count / allRisks.length) * 100 : 0}%` }}
+                            />
+                          </div>
+                          <span className="text-xs text-slate-400 w-6 text-right">{item.count}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {/* Risk alert */}
+                    {allRisks.filter(r => r.probability === 'high').length > 0 && (
+                      <div className="mt-3 pt-2 border-t border-slate-700">
+                        <span className="text-xs text-red-400">
+                          ⚡ {allRisks.filter(r => r.probability === 'high').length} high-priority risks need attention
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Actions Card */}
+                  <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-2xl">📋</span>
+                        <span className="text-slate-400 text-sm font-medium">Actions</span>
+                      </div>
+                      <div className="text-2xl font-bold text-white">{allRecommendations.length}</div>
+                    </div>
+                    {/* Priority breakdown */}
+                    <div className="space-y-2">
+                      {[
+                        { label: 'Critical', count: allRecommendations.filter(r => r.priority === 'critical').length, color: 'bg-red-500', textColor: 'text-red-400' },
+                        { label: 'High', count: allRecommendations.filter(r => r.priority === 'high').length, color: 'bg-orange-500', textColor: 'text-orange-400' },
+                        { label: 'Medium', count: allRecommendations.filter(r => r.priority === 'medium').length, color: 'bg-yellow-500', textColor: 'text-yellow-400' },
+                        { label: 'Low', count: allRecommendations.filter(r => r.priority === 'low').length, color: 'bg-slate-500', textColor: 'text-slate-400' },
+                      ].map((item) => (
+                        <div key={item.label} className="flex items-center gap-2">
+                          <span className={`text-xs ${item.textColor} w-14`}>{item.label}</span>
+                          <div className="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full ${item.color} rounded-full transition-all`}
+                              style={{ width: `${allRecommendations.length > 0 ? (item.count / allRecommendations.length) * 100 : 0}%` }}
+                            />
+                          </div>
+                          <span className="text-xs text-slate-400 w-6 text-right">{item.count}</span>
+                        </div>
+                      ))}
                     </div>
                   </div>
 
+                  {/* Agents Card */}
                   <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-2xl">📋</span>
-                      <span className="text-slate-400 text-sm">Actions</span>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-2xl">🤖</span>
+                        <span className="text-slate-400 text-sm font-medium">Agents</span>
+                      </div>
+                      <div className="text-2xl font-bold text-white">{completedCount}/{AGENTS.length}</div>
                     </div>
-                    <div className="text-3xl font-bold text-white">{allRecommendations.length}</div>
-                    <div className="flex gap-2 mt-2 text-xs">
-                      <span className="text-red-400">{allRecommendations.filter(r => r.priority === 'critical').length} critical</span>
-                      <span className="text-orange-400">{allRecommendations.filter(r => r.priority === 'high').length} high</span>
+                    {/* Agent completion list */}
+                    <div className="space-y-1.5">
+                      {AGENTS.slice(0, 4).map((agent) => {
+                        const result = validation.agentResults?.[agent.id];
+                        const isComplete = !!result;
+                        return (
+                          <div key={agent.id} className="flex items-center gap-2">
+                            <span className={`w-2 h-2 rounded-full ${isComplete ? 'bg-emerald-500' : 'bg-slate-600'}`} />
+                            <span className={`text-xs flex-1 truncate ${isComplete ? 'text-slate-300' : 'text-slate-500'}`}>
+                              {agent.name}
+                            </span>
+                            <span className="text-xs">
+                              {isComplete ? '✓' : '○'}
+                            </span>
+                          </div>
+                        );
+                      })}
+                      {AGENTS.length > 4 && (
+                        <div className="text-xs text-slate-500 pl-4">
+                          +{AGENTS.length - 4} more agents
+                        </div>
+                      )}
                     </div>
-                  </div>
-
-                  <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-2xl">🤖</span>
-                      <span className="text-slate-400 text-sm">Agents</span>
-                    </div>
-                    <div className="text-3xl font-bold text-white">{completedCount}/{AGENTS.length}</div>
-                    <div className="flex gap-2 mt-2 text-xs">
-                      <span className="text-emerald-400">All complete</span>
+                    {/* Overall progress */}
+                    <div className="mt-3 pt-2 border-t border-slate-700">
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-emerald-500 rounded-full transition-all"
+                            style={{ width: `${(completedCount / AGENTS.length) * 100}%` }}
+                          />
+                        </div>
+                        <span className="text-xs text-emerald-400">{Math.round((completedCount / AGENTS.length) * 100)}%</span>
+                      </div>
                     </div>
                   </div>
                 </div>
