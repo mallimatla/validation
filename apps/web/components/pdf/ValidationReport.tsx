@@ -7,22 +7,8 @@ import {
   Text,
   View,
   StyleSheet,
-  Font,
-  Svg,
-  Path,
-  Circle,
   pdf,
 } from '@react-pdf/renderer';
-
-// Register fonts for professional look
-Font.register({
-  family: 'Inter',
-  fonts: [
-    { src: 'https://fonts.gstatic.com/s/inter/v13/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfAZ9hjp-Ek-_EeA.woff2', fontWeight: 400 },
-    { src: 'https://fonts.gstatic.com/s/inter/v13/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuI6fAZ9hjp-Ek-_EeA.woff2', fontWeight: 600 },
-    { src: 'https://fonts.gstatic.com/s/inter/v13/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuFuYAZ9hjp-Ek-_EeA.woff2', fontWeight: 700 },
-  ],
-});
 
 // Professional color palette
 const colors = {
@@ -40,13 +26,13 @@ const colors = {
   certifiedGreen: '#059669',
 };
 
-// Styles
+// Styles - using Helvetica (built-in font)
 const styles = StyleSheet.create({
   page: {
     flexDirection: 'column',
     backgroundColor: colors.white,
     padding: 40,
-    fontFamily: 'Inter',
+    fontFamily: 'Helvetica',
   },
   // Header styles
   header: {
@@ -390,14 +376,6 @@ function getTypeColor(type: string): string {
   }
 }
 
-// Checkmark SVG Component
-const CheckmarkIcon = () => (
-  <Svg viewBox="0 0 24 24" style={{ width: 24, height: 24 }}>
-    <Circle cx="12" cy="12" r="11" fill={colors.certifiedGreen} />
-    <Path d="M9 12l2 2 4-4" stroke={colors.white} strokeWidth="2" fill="none" />
-  </Svg>
-);
-
 // Types
 interface Finding {
   title: string;
@@ -518,11 +496,8 @@ export const ValidationReportDocument = ({ validation, agents }: ValidationRepor
 
         {/* Certification Badge */}
         <View style={styles.certificationBadge}>
-          <View style={styles.certificationIcon}>
-            <Svg viewBox="0 0 40 40">
-              <Circle cx="20" cy="20" r="18" fill={colors.certifiedGreen} />
-              <Path d="M12 20l6 6 12-12" stroke={colors.white} strokeWidth="3" fill="none" />
-            </Svg>
+          <View style={[styles.certificationIcon, { backgroundColor: colors.certifiedGreen, borderRadius: 20, justifyContent: 'center', alignItems: 'center' }]}>
+            <Text style={{ color: colors.white, fontSize: 24, fontWeight: 700 }}>✓</Text>
           </View>
           <View style={styles.certificationText}>
             <Text style={styles.certificationTitle}>VERIFIED & CERTIFIED ANALYSIS</Text>
@@ -649,10 +624,9 @@ export const ValidationReportDocument = ({ validation, agents }: ValidationRepor
               {/* Investor Grade Badge */}
               {agent.investorGrade && (
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
-                  <Svg viewBox="0 0 16 16" style={{ width: 12, height: 12, marginRight: 4 }}>
-                    <Circle cx="8" cy="8" r="7" fill={colors.certifiedGreen} />
-                    <Path d="M5 8l2 2 4-4" stroke={colors.white} strokeWidth="1.5" fill="none" />
-                  </Svg>
+                  <View style={{ width: 12, height: 12, backgroundColor: colors.certifiedGreen, borderRadius: 6, marginRight: 4, justifyContent: 'center', alignItems: 'center' }}>
+                    <Text style={{ color: colors.white, fontSize: 8, fontWeight: 700 }}>✓</Text>
+                  </View>
                   <Text style={{ fontSize: 8, color: colors.certifiedGreen, fontWeight: 600 }}>
                     INVESTOR-GRADE ANALYSIS
                   </Text>
@@ -923,11 +897,8 @@ export const ValidationReportDocument = ({ validation, agents }: ValidationRepor
 
         {/* Final Certification */}
         <View style={[styles.certificationBadge, { marginTop: 20 }]}>
-          <View style={styles.certificationIcon}>
-            <Svg viewBox="0 0 40 40">
-              <Circle cx="20" cy="20" r="18" fill={colors.certifiedGreen} />
-              <Path d="M12 20l6 6 12-12" stroke={colors.white} strokeWidth="3" fill="none" />
-            </Svg>
+          <View style={[styles.certificationIcon, { backgroundColor: colors.certifiedGreen, borderRadius: 20, justifyContent: 'center', alignItems: 'center' }]}>
+            <Text style={{ color: colors.white, fontSize: 24, fontWeight: 700 }}>✓</Text>
           </View>
           <View style={styles.certificationText}>
             <Text style={styles.certificationTitle}>CERTIFIED BY STARTUP VERDICT</Text>
@@ -957,9 +928,16 @@ export async function generateValidationPDF(
   validation: ValidationData,
   agents: Agent[]
 ): Promise<Blob> {
-  const doc = <ValidationReportDocument validation={validation} agents={agents} />;
-  const blob = await pdf(doc).toBlob();
-  return blob;
+  try {
+    console.log('Generating PDF for validation:', validation.id);
+    const doc = <ValidationReportDocument validation={validation} agents={agents} />;
+    const blob = await pdf(doc).toBlob();
+    console.log('PDF generated successfully, size:', blob.size);
+    return blob;
+  } catch (error) {
+    console.error('PDF generation error:', error);
+    throw error;
+  }
 }
 
 // Export function to download PDF directly
@@ -968,13 +946,20 @@ export async function downloadValidationPDF(
   agents: Agent[],
   filename?: string
 ): Promise<void> {
-  const blob = await generateValidationPDF(validation, agents);
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename || `StartupVerdict-${validation.title.replace(/\s+/g, '-')}-Report.pdf`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  try {
+    console.log('Starting PDF download...');
+    const blob = await generateValidationPDF(validation, agents);
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename || `StartupVerdict-${validation.title.replace(/\s+/g, '-')}-Report.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    console.log('PDF download initiated');
+  } catch (error) {
+    console.error('PDF download error:', error);
+    throw error;
+  }
 }
