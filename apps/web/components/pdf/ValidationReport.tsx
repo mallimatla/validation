@@ -22,37 +22,37 @@ const colors = {
   medium: '#475569',
   light: '#94a3b8',
   lighter: '#e2e8f0',
+  lightest: '#f8fafc',
   white: '#ffffff',
   certifiedGreen: '#059669',
 };
 
-// Styles - using Helvetica (built-in font)
+// Styles
 const styles = StyleSheet.create({
   page: {
-    flexDirection: 'column',
     backgroundColor: colors.white,
     padding: 40,
     fontFamily: 'Helvetica',
+    fontSize: 10,
+    lineHeight: 1.4,
   },
-  // Header styles
+  // Header
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 30,
-    paddingBottom: 20,
-    borderBottom: `2px solid ${colors.primary}`,
-  },
-  logo: {
-    flexDirection: 'column',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingBottom: 15,
+    borderBottomWidth: 2,
+    borderBottomColor: colors.primary,
   },
   logoText: {
-    fontSize: 24,
-    fontWeight: 700,
+    fontSize: 20,
+    fontFamily: 'Helvetica-Bold',
     color: colors.primary,
   },
   logoSubtext: {
-    fontSize: 10,
+    fontSize: 8,
     color: colors.medium,
     marginTop: 2,
   },
@@ -60,282 +60,386 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   reportTitle: {
-    fontSize: 14,
-    fontWeight: 600,
+    fontSize: 11,
+    fontFamily: 'Helvetica-Bold',
     color: colors.dark,
   },
-  reportDate: {
-    fontSize: 10,
-    color: colors.medium,
-    marginTop: 4,
-  },
-  reportId: {
+  reportMeta: {
     fontSize: 8,
-    color: colors.light,
+    color: colors.medium,
     marginTop: 2,
   },
-  // Certification badge
-  certificationBadge: {
+  // Certification Badge
+  certBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ecfdf5',
     padding: 12,
-    borderRadius: 8,
+    borderRadius: 6,
     marginBottom: 20,
-    border: `1px solid ${colors.certifiedGreen}`,
+    borderWidth: 1,
+    borderColor: colors.certifiedGreen,
   },
-  certificationIcon: {
-    width: 40,
-    height: 40,
+  certIcon: {
+    width: 36,
+    height: 36,
+    backgroundColor: colors.certifiedGreen,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: 12,
   },
-  certificationText: {
-    flex: 1,
+  certIconText: {
+    color: colors.white,
+    fontSize: 20,
+    fontFamily: 'Helvetica-Bold',
   },
-  certificationTitle: {
-    fontSize: 12,
-    fontWeight: 700,
+  certTitle: {
+    fontSize: 11,
+    fontFamily: 'Helvetica-Bold',
     color: colors.certifiedGreen,
   },
-  certificationSubtitle: {
-    fontSize: 9,
+  certSubtitle: {
+    fontSize: 8,
     color: colors.medium,
-    marginTop: 2,
+    marginTop: 3,
+    maxWidth: 420,
   },
-  // Section styles
+  // Section
   section: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: 700,
+    fontSize: 14,
+    fontFamily: 'Helvetica-Bold',
     color: colors.dark,
-    marginBottom: 12,
-    paddingBottom: 6,
-    borderBottom: `1px solid ${colors.lighter}`,
+    marginBottom: 10,
+    paddingBottom: 5,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.lighter,
   },
   sectionSubtitle: {
     fontSize: 11,
-    fontWeight: 600,
+    fontFamily: 'Helvetica-Bold',
     color: colors.medium,
     marginBottom: 8,
     marginTop: 12,
   },
-  // Executive summary
-  summaryBox: {
-    backgroundColor: '#f8fafc',
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 16,
-  },
-  summaryText: {
-    fontSize: 11,
-    color: colors.dark,
-    lineHeight: 1.6,
-  },
-  // Score display
-  scoreContainer: {
+  // Score Display
+  scoreRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
     marginBottom: 20,
-    padding: 20,
-    backgroundColor: '#f8fafc',
-    borderRadius: 8,
   },
-  scoreBox: {
+  scoreCard: {
+    flex: 1,
+    backgroundColor: colors.lightest,
+    padding: 15,
+    borderRadius: 6,
     alignItems: 'center',
-    padding: 10,
+    marginHorizontal: 4,
   },
   scoreValue: {
-    fontSize: 36,
-    fontWeight: 700,
+    fontSize: 28,
+    fontFamily: 'Helvetica-Bold',
   },
   scoreLabel: {
-    fontSize: 10,
+    fontSize: 8,
     color: colors.medium,
     marginTop: 4,
+    textTransform: 'uppercase',
   },
-  // Agent card
-  agentCard: {
-    backgroundColor: '#f8fafc',
-    borderRadius: 8,
-    padding: 14,
+  // Summary Box
+  summaryBox: {
+    backgroundColor: colors.lightest,
+    padding: 12,
+    borderRadius: 6,
     marginBottom: 12,
-    border: `1px solid ${colors.lighter}`,
+  },
+  summaryTitle: {
+    fontSize: 14,
+    fontFamily: 'Helvetica-Bold',
+    color: colors.dark,
+    marginBottom: 6,
+  },
+  summaryText: {
+    fontSize: 10,
+    color: colors.dark,
+    lineHeight: 1.5,
+  },
+  // Stats Grid
+  statsGrid: {
+    flexDirection: 'row',
+    marginBottom: 16,
+  },
+  statBox: {
+    flex: 1,
+    padding: 10,
+    borderRadius: 4,
+    marginHorizontal: 3,
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 20,
+    fontFamily: 'Helvetica-Bold',
+  },
+  statLabel: {
+    fontSize: 8,
+    color: colors.medium,
+    marginTop: 2,
+  },
+  // Bar Chart
+  chartContainer: {
+    marginBottom: 16,
+    padding: 12,
+    backgroundColor: colors.lightest,
+    borderRadius: 6,
+  },
+  chartTitle: {
+    fontSize: 10,
+    fontFamily: 'Helvetica-Bold',
+    color: colors.dark,
+    marginBottom: 10,
+  },
+  barRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  barLabel: {
+    width: 60,
+    fontSize: 9,
+    color: colors.medium,
+  },
+  barContainer: {
+    flex: 1,
+    height: 16,
+    backgroundColor: colors.lighter,
+    borderRadius: 3,
+    marginHorizontal: 8,
+  },
+  bar: {
+    height: 16,
+    borderRadius: 3,
+  },
+  barValue: {
+    width: 50,
+    fontSize: 9,
+    fontFamily: 'Helvetica-Bold',
+    textAlign: 'right',
+  },
+  // Agent Card
+  agentCard: {
+    backgroundColor: colors.lightest,
+    borderRadius: 6,
+    padding: 12,
+    marginBottom: 12,
+    borderLeftWidth: 4,
   },
   agentHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-    paddingBottom: 8,
-    borderBottom: `1px solid ${colors.lighter}`,
+    alignItems: 'flex-start',
+    marginBottom: 8,
   },
   agentName: {
     fontSize: 13,
-    fontWeight: 700,
+    fontFamily: 'Helvetica-Bold',
     color: colors.dark,
   },
   agentRole: {
-    fontSize: 10,
+    fontSize: 9,
     color: colors.medium,
     marginTop: 2,
   },
   agentScore: {
     fontSize: 18,
-    fontWeight: 700,
+    fontFamily: 'Helvetica-Bold',
   },
   agentConfidence: {
-    fontSize: 9,
+    fontSize: 8,
     color: colors.light,
+    textAlign: 'right',
   },
-  // Finding styles
+  investorBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+  },
+  investorDot: {
+    width: 8,
+    height: 8,
+    backgroundColor: colors.certifiedGreen,
+    borderRadius: 4,
+    marginRight: 4,
+  },
+  investorText: {
+    fontSize: 7,
+    color: colors.certifiedGreen,
+    fontFamily: 'Helvetica-Bold',
+  },
+  // Finding Item
   findingItem: {
     flexDirection: 'row',
-    marginBottom: 8,
-    paddingLeft: 8,
+    marginBottom: 6,
+    paddingBottom: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.lighter,
   },
-  findingBullet: {
+  findingDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
     marginRight: 8,
     marginTop: 4,
   },
-  findingText: {
+  findingContent: {
     flex: 1,
-    fontSize: 10,
-    color: colors.dark,
-    lineHeight: 1.5,
   },
   findingTitle: {
-    fontWeight: 600,
+    fontSize: 9,
+    fontFamily: 'Helvetica-Bold',
+    color: colors.dark,
   },
-  // Risk table
+  findingDesc: {
+    fontSize: 8,
+    color: colors.medium,
+    marginTop: 2,
+    lineHeight: 1.4,
+  },
+  // Risk Item
+  riskItem: {
+    backgroundColor: '#fef2f2',
+    padding: 10,
+    borderRadius: 4,
+    marginBottom: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.danger,
+  },
+  riskHeader: {
+    flexDirection: 'row',
+    marginBottom: 4,
+  },
+  riskBadge: {
+    fontSize: 7,
+    color: colors.white,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 2,
+    marginRight: 4,
+    fontFamily: 'Helvetica-Bold',
+  },
+  riskTitle: {
+    fontSize: 10,
+    fontFamily: 'Helvetica-Bold',
+    color: colors.dark,
+    marginBottom: 3,
+  },
+  riskDesc: {
+    fontSize: 8,
+    color: colors.medium,
+    lineHeight: 1.4,
+  },
+  // Recommendation Item
+  recItem: {
+    padding: 10,
+    borderRadius: 4,
+    marginBottom: 8,
+    borderLeftWidth: 3,
+  },
+  recHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  recBadge: {
+    fontSize: 7,
+    color: colors.white,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 2,
+    marginRight: 6,
+    fontFamily: 'Helvetica-Bold',
+  },
+  recTimeframe: {
+    fontSize: 7,
+    color: colors.light,
+  },
+  recTitle: {
+    fontSize: 10,
+    fontFamily: 'Helvetica-Bold',
+    color: colors.dark,
+    marginBottom: 3,
+  },
+  recDesc: {
+    fontSize: 8,
+    color: colors.medium,
+    lineHeight: 1.4,
+  },
+  // Table
   table: {
-    marginTop: 10,
+    marginTop: 8,
   },
   tableHeader: {
     flexDirection: 'row',
     backgroundColor: colors.dark,
     padding: 8,
-    borderTopLeftRadius: 4,
-    borderTopRightRadius: 4,
   },
   tableHeaderCell: {
-    fontSize: 9,
-    fontWeight: 600,
+    fontSize: 8,
+    fontFamily: 'Helvetica-Bold',
     color: colors.white,
   },
   tableRow: {
     flexDirection: 'row',
     padding: 8,
-    borderBottom: `1px solid ${colors.lighter}`,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.lighter,
   },
   tableRowAlt: {
-    backgroundColor: '#f8fafc',
+    backgroundColor: colors.lightest,
   },
   tableCell: {
-    fontSize: 9,
-    color: colors.dark,
-  },
-  // Market data
-  marketMetric: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-    borderBottom: `1px solid ${colors.lighter}`,
-  },
-  marketLabel: {
-    fontSize: 10,
-    color: colors.medium,
-  },
-  marketValue: {
-    fontSize: 11,
-    fontWeight: 600,
-    color: colors.dark,
-  },
-  // Progress bar
-  progressBarContainer: {
-    height: 8,
-    backgroundColor: colors.lighter,
-    borderRadius: 4,
-    marginTop: 4,
-    marginBottom: 8,
-  },
-  progressBar: {
-    height: 8,
-    borderRadius: 4,
-  },
-  // Recommendation
-  recommendationItem: {
-    flexDirection: 'row',
-    marginBottom: 10,
-    padding: 10,
-    backgroundColor: '#f8fafc',
-    borderRadius: 6,
-    borderLeft: '3px solid',
-  },
-  recommendationContent: {
-    flex: 1,
-  },
-  recommendationTitle: {
-    fontSize: 11,
-    fontWeight: 600,
-    color: colors.dark,
-    marginBottom: 4,
-  },
-  recommendationDesc: {
-    fontSize: 9,
-    color: colors.medium,
-    lineHeight: 1.5,
-  },
-  priorityBadge: {
     fontSize: 8,
-    fontWeight: 600,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginRight: 8,
+    color: colors.dark,
   },
   // Footer
   footer: {
     position: 'absolute',
-    bottom: 30,
+    bottom: 25,
     left: 40,
     right: 40,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingTop: 10,
-    borderTop: `1px solid ${colors.lighter}`,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: colors.lighter,
   },
   footerText: {
-    fontSize: 8,
+    fontSize: 7,
     color: colors.light,
   },
   pageNumber: {
-    fontSize: 8,
+    fontSize: 7,
     color: colors.medium,
-  },
-  // Watermark/Stamp
-  certifiedStamp: {
-    position: 'absolute',
-    right: 40,
-    top: 180,
-    width: 100,
-    height: 100,
-    opacity: 0.15,
   },
   // Disclaimer
   disclaimer: {
-    marginTop: 20,
-    padding: 12,
+    marginTop: 16,
+    padding: 10,
     backgroundColor: '#fefce8',
-    borderRadius: 6,
-    border: `1px solid #fef08a`,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#fef08a',
+  },
+  disclaimerTitle: {
+    fontSize: 9,
+    fontFamily: 'Helvetica-Bold',
+    color: '#854d0e',
+    marginBottom: 4,
   },
   disclaimerText: {
-    fontSize: 8,
+    fontSize: 7,
     color: '#854d0e',
     lineHeight: 1.5,
   },
@@ -382,7 +486,6 @@ interface Finding {
   description: string;
   type: string;
   severity: string;
-  evidence?: string[];
 }
 
 interface Risk {
@@ -411,8 +514,6 @@ interface AgentReport {
   marketData?: any;
   unitEconomics?: any;
   scenarioAnalysis?: any;
-  competitors?: any[];
-  scorecard?: any;
 }
 
 interface ValidationData {
@@ -439,37 +540,132 @@ interface Agent {
   investorGrade: boolean;
 }
 
+// Visual Bar Chart Component
+const BarChart = ({ title, data }: { title: string; data: { label: string; value: number; maxValue: number; color: string }[] }) => (
+  <View style={styles.chartContainer}>
+    <Text style={styles.chartTitle}>{title}</Text>
+    {data.map((item, idx) => (
+      <View key={idx} style={styles.barRow}>
+        <Text style={styles.barLabel}>{item.label}</Text>
+        <View style={styles.barContainer}>
+          <View style={[styles.bar, { width: `${Math.min(100, (item.value / item.maxValue) * 100)}%`, backgroundColor: item.color }]} />
+        </View>
+        <Text style={[styles.barValue, { color: item.color }]}>{item.value.toFixed(1)}/10</Text>
+      </View>
+    ))}
+  </View>
+);
+
+// Market Size Chart Component
+const MarketChart = ({ tam, sam, som }: { tam: number; sam: number; som: number }) => {
+  const maxVal = tam;
+  return (
+    <View style={styles.chartContainer}>
+      <Text style={styles.chartTitle}>Market Size Analysis (TAM / SAM / SOM)</Text>
+      {[
+        { label: 'TAM', value: tam, color: colors.primary, desc: 'Total Addressable Market' },
+        { label: 'SAM', value: sam, color: colors.accent, desc: 'Serviceable Addressable Market' },
+        { label: 'SOM', value: som, color: colors.success, desc: 'Serviceable Obtainable Market' },
+      ].map((item, idx) => (
+        <View key={idx} style={{ marginBottom: 8 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 3 }}>
+            <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold', color: item.color }}>{item.label}</Text>
+            <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold', color: item.color }}>{formatCurrency(item.value)}</Text>
+          </View>
+          <View style={{ height: 12, backgroundColor: colors.lighter, borderRadius: 2 }}>
+            <View style={{ height: 12, backgroundColor: item.color, borderRadius: 2, width: `${(item.value / maxVal) * 100}%` }} />
+          </View>
+          <Text style={{ fontSize: 7, color: colors.light, marginTop: 2 }}>{item.desc}</Text>
+        </View>
+      ))}
+    </View>
+  );
+};
+
+// Scenario Chart Component
+const ScenarioChart = ({ bull, base, bear }: { bull: any; base: any; bear: any }) => (
+  <View style={styles.chartContainer}>
+    <Text style={styles.chartTitle}>Scenario Analysis</Text>
+    <View style={{ flexDirection: 'row' }}>
+      {[
+        { name: 'Bull Case', data: bull, color: colors.success, bgColor: '#ecfdf5' },
+        { name: 'Base Case', data: base, color: colors.primary, bgColor: '#eff6ff' },
+        { name: 'Bear Case', data: bear, color: colors.danger, bgColor: '#fef2f2' },
+      ].map((scenario, idx) => (
+        <View key={idx} style={{ flex: 1, padding: 8, backgroundColor: scenario.bgColor, borderRadius: 4, marginHorizontal: 2 }}>
+          <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold', color: scenario.color, marginBottom: 4 }}>{scenario.name}</Text>
+          <Text style={{ fontSize: 14, fontFamily: 'Helvetica-Bold', color: scenario.color }}>
+            {((scenario.data?.probability || 0.33) * 100).toFixed(0)}%
+          </Text>
+          <Text style={{ fontSize: 7, color: colors.medium }}>probability</Text>
+        </View>
+      ))}
+    </View>
+  </View>
+);
+
+// Unit Economics Chart
+const UnitEconomicsChart = ({ data }: { data: any }) => {
+  const cac = data?.cac?.mid || 100;
+  const ltv = data?.ltv?.mid || 300;
+  const ratio = ltv / cac;
+  const maxVal = Math.max(cac, ltv);
+
+  return (
+    <View style={styles.chartContainer}>
+      <Text style={styles.chartTitle}>Unit Economics</Text>
+      <View style={{ flexDirection: 'row', marginBottom: 10 }}>
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text style={{ fontSize: 8, color: colors.medium }}>CAC</Text>
+          <Text style={{ fontSize: 16, fontFamily: 'Helvetica-Bold', color: colors.danger }}>{formatCurrency(cac)}</Text>
+        </View>
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text style={{ fontSize: 8, color: colors.medium }}>LTV</Text>
+          <Text style={{ fontSize: 16, fontFamily: 'Helvetica-Bold', color: colors.success }}>{formatCurrency(ltv)}</Text>
+        </View>
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text style={{ fontSize: 8, color: colors.medium }}>LTV:CAC</Text>
+          <Text style={{ fontSize: 16, fontFamily: 'Helvetica-Bold', color: ratio >= 3 ? colors.success : colors.warning }}>
+            {ratio.toFixed(1)}:1
+          </Text>
+        </View>
+      </View>
+      <View style={{ height: 20, flexDirection: 'row', borderRadius: 4, overflow: 'hidden' }}>
+        <View style={{ width: `${(cac / maxVal) * 50}%`, backgroundColor: colors.danger, justifyContent: 'center', alignItems: 'center' }}>
+          <Text style={{ fontSize: 7, color: colors.white, fontFamily: 'Helvetica-Bold' }}>CAC</Text>
+        </View>
+        <View style={{ width: `${(ltv / maxVal) * 50}%`, backgroundColor: colors.success, justifyContent: 'center', alignItems: 'center' }}>
+          <Text style={{ fontSize: 7, color: colors.white, fontFamily: 'Helvetica-Bold' }}>LTV</Text>
+        </View>
+      </View>
+      <Text style={{ fontSize: 7, color: ratio >= 3 ? colors.success : colors.warning, marginTop: 4, textAlign: 'center' }}>
+        {ratio >= 3 ? '✓ Healthy ratio (≥3:1)' : '⚠ Below healthy threshold (3:1)'}
+      </Text>
+    </View>
+  );
+};
+
+// Props
 interface ValidationReportProps {
   validation: ValidationData;
   agents: Agent[];
 }
 
-// Main Document Component
+// Main Document
 export const ValidationReportDocument = ({ validation, agents }: ValidationReportProps) => {
   const generatedDate = new Date().toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
   });
+  const reportId = `SVR-${validation.id.slice(0, 8).toUpperCase()}`;
 
-  const reportId = `SVR-${validation.id.slice(0, 8).toUpperCase()}-${Date.now().toString(36).toUpperCase()}`;
-
-  const getAgentReport = (agentId: string) =>
-    validation.agentReports?.find(r => r.agentId === agentId);
+  const getAgentReport = (agentId: string) => validation.agentReports?.find(r => r.agentId === agentId);
 
   const allFindings = validation.agentReports?.flatMap(r => r.findings || []) || [];
   const allRisks = validation.agentReports?.flatMap(r => r.risks || []) || [];
   const allRecommendations = validation.agentReports?.flatMap(r => r.recommendations || []) || [];
 
-  // Sort recommendations by priority
-  const sortedRecommendations = [...allRecommendations].sort((a, b) => {
-    const order = { critical: 0, high: 1, medium: 2, low: 3 };
-    return (order[a.priority as keyof typeof order] || 3) - (order[b.priority as keyof typeof order] || 3);
-  });
-
-  // Count findings by type
   const findingCounts = {
     strength: allFindings.filter(f => f.type === 'strength').length,
     weakness: allFindings.filter(f => f.type === 'weakness').length,
@@ -477,79 +673,101 @@ export const ValidationReportDocument = ({ validation, agents }: ValidationRepor
     threat: allFindings.filter(f => f.type === 'threat').length,
   };
 
+  // Get agent scores for chart
+  const agentScores = agents
+    .map(agent => {
+      const report = getAgentReport(agent.id);
+      return report ? { label: agent.name, value: report.score, maxValue: 10, color: getScoreColor(report.score) } : null;
+    })
+    .filter(Boolean) as { label: string; value: number; maxValue: number; color: string }[];
+
   return (
     <Document>
-      {/* Cover Page */}
+      {/* Page 1: Cover & Executive Summary */}
       <Page size="A4" style={styles.page}>
-        {/* Header */}
         <View style={styles.header}>
-          <View style={styles.logo}>
+          <View>
             <Text style={styles.logoText}>Startup Verdict</Text>
-            <Text style={styles.logoSubtext}>AI-Powered Startup Validation Platform</Text>
+            <Text style={styles.logoSubtext}>AI-Powered Startup Validation</Text>
           </View>
           <View style={styles.headerRight}>
             <Text style={styles.reportTitle}>Validation Report</Text>
-            <Text style={styles.reportDate}>{generatedDate}</Text>
-            <Text style={styles.reportId}>Report ID: {reportId}</Text>
+            <Text style={styles.reportMeta}>{generatedDate}</Text>
+            <Text style={styles.reportMeta}>ID: {reportId}</Text>
           </View>
         </View>
 
-        {/* Certification Badge */}
-        <View style={styles.certificationBadge}>
-          <View style={[styles.certificationIcon, { backgroundColor: colors.certifiedGreen, borderRadius: 20, justifyContent: 'center', alignItems: 'center' }]}>
-            <Text style={{ color: colors.white, fontSize: 24, fontWeight: 700 }}>✓</Text>
+        {/* Certification */}
+        <View style={styles.certBadge}>
+          <View style={styles.certIcon}>
+            <Text style={styles.certIconText}>✓</Text>
           </View>
-          <View style={styles.certificationText}>
-            <Text style={styles.certificationTitle}>VERIFIED & CERTIFIED ANALYSIS</Text>
-            <Text style={styles.certificationSubtitle}>
-              This report has been generated and verified by Startup Verdict's 12-agent AI validation system.
-              All data has been cross-referenced and quality-assured for investor-grade accuracy.
+          <View style={{ flex: 1 }}>
+            <Text style={styles.certTitle}>VERIFIED & CERTIFIED ANALYSIS</Text>
+            <Text style={styles.certSubtitle}>
+              Generated by Startup Verdict's 12-agent AI validation system. All data cross-referenced for investor-grade accuracy.
             </Text>
           </View>
         </View>
 
-        {/* Company Info */}
+        {/* Company Overview */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Startup Overview</Text>
           <View style={styles.summaryBox}>
-            <Text style={{ fontSize: 18, fontWeight: 700, color: colors.dark, marginBottom: 8 }}>
-              {validation.title}
-            </Text>
+            <Text style={styles.summaryTitle}>{validation.title}</Text>
             <Text style={styles.summaryText}>{validation.description}</Text>
           </View>
         </View>
 
-        {/* Overall Scores */}
-        <View style={styles.scoreContainer}>
-          <View style={styles.scoreBox}>
+        {/* Scores */}
+        <View style={styles.scoreRow}>
+          <View style={styles.scoreCard}>
             <Text style={[styles.scoreValue, { color: getScoreColor(validation.overallScore || 0) }]}>
               {validation.overallScore?.toFixed(1) || 'N/A'}
             </Text>
-            <Text style={styles.scoreLabel}>OVERALL SCORE</Text>
+            <Text style={styles.scoreLabel}>Overall Score</Text>
           </View>
-          <View style={styles.scoreBox}>
+          <View style={styles.scoreCard}>
             <Text style={[styles.scoreValue, { color: colors.primary }]}>
               {validation.overallConfidence || 0}%
             </Text>
-            <Text style={styles.scoreLabel}>CONFIDENCE</Text>
+            <Text style={styles.scoreLabel}>Confidence</Text>
           </View>
-          <View style={styles.scoreBox}>
-            <Text style={[styles.scoreValue, { color: colors.secondary, fontSize: 24 }]}>
-              {validation.agentReports?.length || 0}/12
+          <View style={styles.scoreCard}>
+            <Text style={[styles.scoreValue, { color: colors.secondary }]}>
+              {validation.agentReports?.length || 0}
             </Text>
-            <Text style={styles.scoreLabel}>AGENTS COMPLETE</Text>
+            <Text style={styles.scoreLabel}>Agents Complete</Text>
+          </View>
+        </View>
+
+        {/* SWOT Summary */}
+        <View style={styles.statsGrid}>
+          <View style={[styles.statBox, { backgroundColor: '#ecfdf5' }]}>
+            <Text style={[styles.statValue, { color: colors.success }]}>{findingCounts.strength}</Text>
+            <Text style={styles.statLabel}>Strengths</Text>
+          </View>
+          <View style={[styles.statBox, { backgroundColor: '#fef2f2' }]}>
+            <Text style={[styles.statValue, { color: colors.danger }]}>{findingCounts.weakness}</Text>
+            <Text style={styles.statLabel}>Weaknesses</Text>
+          </View>
+          <View style={[styles.statBox, { backgroundColor: '#eff6ff' }]}>
+            <Text style={[styles.statValue, { color: colors.primary }]}>{findingCounts.opportunity}</Text>
+            <Text style={styles.statLabel}>Opportunities</Text>
+          </View>
+          <View style={[styles.statBox, { backgroundColor: '#fefce8' }]}>
+            <Text style={[styles.statValue, { color: colors.warning }]}>{findingCounts.threat}</Text>
+            <Text style={styles.statLabel}>Threats</Text>
           </View>
         </View>
 
         {/* Verdict */}
         {validation.verdict && (
-          <View style={[styles.summaryBox, { backgroundColor: '#ecfdf5', border: `1px solid ${colors.certifiedGreen}` }]}>
-            <Text style={{ fontSize: 12, fontWeight: 700, color: colors.certifiedGreen, marginBottom: 6 }}>
+          <View style={[styles.summaryBox, { backgroundColor: '#ecfdf5', borderWidth: 1, borderColor: colors.certifiedGreen }]}>
+            <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: colors.certifiedGreen, marginBottom: 4 }}>
               FINAL VERDICT
             </Text>
-            <Text style={{ fontSize: 11, color: colors.dark, lineHeight: 1.6 }}>
-              {validation.verdict}
-            </Text>
+            <Text style={{ fontSize: 9, color: colors.dark, lineHeight: 1.5 }}>{validation.verdict}</Text>
           </View>
         )}
 
@@ -557,208 +775,91 @@ export const ValidationReportDocument = ({ validation, agents }: ValidationRepor
         {validation.executiveSummary && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Executive Summary</Text>
-            <Text style={styles.summaryText}>{validation.executiveSummary}</Text>
+            <Text style={{ fontSize: 9, color: colors.dark, lineHeight: 1.6 }}>{validation.executiveSummary}</Text>
           </View>
         )}
 
-        {/* Quick Stats */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Analysis Summary</Text>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            <View style={{ flex: 1, padding: 10, backgroundColor: '#ecfdf5', borderRadius: 6, marginRight: 8 }}>
-              <Text style={{ fontSize: 24, fontWeight: 700, color: colors.success }}>{findingCounts.strength}</Text>
-              <Text style={{ fontSize: 9, color: colors.medium }}>Strengths</Text>
-            </View>
-            <View style={{ flex: 1, padding: 10, backgroundColor: '#fef2f2', borderRadius: 6, marginRight: 8 }}>
-              <Text style={{ fontSize: 24, fontWeight: 700, color: colors.danger }}>{findingCounts.weakness}</Text>
-              <Text style={{ fontSize: 9, color: colors.medium }}>Weaknesses</Text>
-            </View>
-            <View style={{ flex: 1, padding: 10, backgroundColor: '#eff6ff', borderRadius: 6, marginRight: 8 }}>
-              <Text style={{ fontSize: 24, fontWeight: 700, color: colors.primary }}>{findingCounts.opportunity}</Text>
-              <Text style={{ fontSize: 9, color: colors.medium }}>Opportunities</Text>
-            </View>
-            <View style={{ flex: 1, padding: 10, backgroundColor: '#fefce8', borderRadius: 6 }}>
-              <Text style={{ fontSize: 24, fontWeight: 700, color: colors.warning }}>{findingCounts.threat}</Text>
-              <Text style={{ fontSize: 9, color: colors.medium }}>Threats</Text>
-            </View>
-          </View>
-        </View>
+        {/* Agent Score Chart */}
+        {agentScores.length > 0 && (
+          <BarChart title="Agent Scores Overview" data={agentScores.slice(0, 6)} />
+        )}
 
-        {/* Footer */}
         <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            Startup Verdict - AI-Powered Validation | Confidential
-          </Text>
+          <Text style={styles.footerText}>Startup Verdict - Confidential</Text>
           <Text style={styles.pageNumber}>Page 1</Text>
         </View>
       </Page>
 
-      {/* Agent Reports Pages */}
-      {agents.map((agent, agentIndex) => {
+      {/* Page 2+: Agent Reports */}
+      {agents.map((agent, idx) => {
         const report = getAgentReport(agent.id);
         if (!report) return null;
 
         return (
           <Page key={agent.id} size="A4" style={styles.page}>
-            {/* Page Header */}
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 }}>
-              <Text style={{ fontSize: 10, color: colors.medium }}>Startup Verdict - {validation.title}</Text>
-              <Text style={{ fontSize: 10, color: colors.medium }}>{agent.name} - {agent.role}</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 }}>
+              <Text style={{ fontSize: 9, color: colors.medium }}>{validation.title}</Text>
+              <Text style={{ fontSize: 9, color: colors.medium }}>{agent.name} Analysis</Text>
             </View>
 
-            {/* Agent Card */}
-            <View style={styles.agentCard}>
+            {/* Agent Header Card */}
+            <View style={[styles.agentCard, { borderLeftColor: getScoreColor(report.score) }]}>
               <View style={styles.agentHeader}>
                 <View>
                   <Text style={styles.agentName}>{agent.icon} {agent.name}</Text>
                   <Text style={styles.agentRole}>{agent.role} - {agent.description}</Text>
+                  {agent.investorGrade && (
+                    <View style={styles.investorBadge}>
+                      <View style={styles.investorDot} />
+                      <Text style={styles.investorText}>INVESTOR-GRADE</Text>
+                    </View>
+                  )}
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={[styles.agentScore, { color: getScoreColor(report.score) }]}>
-                    {report.score}/10
-                  </Text>
+                  <Text style={[styles.agentScore, { color: getScoreColor(report.score) }]}>{report.score}/10</Text>
                   <Text style={styles.agentConfidence}>{report.confidence}% confidence</Text>
                 </View>
               </View>
-
-              {/* Investor Grade Badge */}
-              {agent.investorGrade && (
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
-                  <View style={{ width: 12, height: 12, backgroundColor: colors.certifiedGreen, borderRadius: 6, marginRight: 4, justifyContent: 'center', alignItems: 'center' }}>
-                    <Text style={{ color: colors.white, fontSize: 8, fontWeight: 700 }}>✓</Text>
-                  </View>
-                  <Text style={{ fontSize: 8, color: colors.certifiedGreen, fontWeight: 600 }}>
-                    INVESTOR-GRADE ANALYSIS
-                  </Text>
-                </View>
-              )}
             </View>
 
-            {/* Market Data (for Marcus) */}
-            {report.marketData && (
-              <View style={styles.section}>
-                <Text style={styles.sectionSubtitle}>Market Analysis</Text>
-                <View style={styles.marketMetric}>
-                  <Text style={styles.marketLabel}>Total Addressable Market (TAM)</Text>
-                  <Text style={styles.marketValue}>{formatCurrency(report.marketData.tam)}</Text>
-                </View>
-                <View style={styles.marketMetric}>
-                  <Text style={styles.marketLabel}>Serviceable Addressable Market (SAM)</Text>
-                  <Text style={styles.marketValue}>{formatCurrency(report.marketData.sam)}</Text>
-                </View>
-                <View style={styles.marketMetric}>
-                  <Text style={styles.marketLabel}>Serviceable Obtainable Market (SOM)</Text>
-                  <Text style={styles.marketValue}>{formatCurrency(report.marketData.som)}</Text>
-                </View>
-                {report.marketData.growthRate && (
-                  <View style={styles.marketMetric}>
-                    <Text style={styles.marketLabel}>Market Growth Rate (CAGR)</Text>
-                    <Text style={[styles.marketValue, { color: colors.success }]}>
-                      {(report.marketData.growthRate * 100).toFixed(1)}%
-                    </Text>
-                  </View>
-                )}
-                {report.marketData.marketTiming && (
-                  <View style={styles.marketMetric}>
-                    <Text style={styles.marketLabel}>Market Timing</Text>
-                    <Text style={styles.marketValue}>{report.marketData.marketTiming}</Text>
-                  </View>
-                )}
-              </View>
+            {/* Market Data Charts for Marcus */}
+            {agent.id === 'marcus' && report.marketData && (
+              <MarketChart
+                tam={report.marketData.tam || 1000000000}
+                sam={report.marketData.sam || 500000000}
+                som={report.marketData.som || 50000000}
+              />
             )}
 
-            {/* Unit Economics (for David) */}
-            {report.unitEconomics && (
-              <View style={styles.section}>
-                <Text style={styles.sectionSubtitle}>Unit Economics</Text>
-                {report.unitEconomics.cac && (
-                  <View style={styles.marketMetric}>
-                    <Text style={styles.marketLabel}>Customer Acquisition Cost (CAC)</Text>
-                    <Text style={styles.marketValue}>{formatCurrency(report.unitEconomics.cac.mid)}</Text>
-                  </View>
-                )}
-                {report.unitEconomics.ltv && (
-                  <View style={styles.marketMetric}>
-                    <Text style={styles.marketLabel}>Customer Lifetime Value (LTV)</Text>
-                    <Text style={styles.marketValue}>{formatCurrency(report.unitEconomics.ltv.mid)}</Text>
-                  </View>
-                )}
-                {report.unitEconomics.ltvCacRatio && (
-                  <View style={styles.marketMetric}>
-                    <Text style={styles.marketLabel}>LTV:CAC Ratio</Text>
-                    <Text style={[styles.marketValue, {
-                      color: report.unitEconomics.ltvCacRatio.mid >= 3 ? colors.success : colors.warning
-                    }]}>
-                      {report.unitEconomics.ltvCacRatio.mid.toFixed(1)}:1
-                    </Text>
-                  </View>
-                )}
-                {report.unitEconomics.grossMargin && (
-                  <View style={styles.marketMetric}>
-                    <Text style={styles.marketLabel}>Gross Margin</Text>
-                    <Text style={styles.marketValue}>
-                      {(report.unitEconomics.grossMargin.mid * 100).toFixed(0)}%
-                    </Text>
-                  </View>
-                )}
-              </View>
+            {/* Unit Economics for David */}
+            {agent.id === 'david' && report.unitEconomics && (
+              <UnitEconomicsChart data={report.unitEconomics} />
             )}
 
             {/* Scenario Analysis */}
             {report.scenarioAnalysis && (
-              <View style={styles.section}>
-                <Text style={styles.sectionSubtitle}>Scenario Analysis</Text>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 }}>
-                  <View style={{ flex: 1, padding: 10, backgroundColor: '#ecfdf5', borderRadius: 6, marginRight: 8 }}>
-                    <Text style={{ fontSize: 10, fontWeight: 600, color: colors.success }}>Bull Case</Text>
-                    <Text style={{ fontSize: 8, color: colors.medium }}>
-                      {(report.scenarioAnalysis.bull.probability * 100).toFixed(0)}% probability
-                    </Text>
-                    <Text style={{ fontSize: 9, color: colors.dark, marginTop: 4 }}>
-                      {report.scenarioAnalysis.bull.description?.substring(0, 100)}...
-                    </Text>
-                  </View>
-                  <View style={{ flex: 1, padding: 10, backgroundColor: '#eff6ff', borderRadius: 6, marginRight: 8 }}>
-                    <Text style={{ fontSize: 10, fontWeight: 600, color: colors.primary }}>Base Case</Text>
-                    <Text style={{ fontSize: 8, color: colors.medium }}>
-                      {(report.scenarioAnalysis.base.probability * 100).toFixed(0)}% probability
-                    </Text>
-                    <Text style={{ fontSize: 9, color: colors.dark, marginTop: 4 }}>
-                      {report.scenarioAnalysis.base.description?.substring(0, 100)}...
-                    </Text>
-                  </View>
-                  <View style={{ flex: 1, padding: 10, backgroundColor: '#fef2f2', borderRadius: 6 }}>
-                    <Text style={{ fontSize: 10, fontWeight: 600, color: colors.danger }}>Bear Case</Text>
-                    <Text style={{ fontSize: 8, color: colors.medium }}>
-                      {(report.scenarioAnalysis.bear.probability * 100).toFixed(0)}% probability
-                    </Text>
-                    <Text style={{ fontSize: 9, color: colors.dark, marginTop: 4 }}>
-                      {report.scenarioAnalysis.bear.description?.substring(0, 100)}...
-                    </Text>
-                  </View>
-                </View>
-              </View>
+              <ScenarioChart
+                bull={report.scenarioAnalysis.bull}
+                base={report.scenarioAnalysis.base}
+                bear={report.scenarioAnalysis.bear}
+              />
             )}
 
             {/* Key Findings */}
             {report.findings?.length > 0 && (
               <View style={styles.section}>
                 <Text style={styles.sectionSubtitle}>Key Findings ({report.findings.length})</Text>
-                {report.findings.slice(0, 6).map((finding, idx) => (
-                  <View key={idx} style={styles.findingItem}>
-                    <View style={[styles.findingBullet, { backgroundColor: getTypeColor(finding.type) }]} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.findingText}>
-                        <Text style={styles.findingTitle}>{finding.title}: </Text>
-                        {finding.description.substring(0, 200)}{finding.description.length > 200 ? '...' : ''}
-                      </Text>
+                {report.findings.slice(0, 5).map((finding, fidx) => (
+                  <View key={fidx} style={styles.findingItem}>
+                    <View style={[styles.findingDot, { backgroundColor: getTypeColor(finding.type) }]} />
+                    <View style={styles.findingContent}>
+                      <Text style={styles.findingTitle}>{finding.title}</Text>
+                      <Text style={styles.findingDesc}>{finding.description.substring(0, 150)}{finding.description.length > 150 ? '...' : ''}</Text>
                     </View>
                   </View>
                 ))}
-                {report.findings.length > 6 && (
-                  <Text style={{ fontSize: 9, color: colors.light, marginTop: 8, fontStyle: 'italic' }}>
-                    + {report.findings.length - 6} more findings
-                  </Text>
+                {report.findings.length > 5 && (
+                  <Text style={{ fontSize: 8, color: colors.light, fontStyle: 'italic' }}>+{report.findings.length - 5} more findings</Text>
                 )}
               </View>
             )}
@@ -766,21 +867,17 @@ export const ValidationReportDocument = ({ validation, agents }: ValidationRepor
             {/* Risks */}
             {report.risks?.length > 0 && (
               <View style={styles.section}>
-                <Text style={styles.sectionSubtitle}>Risks Identified ({report.risks.length})</Text>
-                {report.risks.slice(0, 4).map((risk, idx) => (
-                  <View key={idx} style={{ marginBottom: 8, padding: 8, backgroundColor: '#fef2f2', borderRadius: 4 }}>
-                    <View style={{ flexDirection: 'row', marginBottom: 4 }}>
-                      <Text style={{ fontSize: 8, backgroundColor: risk.probability === 'high' ? colors.danger : colors.warning, color: colors.white, paddingHorizontal: 4, paddingVertical: 2, borderRadius: 2, marginRight: 4 }}>
-                        {risk.probability}
+                <Text style={styles.sectionSubtitle}>Risks ({report.risks.length})</Text>
+                {report.risks.slice(0, 3).map((risk, ridx) => (
+                  <View key={ridx} style={styles.riskItem}>
+                    <View style={styles.riskHeader}>
+                      <Text style={[styles.riskBadge, { backgroundColor: risk.probability === 'high' ? colors.danger : colors.warning }]}>
+                        {risk.probability.toUpperCase()}
                       </Text>
-                      <Text style={{ fontSize: 8, backgroundColor: colors.medium, color: colors.white, paddingHorizontal: 4, paddingVertical: 2, borderRadius: 2 }}>
-                        {risk.impact}
-                      </Text>
+                      <Text style={[styles.riskBadge, { backgroundColor: colors.medium }]}>{risk.impact}</Text>
                     </View>
-                    <Text style={{ fontSize: 10, fontWeight: 600, color: colors.dark }}>{risk.title}</Text>
-                    <Text style={{ fontSize: 9, color: colors.medium, marginTop: 2 }}>
-                      {risk.description.substring(0, 150)}{risk.description.length > 150 ? '...' : ''}
-                    </Text>
+                    <Text style={styles.riskTitle}>{risk.title}</Text>
+                    <Text style={styles.riskDesc}>{risk.description.substring(0, 120)}{risk.description.length > 120 ? '...' : ''}</Text>
                   </View>
                 ))}
               </View>
@@ -790,90 +887,72 @@ export const ValidationReportDocument = ({ validation, agents }: ValidationRepor
             {report.recommendations?.length > 0 && (
               <View style={styles.section}>
                 <Text style={styles.sectionSubtitle}>Recommendations ({report.recommendations.length})</Text>
-                {report.recommendations.slice(0, 4).map((rec, idx) => (
-                  <View key={idx} style={[styles.recommendationItem, { borderLeftColor: getPriorityColor(rec.priority) }]}>
-                    <View style={styles.recommendationContent}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-                        <Text style={[styles.priorityBadge, { backgroundColor: getPriorityColor(rec.priority), color: colors.white }]}>
-                          {rec.priority.toUpperCase()}
-                        </Text>
-                        <Text style={{ fontSize: 8, color: colors.light }}>{rec.timeframe}</Text>
-                      </View>
-                      <Text style={styles.recommendationTitle}>{rec.title}</Text>
-                      <Text style={styles.recommendationDesc}>
-                        {rec.description.substring(0, 200)}{rec.description.length > 200 ? '...' : ''}
+                {report.recommendations.slice(0, 3).map((rec, recidx) => (
+                  <View key={recidx} style={[styles.recItem, { borderLeftColor: getPriorityColor(rec.priority), backgroundColor: colors.lightest }]}>
+                    <View style={styles.recHeader}>
+                      <Text style={[styles.recBadge, { backgroundColor: getPriorityColor(rec.priority) }]}>
+                        {rec.priority.toUpperCase()}
                       </Text>
+                      <Text style={styles.recTimeframe}>{rec.timeframe}</Text>
                     </View>
+                    <Text style={styles.recTitle}>{rec.title}</Text>
+                    <Text style={styles.recDesc}>{rec.description.substring(0, 150)}{rec.description.length > 150 ? '...' : ''}</Text>
                   </View>
                 ))}
               </View>
             )}
 
-            {/* Footer */}
             <View style={styles.footer}>
-              <Text style={styles.footerText}>
-                Startup Verdict - {agent.name} Analysis | Confidential
-              </Text>
-              <Text style={styles.pageNumber}>Page {agentIndex + 2}</Text>
+              <Text style={styles.footerText}>Startup Verdict - {agent.name} Analysis</Text>
+              <Text style={styles.pageNumber}>Page {idx + 2}</Text>
             </View>
           </Page>
         );
       })}
 
-      {/* Summary & Action Items Page */}
+      {/* Final Page: Summary & Certification */}
       <Page size="A4" style={styles.page}>
-        {/* Page Header */}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 }}>
-          <Text style={{ fontSize: 10, color: colors.medium }}>Startup Verdict - {validation.title}</Text>
-          <Text style={{ fontSize: 10, color: colors.medium }}>Action Plan & Recommendations</Text>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 }}>
+          <Text style={{ fontSize: 9, color: colors.medium }}>{validation.title}</Text>
+          <Text style={{ fontSize: 9, color: colors.medium }}>Action Plan & Certification</Text>
         </View>
 
         <Text style={styles.sectionTitle}>Priority Action Items</Text>
 
-        {/* Critical & High Priority */}
-        <View style={styles.section}>
-          <Text style={styles.sectionSubtitle}>
-            Critical & High Priority ({sortedRecommendations.filter(r => r.priority === 'critical' || r.priority === 'high').length})
-          </Text>
-          {sortedRecommendations
-            .filter(r => r.priority === 'critical' || r.priority === 'high')
-            .slice(0, 8)
-            .map((rec, idx) => (
-              <View key={idx} style={[styles.recommendationItem, { borderLeftColor: getPriorityColor(rec.priority) }]}>
-                <View style={styles.recommendationContent}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-                    <Text style={[styles.priorityBadge, { backgroundColor: getPriorityColor(rec.priority), color: colors.white }]}>
-                      {rec.priority.toUpperCase()}
-                    </Text>
-                    <Text style={{ fontSize: 8, color: colors.light }}>{rec.timeframe}</Text>
-                  </View>
-                  <Text style={styles.recommendationTitle}>{rec.title}</Text>
-                  <Text style={styles.recommendationDesc}>{rec.description}</Text>
-                </View>
+        {allRecommendations
+          .filter(r => r.priority === 'critical' || r.priority === 'high')
+          .slice(0, 6)
+          .map((rec, idx) => (
+            <View key={idx} style={[styles.recItem, { borderLeftColor: getPriorityColor(rec.priority), backgroundColor: colors.lightest }]}>
+              <View style={styles.recHeader}>
+                <Text style={[styles.recBadge, { backgroundColor: getPriorityColor(rec.priority) }]}>
+                  {rec.priority.toUpperCase()}
+                </Text>
+                <Text style={styles.recTimeframe}>{rec.timeframe}</Text>
               </View>
-            ))}
-        </View>
+              <Text style={styles.recTitle}>{rec.title}</Text>
+              <Text style={styles.recDesc}>{rec.description.substring(0, 150)}{rec.description.length > 150 ? '...' : ''}</Text>
+            </View>
+          ))}
 
         {/* Risk Summary Table */}
-        <View style={styles.section}>
-          <Text style={styles.sectionSubtitle}>Risk Overview ({allRisks.length} total)</Text>
+        <View style={[styles.section, { marginTop: 16 }]}>
+          <Text style={styles.sectionSubtitle}>Top Risks Summary</Text>
           <View style={styles.table}>
             <View style={styles.tableHeader}>
-              <Text style={[styles.tableHeaderCell, { width: '30%' }]}>Risk</Text>
+              <Text style={[styles.tableHeaderCell, { width: '35%' }]}>Risk</Text>
               <Text style={[styles.tableHeaderCell, { width: '15%' }]}>Probability</Text>
               <Text style={[styles.tableHeaderCell, { width: '15%' }]}>Impact</Text>
-              <Text style={[styles.tableHeaderCell, { width: '40%' }]}>Mitigation</Text>
+              <Text style={[styles.tableHeaderCell, { width: '35%' }]}>Key Mitigation</Text>
             </View>
-            {allRisks.slice(0, 8).map((risk, idx) => (
+            {allRisks.slice(0, 5).map((risk, idx) => (
               <View key={idx} style={[styles.tableRow, idx % 2 === 1 ? styles.tableRowAlt : {}]}>
-                <Text style={[styles.tableCell, { width: '30%' }]}>{risk.title}</Text>
+                <Text style={[styles.tableCell, { width: '35%' }]}>{risk.title.substring(0, 30)}</Text>
                 <Text style={[styles.tableCell, { width: '15%', color: risk.probability === 'high' ? colors.danger : colors.warning }]}>
                   {risk.probability}
                 </Text>
                 <Text style={[styles.tableCell, { width: '15%' }]}>{risk.impact}</Text>
-                <Text style={[styles.tableCell, { width: '40%' }]}>
-                  {risk.mitigations?.[0]?.substring(0, 60) || 'See detailed analysis'}...
-                </Text>
+                <Text style={[styles.tableCell, { width: '35%' }]}>{risk.mitigations?.[0]?.substring(0, 40) || '-'}...</Text>
               </View>
             ))}
           </View>
@@ -881,41 +960,30 @@ export const ValidationReportDocument = ({ validation, agents }: ValidationRepor
 
         {/* Disclaimer */}
         <View style={styles.disclaimer}>
-          <Text style={{ fontSize: 9, fontWeight: 600, color: '#854d0e', marginBottom: 4 }}>
-            Important Disclaimer
-          </Text>
+          <Text style={styles.disclaimerTitle}>Important Disclaimer</Text>
           <Text style={styles.disclaimerText}>
-            This report is generated by Startup Verdict's AI-powered validation system and is intended for
-            informational purposes only. While our 12-agent system provides comprehensive analysis, this
-            should not be considered as financial, legal, or investment advice. All projections and
-            estimates are based on available data and AI analysis, which may not reflect actual future
-            outcomes. Investors and founders should conduct their own due diligence before making any
-            decisions. Startup Verdict does not guarantee the accuracy or completeness of any information
-            contained in this report.
+            This report is for informational purposes only. While our AI system provides comprehensive analysis,
+            this should not be considered financial, legal, or investment advice. Conduct your own due diligence
+            before making decisions. Startup Verdict does not guarantee the accuracy of this report.
           </Text>
         </View>
 
         {/* Final Certification */}
-        <View style={[styles.certificationBadge, { marginTop: 20 }]}>
-          <View style={[styles.certificationIcon, { backgroundColor: colors.certifiedGreen, borderRadius: 20, justifyContent: 'center', alignItems: 'center' }]}>
-            <Text style={{ color: colors.white, fontSize: 24, fontWeight: 700 }}>✓</Text>
+        <View style={[styles.certBadge, { marginTop: 16 }]}>
+          <View style={styles.certIcon}>
+            <Text style={styles.certIconText}>✓</Text>
           </View>
-          <View style={styles.certificationText}>
-            <Text style={styles.certificationTitle}>CERTIFIED BY STARTUP VERDICT</Text>
-            <Text style={styles.certificationSubtitle}>
-              Report ID: {reportId} | Generated: {generatedDate}
-            </Text>
-            <Text style={[styles.certificationSubtitle, { marginTop: 4 }]}>
-              This document has been digitally signed and verified by Startup Verdict's validation system.
+          <View style={{ flex: 1 }}>
+            <Text style={styles.certTitle}>CERTIFIED BY STARTUP VERDICT</Text>
+            <Text style={styles.certSubtitle}>Report ID: {reportId} | Generated: {generatedDate}</Text>
+            <Text style={[styles.certSubtitle, { marginTop: 2 }]}>
+              This document has been verified by Startup Verdict's validation system.
             </Text>
           </View>
         </View>
 
-        {/* Footer */}
         <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            Startup Verdict - AI-Powered Validation | www.startupverdict.com
-          </Text>
+          <Text style={styles.footerText}>Startup Verdict - www.startupverdict.com</Text>
           <Text style={styles.pageNumber}>Final Page</Text>
         </View>
       </Page>
@@ -923,16 +991,13 @@ export const ValidationReportDocument = ({ validation, agents }: ValidationRepor
   );
 };
 
-// Export function to generate and download PDF
-export async function generateValidationPDF(
-  validation: ValidationData,
-  agents: Agent[]
-): Promise<Blob> {
+// Export functions
+export async function generateValidationPDF(validation: ValidationData, agents: Agent[]): Promise<Blob> {
   try {
-    console.log('Generating PDF for validation:', validation.id);
+    console.log('Generating PDF for:', validation.title);
     const doc = <ValidationReportDocument validation={validation} agents={agents} />;
     const blob = await pdf(doc).toBlob();
-    console.log('PDF generated successfully, size:', blob.size);
+    console.log('PDF generated, size:', blob.size);
     return blob;
   } catch (error) {
     console.error('PDF generation error:', error);
@@ -940,14 +1005,8 @@ export async function generateValidationPDF(
   }
 }
 
-// Export function to download PDF directly
-export async function downloadValidationPDF(
-  validation: ValidationData,
-  agents: Agent[],
-  filename?: string
-): Promise<void> {
+export async function downloadValidationPDF(validation: ValidationData, agents: Agent[], filename?: string): Promise<void> {
   try {
-    console.log('Starting PDF download...');
     const blob = await generateValidationPDF(validation, agents);
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -957,7 +1016,6 @@ export async function downloadValidationPDF(
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-    console.log('PDF download initiated');
   } catch (error) {
     console.error('PDF download error:', error);
     throw error;
