@@ -15,6 +15,13 @@ const RiskHeatmap = dynamic(() => import('../../../components/charts/RiskHeatmap
 const FindingsBreakdown = dynamic(() => import('../../../components/charts/FindingsBreakdown').then(mod => ({ default: mod.FindingsBreakdown })), { ssr: false });
 const RecommendationTimeline = dynamic(() => import('../../../components/charts/RecommendationTimeline').then(mod => ({ default: mod.RecommendationTimeline })), { ssr: false });
 const ConfidenceIndicator = dynamic(() => import('../../../components/charts/ConfidenceIndicator').then(mod => ({ default: mod.ConfidenceIndicator })), { ssr: false });
+// New agent-specific charts with drill-through
+const MarketSizeFunnel = dynamic(() => import('../../../components/charts/MarketSizeFunnel').then(mod => ({ default: mod.MarketSizeFunnel })), { ssr: false });
+const RevenueProjections = dynamic(() => import('../../../components/charts/RevenueProjections').then(mod => ({ default: mod.RevenueProjections })), { ssr: false });
+const UnitEconomicsChart = dynamic(() => import('../../../components/charts/UnitEconomicsChart').then(mod => ({ default: mod.UnitEconomicsChart })), { ssr: false });
+const ScenarioComparison = dynamic(() => import('../../../components/charts/ScenarioComparison').then(mod => ({ default: mod.ScenarioComparison })), { ssr: false });
+const CompetitorAnalysis = dynamic(() => import('../../../components/charts/CompetitorAnalysis').then(mod => ({ default: mod.CompetitorAnalysis })), { ssr: false });
+const ValidationScorecard = dynamic(() => import('../../../components/charts/ValidationScorecard').then(mod => ({ default: mod.ValidationScorecard })), { ssr: false });
 import { EvidenceCard } from '../../../components/charts/EvidenceCard';
 
 // The 12 AI agents with their investor-grade status
@@ -56,6 +63,88 @@ interface Recommendation {
   timeframe: string;
 }
 
+// Structured data types for agent-specific charts
+interface ConfidenceRange {
+  low: number;
+  mid: number;
+  high: number;
+  confidence: number;
+}
+
+interface MarketData {
+  tam: number;
+  tamRange?: ConfidenceRange;
+  sam: number;
+  samRange?: ConfidenceRange;
+  som: number;
+  somRange?: ConfidenceRange;
+  growthRate?: number;
+  marketTiming?: string;
+  competitorCount?: number;
+  marketConcentration?: string;
+}
+
+interface ScenarioCase {
+  probability: number;
+  multiplier?: number;
+  description: string;
+  keyAssumptions: string[];
+  triggers?: string[];
+}
+
+interface ScenarioAnalysis {
+  bull: ScenarioCase;
+  base: ScenarioCase;
+  bear: ScenarioCase;
+  expectedValue?: number;
+}
+
+interface Competitor {
+  name: string;
+  description: string;
+  website?: string;
+  fundingRaised?: number;
+  valuation?: number | null;
+  stage?: string;
+  employees?: string;
+  relevanceScore?: number;
+}
+
+interface UnitEconomics {
+  cac?: ConfidenceRange;
+  ltv?: ConfidenceRange;
+  ltvCacRatio?: ConfidenceRange;
+  grossMargin?: ConfidenceRange;
+  paybackMonths?: ConfidenceRange;
+  churnRate?: ConfidenceRange;
+  arpu?: ConfidenceRange;
+}
+
+interface FinancialProjections {
+  burnRate?: ConfidenceRange;
+  runway?: ConfidenceRange;
+  breakEvenMonths?: ConfidenceRange;
+  revenueMonth12?: ConfidenceRange;
+  revenueMonth24?: ConfidenceRange;
+}
+
+interface ScorecardItem {
+  score: number;
+  maxScore: number;
+  details: string;
+}
+
+interface AgentScorecard {
+  dataQuality?: ScorecardItem;
+  sourceVerification?: ScorecardItem;
+  analysisDepth?: ScorecardItem;
+  riskAssessment?: ScorecardItem;
+  actionability?: ScorecardItem;
+  marketValidation?: ScorecardItem;
+  competitiveAnalysis?: ScorecardItem;
+  overall: { score: number; maxScore: number; grade: string };
+}
+
 interface AgentReport {
   id: string;
   agentId: string;
@@ -64,6 +153,14 @@ interface AgentReport {
   findings: Finding[];
   risks: Risk[];
   recommendations: Recommendation[];
+  // Agent-specific structured data
+  marketData?: MarketData;
+  scenarioAnalysis?: ScenarioAnalysis;
+  competitors?: Competitor[];
+  unitEconomics?: UnitEconomics;
+  financialProjections?: FinancialProjections;
+  scorecard?: AgentScorecard;
+  rawAnalysis?: string;
 }
 
 interface ValidationData {
@@ -749,6 +846,124 @@ export default function ValidationProgressPage() {
 
                 {/* Modal Content */}
                 <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+                  {/* Agent-Specific Charts Section */}
+                  <div className="mb-8">
+                    <h4 className="text-xl font-semibold mb-4 flex items-center gap-2 text-purple-400">
+                      <span>📈</span> Data Visualizations
+                      <span className="text-xs bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded-full ml-2">
+                        Click charts for details
+                      </span>
+                    </h4>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      {/* Marcus - Market Intel Charts */}
+                      {selectedAgent.id === 'marcus' && (
+                        <>
+                          {selectedReport.marketData && (
+                            <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-4">
+                              <h5 className="text-sm font-medium text-slate-400 mb-3">TAM/SAM/SOM Analysis</h5>
+                              <MarketSizeFunnel
+                                data={selectedReport.marketData}
+                                onDrillDown={(segment) => console.log('Drill down:', segment)}
+                              />
+                            </div>
+                          )}
+                          {selectedReport.scenarioAnalysis && selectedReport.marketData && (
+                            <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-4">
+                              <ScenarioComparison
+                                data={selectedReport.scenarioAnalysis}
+                                metric="Market"
+                                baseValue={selectedReport.marketData.tam}
+                              />
+                            </div>
+                          )}
+                        </>
+                      )}
+
+                      {/* Sophia - Competition Charts */}
+                      {selectedAgent.id === 'sophia' && selectedReport.competitors && (
+                        <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-4 lg:col-span-2">
+                          <h5 className="text-sm font-medium text-slate-400 mb-3">Competitive Landscape</h5>
+                          <CompetitorAnalysis
+                            competitors={selectedReport.competitors}
+                            yourCompany={validation?.title || 'Your Company'}
+                          />
+                        </div>
+                      )}
+
+                      {/* David - Financial Charts */}
+                      {selectedAgent.id === 'david' && (
+                        <>
+                          {selectedReport.unitEconomics && (
+                            <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-4">
+                              <h5 className="text-sm font-medium text-slate-400 mb-3">Unit Economics</h5>
+                              <UnitEconomicsChart data={selectedReport.unitEconomics} />
+                            </div>
+                          )}
+                          {selectedReport.financialProjections && (
+                            <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-4">
+                              <h5 className="text-sm font-medium text-slate-400 mb-3">Revenue Projections</h5>
+                              <RevenueProjections
+                                projections={selectedReport.financialProjections}
+                                currentRevenue={0}
+                              />
+                            </div>
+                          )}
+                        </>
+                      )}
+
+                      {/* Victor - Valuation Charts */}
+                      {selectedAgent.id === 'victor' && selectedReport.scenarioAnalysis && (
+                        <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-4 lg:col-span-2">
+                          <ScenarioComparison
+                            data={selectedReport.scenarioAnalysis}
+                            metric="Valuation"
+                            baseValue={10000000}
+                          />
+                        </div>
+                      )}
+
+                      {/* Nora - Funding Charts */}
+                      {selectedAgent.id === 'nora' && selectedReport.competitors && (
+                        <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-4 lg:col-span-2">
+                          <h5 className="text-sm font-medium text-slate-400 mb-3">Comparable Funding Rounds</h5>
+                          <CompetitorAnalysis
+                            competitors={selectedReport.competitors}
+                            yourCompany={validation?.title || 'Your Company'}
+                          />
+                        </div>
+                      )}
+
+                      {/* Validation Scorecard for investor-grade agents */}
+                      {selectedReport.scorecard && selectedAgent.investorGrade && (
+                        <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-4">
+                          <ValidationScorecard
+                            data={selectedReport.scorecard}
+                            agentName={selectedAgent.name}
+                          />
+                        </div>
+                      )}
+
+                      {/* Default: Show confidence and findings breakdown */}
+                      {!selectedReport.marketData && !selectedReport.unitEconomics && !selectedReport.competitors && (
+                        <>
+                          <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-4">
+                            <h5 className="text-sm font-medium text-slate-400 mb-3">Confidence Level</h5>
+                            <ConfidenceIndicator
+                              confidence={selectedReport.confidence}
+                              label="Analysis Confidence"
+                            />
+                          </div>
+                          {selectedReport.findings?.length > 0 && (
+                            <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-4">
+                              <h5 className="text-sm font-medium text-slate-400 mb-3">Findings Breakdown</h5>
+                              <FindingsBreakdown findings={selectedReport.findings} />
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+
                   {/* Key Findings */}
                   {selectedReport.findings?.length > 0 && (
                     <div className="mb-8">
