@@ -10,491 +10,245 @@ import {
   pdf,
 } from '@react-pdf/renderer';
 
-// Professional color palette - Premium startup validation theme
+// Premium color palette for investor-grade documents
 const colors = {
-  primary: '#1e40af',      // Deep blue
-  primaryLight: '#3b82f6', // Bright blue
-  secondary: '#059669',    // Emerald green
-  accent: '#7c3aed',       // Purple
-  success: '#10b981',      // Green
-  warning: '#f59e0b',      // Amber
-  danger: '#ef4444',       // Red
-  dark: '#0f172a',         // Slate 900
-  medium: '#475569',       // Slate 600
-  light: '#94a3b8',        // Slate 400
-  lighter: '#e2e8f0',      // Slate 200
-  lightest: '#f8fafc',     // Slate 50
+  primary: '#0f172a',      // Slate 900 - Professional dark
+  primaryLight: '#1e40af', // Blue 800
+  accent: '#0ea5e9',       // Sky 500
+  success: '#059669',      // Emerald 600
+  warning: '#d97706',      // Amber 600
+  danger: '#dc2626',       // Red 600
+  purple: '#7c3aed',       // Violet 600
+  dark: '#0f172a',
+  medium: '#475569',
+  light: '#94a3b8',
+  lighter: '#e2e8f0',
+  lightest: '#f8fafc',
   white: '#ffffff',
-  certifiedGreen: '#059669',
-  gold: '#d97706',         // For premium badges
+  gold: '#b45309',
+  certified: '#059669',
 };
 
-// Styles
+// Professional styles
 const styles = StyleSheet.create({
-  page: {
-    backgroundColor: colors.white,
-    padding: 40,
-    fontFamily: 'Helvetica',
-    fontSize: 10,
-    lineHeight: 1.4,
-  },
-  // Cover Page Styles
+  // Cover Page
   coverPage: {
     backgroundColor: colors.dark,
     padding: 0,
-    position: 'relative',
   },
   coverContent: {
-    padding: 50,
-    flex: 1,
+    padding: 60,
+    height: '100%',
     justifyContent: 'space-between',
   },
-  coverHeader: {
+  coverTop: {
     alignItems: 'center',
-    marginTop: 30,
   },
   coverLogo: {
-    fontSize: 36,
+    fontSize: 42,
     fontFamily: 'Helvetica-Bold',
     color: colors.white,
-    letterSpacing: 2,
+    letterSpacing: 3,
+    marginBottom: 8,
   },
   coverTagline: {
-    fontSize: 12,
+    fontSize: 11,
     color: colors.light,
-    marginTop: 8,
-    letterSpacing: 3,
+    letterSpacing: 4,
     textTransform: 'uppercase',
   },
-  coverMain: {
+  coverCenter: {
     alignItems: 'center',
-    paddingVertical: 60,
   },
   coverBadge: {
-    backgroundColor: colors.certifiedGreen,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginBottom: 30,
+    backgroundColor: colors.certified,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 25,
+    marginBottom: 40,
   },
   coverBadgeText: {
     color: colors.white,
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: 'Helvetica-Bold',
-    letterSpacing: 1,
+    letterSpacing: 2,
   },
   coverTitle: {
-    fontSize: 28,
+    fontSize: 32,
     fontFamily: 'Helvetica-Bold',
     color: colors.white,
     textAlign: 'center',
-    marginBottom: 15,
-    maxWidth: 400,
+    marginBottom: 20,
+    lineHeight: 1.3,
   },
-  coverSubtitle: {
-    fontSize: 11,
+  coverDesc: {
+    fontSize: 12,
     color: colors.light,
     textAlign: 'center',
-    maxWidth: 350,
+    maxWidth: 380,
     lineHeight: 1.6,
+    marginBottom: 50,
   },
-  coverScoreBox: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 12,
-    padding: 30,
+  coverScoreContainer: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 16,
+    padding: 40,
     alignItems: 'center',
-    marginTop: 40,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: 'rgba(255,255,255,0.15)',
   },
   coverScoreLabel: {
-    fontSize: 10,
+    fontSize: 11,
     color: colors.light,
+    letterSpacing: 3,
     textTransform: 'uppercase',
-    letterSpacing: 2,
-    marginBottom: 8,
+    marginBottom: 12,
   },
   coverScoreValue: {
-    fontSize: 56,
+    fontSize: 72,
     fontFamily: 'Helvetica-Bold',
+    marginBottom: 8,
   },
   coverScoreMax: {
-    fontSize: 14,
+    fontSize: 16,
     color: colors.light,
-    marginTop: 4,
   },
-  coverFooter: {
+  coverBottom: {
     alignItems: 'center',
-    paddingBottom: 30,
-  },
-  coverMeta: {
-    fontSize: 9,
-    color: colors.light,
-    marginBottom: 4,
   },
   coverDivider: {
-    width: 60,
-    height: 2,
-    backgroundColor: colors.certifiedGreen,
-    marginVertical: 20,
+    width: 80,
+    height: 3,
+    backgroundColor: colors.certified,
+    marginBottom: 25,
   },
-  // Header
-  header: {
+  coverMeta: {
+    fontSize: 10,
+    color: colors.light,
+    marginBottom: 6,
+    letterSpacing: 1,
+  },
+
+  // Standard Page
+  page: {
+    backgroundColor: colors.white,
+    padding: 45,
+    fontFamily: 'Helvetica',
+    fontSize: 10,
+  },
+  pageHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 25,
     paddingBottom: 15,
     borderBottomWidth: 2,
-    borderBottomColor: colors.primary,
+    borderBottomColor: colors.primaryLight,
   },
-  logoText: {
-    fontSize: 20,
+  pageHeaderLeft: {},
+  pageHeaderLogo: {
+    fontSize: 18,
     fontFamily: 'Helvetica-Bold',
-    color: colors.primary,
+    color: colors.primaryLight,
   },
-  logoSubtext: {
-    fontSize: 8,
-    color: colors.medium,
-    marginTop: 2,
-  },
-  headerRight: {
-    alignItems: 'flex-end',
-  },
-  reportTitle: {
-    fontSize: 11,
-    fontFamily: 'Helvetica-Bold',
-    color: colors.dark,
-  },
-  reportMeta: {
-    fontSize: 8,
-    color: colors.medium,
-    marginTop: 2,
-  },
-  // Certification Badge
-  certBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ecfdf5',
-    padding: 12,
-    borderRadius: 6,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: colors.certifiedGreen,
-  },
-  certIcon: {
-    width: 36,
-    height: 36,
-    backgroundColor: colors.certifiedGreen,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  certIconText: {
-    color: colors.white,
-    fontSize: 20,
-    fontFamily: 'Helvetica-Bold',
-  },
-  certTitle: {
-    fontSize: 11,
-    fontFamily: 'Helvetica-Bold',
-    color: colors.certifiedGreen,
-  },
-  certSubtitle: {
+  pageHeaderSub: {
     fontSize: 8,
     color: colors.medium,
     marginTop: 3,
-    maxWidth: 420,
   },
-  // Section
-  section: {
-    marginBottom: 16,
+  pageHeaderRight: {
+    alignItems: 'flex-end',
   },
-  sectionTitle: {
-    fontSize: 14,
+  pageHeaderTitle: {
+    fontSize: 10,
     fontFamily: 'Helvetica-Bold',
     color: colors.dark,
-    marginBottom: 10,
-    paddingBottom: 5,
-    borderBottomWidth: 1,
+  },
+  pageHeaderDate: {
+    fontSize: 8,
+    color: colors.medium,
+    marginTop: 3,
+  },
+
+  // Sections
+  section: {
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontFamily: 'Helvetica-Bold',
+    color: colors.dark,
+    marginBottom: 15,
+    paddingBottom: 8,
+    borderBottomWidth: 2,
     borderBottomColor: colors.lighter,
   },
   sectionSubtitle: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: 'Helvetica-Bold',
     color: colors.medium,
-    marginBottom: 8,
-    marginTop: 12,
+    marginBottom: 12,
+    marginTop: 15,
   },
-  // Score Display
-  scoreRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  scoreCard: {
-    flex: 1,
+
+  // Cards
+  card: {
     backgroundColor: colors.lightest,
-    padding: 15,
-    borderRadius: 6,
-    alignItems: 'center',
-    marginHorizontal: 4,
-  },
-  scoreValue: {
-    fontSize: 28,
-    fontFamily: 'Helvetica-Bold',
-  },
-  scoreLabel: {
-    fontSize: 8,
-    color: colors.medium,
-    marginTop: 4,
-    textTransform: 'uppercase',
-  },
-  // Summary Box
-  summaryBox: {
-    backgroundColor: colors.lightest,
-    padding: 12,
-    borderRadius: 6,
+    borderRadius: 8,
+    padding: 16,
     marginBottom: 12,
   },
-  summaryTitle: {
-    fontSize: 14,
-    fontFamily: 'Helvetica-Bold',
-    color: colors.dark,
-    marginBottom: 6,
-  },
-  summaryText: {
-    fontSize: 10,
-    color: colors.dark,
-    lineHeight: 1.5,
-  },
-  // Stats Grid
-  statsGrid: {
-    flexDirection: 'row',
-    marginBottom: 16,
-  },
-  statBox: {
-    flex: 1,
-    padding: 10,
-    borderRadius: 4,
-    marginHorizontal: 3,
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: 20,
-    fontFamily: 'Helvetica-Bold',
-  },
-  statLabel: {
-    fontSize: 8,
-    color: colors.medium,
-    marginTop: 2,
-  },
-  // Bar Chart
-  chartContainer: {
-    marginBottom: 16,
-    padding: 12,
+  cardBordered: {
     backgroundColor: colors.lightest,
-    borderRadius: 6,
-  },
-  chartTitle: {
-    fontSize: 10,
-    fontFamily: 'Helvetica-Bold',
-    color: colors.dark,
-    marginBottom: 10,
-  },
-  barRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  barLabel: {
-    width: 60,
-    fontSize: 9,
-    color: colors.medium,
-  },
-  barContainer: {
-    flex: 1,
-    height: 16,
-    backgroundColor: colors.lighter,
-    borderRadius: 3,
-    marginHorizontal: 8,
-  },
-  bar: {
-    height: 16,
-    borderRadius: 3,
-  },
-  barValue: {
-    width: 50,
-    fontSize: 9,
-    fontFamily: 'Helvetica-Bold',
-    textAlign: 'right',
-  },
-  // Agent Card
-  agentCard: {
-    backgroundColor: colors.lightest,
-    borderRadius: 6,
-    padding: 12,
+    borderRadius: 8,
+    padding: 16,
     marginBottom: 12,
     borderLeftWidth: 4,
   },
-  agentHeader: {
+
+  // Footer
+  footer: {
+    position: 'absolute',
+    bottom: 30,
+    left: 45,
+    right: 45,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.lighter,
   },
-  agentName: {
-    fontSize: 13,
-    fontFamily: 'Helvetica-Bold',
-    color: colors.dark,
-  },
-  agentRole: {
-    fontSize: 9,
-    color: colors.medium,
-    marginTop: 2,
-  },
-  agentScore: {
-    fontSize: 18,
-    fontFamily: 'Helvetica-Bold',
-  },
-  agentConfidence: {
+  footerText: {
     fontSize: 8,
     color: colors.light,
-    textAlign: 'right',
   },
-  investorBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 6,
-  },
-  investorDot: {
-    width: 8,
-    height: 8,
-    backgroundColor: colors.certifiedGreen,
-    borderRadius: 4,
-    marginRight: 4,
-  },
-  investorText: {
-    fontSize: 7,
-    color: colors.certifiedGreen,
-    fontFamily: 'Helvetica-Bold',
-  },
-  // Finding Item
-  findingItem: {
-    flexDirection: 'row',
-    marginBottom: 6,
-    paddingBottom: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.lighter,
-  },
-  findingDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    marginRight: 8,
-    marginTop: 4,
-  },
-  findingContent: {
-    flex: 1,
-  },
-  findingTitle: {
-    fontSize: 9,
-    fontFamily: 'Helvetica-Bold',
-    color: colors.dark,
-  },
-  findingDesc: {
+  footerPage: {
     fontSize: 8,
     color: colors.medium,
-    marginTop: 2,
-    lineHeight: 1.4,
-  },
-  // Risk Item
-  riskItem: {
-    backgroundColor: '#fef2f2',
-    padding: 10,
-    borderRadius: 4,
-    marginBottom: 8,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.danger,
-  },
-  riskHeader: {
-    flexDirection: 'row',
-    marginBottom: 4,
-  },
-  riskBadge: {
-    fontSize: 7,
-    color: colors.white,
-    paddingHorizontal: 5,
-    paddingVertical: 2,
-    borderRadius: 2,
-    marginRight: 4,
     fontFamily: 'Helvetica-Bold',
   },
-  riskTitle: {
-    fontSize: 10,
-    fontFamily: 'Helvetica-Bold',
-    color: colors.dark,
-    marginBottom: 3,
-  },
-  riskDesc: {
-    fontSize: 8,
-    color: colors.medium,
-    lineHeight: 1.4,
-  },
-  // Recommendation Item
-  recItem: {
-    padding: 10,
-    borderRadius: 4,
-    marginBottom: 8,
-    borderLeftWidth: 3,
-  },
-  recHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  recBadge: {
-    fontSize: 7,
-    color: colors.white,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 2,
-    marginRight: 6,
-    fontFamily: 'Helvetica-Bold',
-  },
-  recTimeframe: {
-    fontSize: 7,
-    color: colors.light,
-  },
-  recTitle: {
-    fontSize: 10,
-    fontFamily: 'Helvetica-Bold',
-    color: colors.dark,
-    marginBottom: 3,
-  },
-  recDesc: {
-    fontSize: 8,
-    color: colors.medium,
-    lineHeight: 1.4,
-  },
+
   // Table
   table: {
-    marginTop: 8,
+    marginTop: 10,
   },
   tableHeader: {
     flexDirection: 'row',
     backgroundColor: colors.dark,
-    padding: 8,
+    padding: 10,
+    borderTopLeftRadius: 4,
+    borderTopRightRadius: 4,
   },
   tableHeaderCell: {
     fontSize: 8,
     fontFamily: 'Helvetica-Bold',
     color: colors.white,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   tableRow: {
     flexDirection: 'row',
-    padding: 8,
+    padding: 10,
     borderBottomWidth: 1,
     borderBottomColor: colors.lighter,
   },
@@ -502,85 +256,61 @@ const styles = StyleSheet.create({
     backgroundColor: colors.lightest,
   },
   tableCell: {
-    fontSize: 8,
-    color: colors.dark,
-  },
-  // Footer
-  footer: {
-    position: 'absolute',
-    bottom: 25,
-    left: 40,
-    right: 40,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: colors.lighter,
-  },
-  footerText: {
-    fontSize: 7,
-    color: colors.light,
-  },
-  pageNumber: {
-    fontSize: 7,
-    color: colors.medium,
-  },
-  // Disclaimer
-  disclaimer: {
-    marginTop: 16,
-    padding: 10,
-    backgroundColor: '#fefce8',
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: '#fef08a',
-  },
-  disclaimerTitle: {
     fontSize: 9,
-    fontFamily: 'Helvetica-Bold',
-    color: '#854d0e',
-    marginBottom: 4,
-  },
-  disclaimerText: {
-    fontSize: 7,
-    color: '#854d0e',
-    lineHeight: 1.5,
+    color: colors.dark,
   },
 });
 
 // Helper functions
-function formatCurrency(value: number): string {
+const formatCurrency = (value: number): string => {
   if (value >= 1e12) return `$${(value / 1e12).toFixed(1)}T`;
   if (value >= 1e9) return `$${(value / 1e9).toFixed(1)}B`;
-  if (value >= 1e6) return `$${(value / 1e6).toFixed(0)}M`;
+  if (value >= 1e6) return `$${(value / 1e6).toFixed(1)}M`;
   if (value >= 1e3) return `$${(value / 1e3).toFixed(0)}K`;
   return `$${value.toFixed(0)}`;
-}
+};
 
-function getScoreColor(score: number): string {
+const getScoreColor = (score: number): string => {
   if (score >= 8) return colors.success;
-  if (score >= 6) return colors.primary;
+  if (score >= 6) return colors.primaryLight;
   if (score >= 4) return colors.warning;
   return colors.danger;
-}
+};
 
-function getPriorityColor(priority: string): string {
-  switch (priority) {
-    case 'critical': return colors.danger;
-    case 'high': return colors.warning;
-    case 'medium': return '#eab308';
-    default: return colors.primary;
-  }
-}
+const normalizeScore = (score: number): number => {
+  // Normalize scores to 0-10 scale
+  if (score > 10) return Math.min(10, score / 10);
+  return Math.min(10, Math.max(0, score));
+};
 
-function getTypeColor(type: string): string {
-  switch (type) {
-    case 'strength': return colors.success;
-    case 'weakness': return colors.danger;
-    case 'opportunity': return colors.primary;
-    case 'threat': return colors.warning;
-    default: return colors.medium;
-  }
-}
+const getGrade = (score: number): string => {
+  if (score >= 9) return 'A+';
+  if (score >= 8) return 'A';
+  if (score >= 7) return 'B+';
+  if (score >= 6) return 'B';
+  if (score >= 5) return 'C';
+  if (score >= 4) return 'D';
+  return 'F';
+};
+
+// Professional Agent Role Mapping
+const getAgentDisplayName = (agent: Agent): string => {
+  const roleMap: Record<string, string> = {
+    'marcus': 'Market Intelligence',
+    'sophia': 'Competitive Analysis',
+    'david': 'Financial Analysis',
+    'elena': 'Customer Insights',
+    'james': 'Team Assessment',
+    'rachel': 'Legal & Risk',
+    'omar': 'Technical Feasibility',
+    'nora': 'Funding Landscape',
+    'victor': 'Valuation Analysis',
+    'victoria': 'Executive Synthesis',
+    'sentinel': 'Trust & Audit',
+    'aria': 'AI Orchestration',
+  };
+  return roleMap[agent.id] || agent.role;
+};
 
 // Types
 interface Finding {
@@ -642,208 +372,229 @@ interface Agent {
   investorGrade: boolean;
 }
 
-// Visual Bar Chart Component
-const BarChart = ({ title, data }: { title: string; data: { label: string; value: number; maxValue: number; color: string }[] }) => (
-  <View style={styles.chartContainer}>
-    <Text style={styles.chartTitle}>{title}</Text>
-    {data.map((item, idx) => (
-      <View key={idx} style={styles.barRow}>
-        <Text style={styles.barLabel}>{item.label}</Text>
-        <View style={styles.barContainer}>
-          <View style={[styles.bar, { width: `${Math.min(100, (item.value / item.maxValue) * 100)}%`, backgroundColor: item.color }]} />
+interface ValidationReportProps {
+  validation: ValidationData;
+  agents: Agent[];
+}
+
+// Score Visualization Component
+const ScoreRing = ({ score, size = 80, label }: { score: number; size?: number; label?: string }) => {
+  const normalized = normalizeScore(score);
+  const color = getScoreColor(normalized);
+
+  return (
+    <View style={{ alignItems: 'center', marginBottom: 10 }}>
+      <View style={{
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        borderWidth: size / 12,
+        borderColor: color,
+        backgroundColor: colors.lightest,
+        justifyContent: 'center',
+        alignItems: 'center',
+      }}>
+        <Text style={{
+          fontSize: size / 3,
+          fontFamily: 'Helvetica-Bold',
+          color: color,
+        }}>
+          {normalized.toFixed(1)}
+        </Text>
+      </View>
+      {label && (
+        <Text style={{
+          fontSize: 9,
+          color: colors.medium,
+          marginTop: 8,
+          textTransform: 'uppercase',
+          letterSpacing: 1,
+        }}>
+          {label}
+        </Text>
+      )}
+    </View>
+  );
+};
+
+// Horizontal Bar Chart Component
+const HorizontalBar = ({ label, value, maxValue = 10, color, showGrade = false }: {
+  label: string;
+  value: number;
+  maxValue?: number;
+  color: string;
+  showGrade?: boolean;
+}) => {
+  const normalized = normalizeScore(value);
+  const percentage = (normalized / maxValue) * 100;
+
+  return (
+    <View style={{ marginBottom: 14 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5 }}>
+        <Text style={{ fontSize: 10, color: colors.dark, fontFamily: 'Helvetica-Bold' }}>{label}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: color }}>
+            {normalized.toFixed(1)}/10
+          </Text>
+          {showGrade && (
+            <View style={{
+              backgroundColor: color,
+              paddingHorizontal: 6,
+              paddingVertical: 2,
+              borderRadius: 3,
+              marginLeft: 8,
+            }}>
+              <Text style={{ fontSize: 8, color: colors.white, fontFamily: 'Helvetica-Bold' }}>
+                {getGrade(normalized)}
+              </Text>
+            </View>
+          )}
         </View>
-        <Text style={[styles.barValue, { color: item.color }]}>{item.value.toFixed(1)}/10</Text>
+      </View>
+      <View style={{ height: 12, backgroundColor: colors.lighter, borderRadius: 6 }}>
+        <View style={{
+          height: 12,
+          backgroundColor: color,
+          borderRadius: 6,
+          width: `${Math.min(100, percentage)}%`,
+        }} />
+      </View>
+    </View>
+  );
+};
+
+// Market Size Visualization
+const MarketSizeChart = ({ tam, sam, som }: { tam: number; sam: number; som: number }) => (
+  <View style={[styles.card, { padding: 20 }]}>
+    <Text style={{ fontSize: 12, fontFamily: 'Helvetica-Bold', color: colors.dark, marginBottom: 16 }}>
+      Market Size Analysis (TAM → SAM → SOM)
+    </Text>
+    {[
+      { label: 'Total Addressable Market (TAM)', value: tam, color: colors.primaryLight, desc: 'Complete market demand' },
+      { label: 'Serviceable Addressable Market (SAM)', value: sam, color: colors.purple, desc: 'Target segment' },
+      { label: 'Serviceable Obtainable Market (SOM)', value: som, color: colors.success, desc: 'Realistic capture' },
+    ].map((item, idx) => (
+      <View key={idx} style={{ marginBottom: 14 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+          <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold', color: item.color }}>{item.label}</Text>
+          <Text style={{ fontSize: 11, fontFamily: 'Helvetica-Bold', color: item.color }}>{formatCurrency(item.value)}</Text>
+        </View>
+        <View style={{ height: 16, backgroundColor: colors.lighter, borderRadius: 4 }}>
+          <View style={{
+            height: 16,
+            backgroundColor: item.color,
+            borderRadius: 4,
+            width: `${(item.value / tam) * 100}%`,
+            justifyContent: 'center',
+            paddingLeft: 8,
+          }}>
+            {item.value / tam > 0.15 && (
+              <Text style={{ fontSize: 7, color: colors.white, fontFamily: 'Helvetica-Bold' }}>
+                {((item.value / tam) * 100).toFixed(0)}%
+              </Text>
+            )}
+          </View>
+        </View>
+        <Text style={{ fontSize: 7, color: colors.light, marginTop: 3 }}>{item.desc}</Text>
       </View>
     ))}
   </View>
 );
 
-// Market Size Chart Component
-const MarketChart = ({ tam, sam, som }: { tam: number; sam: number; som: number }) => {
-  const maxVal = tam;
+// Unit Economics Display
+const UnitEconomicsDisplay = ({ data }: { data: any }) => {
+  const cac = data?.cac?.mid || 100;
+  const ltv = data?.ltv?.mid || 300;
+  const ratio = ltv / cac;
+
   return (
-    <View style={styles.chartContainer}>
-      <Text style={styles.chartTitle}>Market Size Analysis (TAM / SAM / SOM)</Text>
-      {[
-        { label: 'TAM', value: tam, color: colors.primary, desc: 'Total Addressable Market' },
-        { label: 'SAM', value: sam, color: colors.accent, desc: 'Serviceable Addressable Market' },
-        { label: 'SOM', value: som, color: colors.success, desc: 'Serviceable Obtainable Market' },
-      ].map((item, idx) => (
-        <View key={idx} style={{ marginBottom: 8 }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 3 }}>
-            <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold', color: item.color }}>{item.label}</Text>
-            <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold', color: item.color }}>{formatCurrency(item.value)}</Text>
-          </View>
-          <View style={{ height: 12, backgroundColor: colors.lighter, borderRadius: 2 }}>
-            <View style={{ height: 12, backgroundColor: item.color, borderRadius: 2, width: `${(item.value / maxVal) * 100}%` }} />
-          </View>
-          <Text style={{ fontSize: 7, color: colors.light, marginTop: 2 }}>{item.desc}</Text>
+    <View style={[styles.card, { padding: 20 }]}>
+      <Text style={{ fontSize: 12, fontFamily: 'Helvetica-Bold', color: colors.dark, marginBottom: 16 }}>
+        Unit Economics Analysis
+      </Text>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginBottom: 16 }}>
+        <View style={{ alignItems: 'center' }}>
+          <Text style={{ fontSize: 8, color: colors.medium, marginBottom: 4 }}>CUSTOMER ACQUISITION COST</Text>
+          <Text style={{ fontSize: 22, fontFamily: 'Helvetica-Bold', color: colors.danger }}>{formatCurrency(cac)}</Text>
         </View>
-      ))}
+        <View style={{ alignItems: 'center' }}>
+          <Text style={{ fontSize: 8, color: colors.medium, marginBottom: 4 }}>LIFETIME VALUE</Text>
+          <Text style={{ fontSize: 22, fontFamily: 'Helvetica-Bold', color: colors.success }}>{formatCurrency(ltv)}</Text>
+        </View>
+        <View style={{ alignItems: 'center' }}>
+          <Text style={{ fontSize: 8, color: colors.medium, marginBottom: 4 }}>LTV:CAC RATIO</Text>
+          <Text style={{ fontSize: 22, fontFamily: 'Helvetica-Bold', color: ratio >= 3 ? colors.success : colors.warning }}>
+            {ratio.toFixed(1)}x
+          </Text>
+        </View>
+      </View>
+      <View style={{
+        backgroundColor: ratio >= 3 ? '#ecfdf5' : '#fef3c7',
+        padding: 10,
+        borderRadius: 6,
+        flexDirection: 'row',
+        alignItems: 'center',
+      }}>
+        <Text style={{ fontSize: 14, marginRight: 8 }}>{ratio >= 3 ? '✓' : '⚠'}</Text>
+        <Text style={{ fontSize: 9, color: ratio >= 3 ? colors.success : colors.warning }}>
+          {ratio >= 3
+            ? 'Healthy unit economics - LTV:CAC ratio exceeds 3:1 benchmark'
+            : 'Unit economics need improvement - Target LTV:CAC ratio of 3:1 or higher'}
+        </Text>
+      </View>
     </View>
   );
 };
 
-// Scenario Chart Component
-const ScenarioChart = ({ bull, base, bear }: { bull: any; base: any; bear: any }) => (
-  <View style={styles.chartContainer}>
-    <Text style={styles.chartTitle}>Scenario Analysis</Text>
+// Scenario Analysis Display
+const ScenarioDisplay = ({ scenarios }: { scenarios: any }) => (
+  <View style={[styles.card, { padding: 20 }]}>
+    <Text style={{ fontSize: 12, fontFamily: 'Helvetica-Bold', color: colors.dark, marginBottom: 16 }}>
+      Scenario Analysis
+    </Text>
     <View style={{ flexDirection: 'row' }}>
       {[
-        { name: 'Bull Case', data: bull, color: colors.success, bgColor: '#ecfdf5' },
-        { name: 'Base Case', data: base, color: colors.primary, bgColor: '#eff6ff' },
-        { name: 'Bear Case', data: bear, color: colors.danger, bgColor: '#fef2f2' },
+        { name: 'Bull Case', data: scenarios?.bull, color: colors.success, bg: '#ecfdf5' },
+        { name: 'Base Case', data: scenarios?.base, color: colors.primaryLight, bg: '#eff6ff' },
+        { name: 'Bear Case', data: scenarios?.bear, color: colors.danger, bg: '#fef2f2' },
       ].map((scenario, idx) => (
-        <View key={idx} style={{ flex: 1, padding: 8, backgroundColor: scenario.bgColor, borderRadius: 4, marginHorizontal: 2 }}>
-          <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold', color: scenario.color, marginBottom: 4 }}>{scenario.name}</Text>
-          <Text style={{ fontSize: 14, fontFamily: 'Helvetica-Bold', color: scenario.color }}>
+        <View key={idx} style={{
+          flex: 1,
+          backgroundColor: scenario.bg,
+          borderRadius: 6,
+          padding: 14,
+          marginHorizontal: 3,
+          alignItems: 'center',
+        }}>
+          <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold', color: scenario.color, marginBottom: 8 }}>
+            {scenario.name}
+          </Text>
+          <Text style={{ fontSize: 24, fontFamily: 'Helvetica-Bold', color: scenario.color }}>
             {((scenario.data?.probability || 0.33) * 100).toFixed(0)}%
           </Text>
-          <Text style={{ fontSize: 7, color: colors.medium }}>probability</Text>
+          <Text style={{ fontSize: 8, color: colors.medium, marginTop: 4 }}>probability</Text>
         </View>
       ))}
     </View>
   </View>
 );
 
-// Unit Economics Chart
-const UnitEconomicsChart = ({ data }: { data: any }) => {
-  const cac = data?.cac?.mid || 100;
-  const ltv = data?.ltv?.mid || 300;
-  const ratio = ltv / cac;
-  const maxVal = Math.max(cac, ltv);
-
-  return (
-    <View style={styles.chartContainer}>
-      <Text style={styles.chartTitle}>Unit Economics</Text>
-      <View style={{ flexDirection: 'row', marginBottom: 10 }}>
-        <View style={{ flex: 1, alignItems: 'center' }}>
-          <Text style={{ fontSize: 8, color: colors.medium }}>CAC</Text>
-          <Text style={{ fontSize: 16, fontFamily: 'Helvetica-Bold', color: colors.danger }}>{formatCurrency(cac)}</Text>
-        </View>
-        <View style={{ flex: 1, alignItems: 'center' }}>
-          <Text style={{ fontSize: 8, color: colors.medium }}>LTV</Text>
-          <Text style={{ fontSize: 16, fontFamily: 'Helvetica-Bold', color: colors.success }}>{formatCurrency(ltv)}</Text>
-        </View>
-        <View style={{ flex: 1, alignItems: 'center' }}>
-          <Text style={{ fontSize: 8, color: colors.medium }}>LTV:CAC</Text>
-          <Text style={{ fontSize: 16, fontFamily: 'Helvetica-Bold', color: ratio >= 3 ? colors.success : colors.warning }}>
-            {ratio.toFixed(1)}:1
-          </Text>
-        </View>
-      </View>
-      <View style={{ height: 20, flexDirection: 'row', borderRadius: 4, overflow: 'hidden' }}>
-        <View style={{ width: `${(cac / maxVal) * 50}%`, backgroundColor: colors.danger, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ fontSize: 7, color: colors.white, fontFamily: 'Helvetica-Bold' }}>CAC</Text>
-        </View>
-        <View style={{ width: `${(ltv / maxVal) * 50}%`, backgroundColor: colors.success, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ fontSize: 7, color: colors.white, fontFamily: 'Helvetica-Bold' }}>LTV</Text>
-        </View>
-      </View>
-      <Text style={{ fontSize: 7, color: ratio >= 3 ? colors.success : colors.warning, marginTop: 4, textAlign: 'center' }}>
-        {ratio >= 3 ? '✓ Healthy ratio (≥3:1)' : '⚠ Below healthy threshold (3:1)'}
-      </Text>
-    </View>
-  );
-};
-
-// Visual Score Gauge Component
-const ScoreGauge = ({ score, label, size = 'large' }: { score: number; label: string; size?: 'large' | 'small' }) => {
-  const color = getScoreColor(score);
-  const percentage = (score / 10) * 100;
-  const isLarge = size === 'large';
-
-  return (
-    <View style={{ alignItems: 'center', marginBottom: 12 }}>
-      <View style={{
-        width: isLarge ? 100 : 60,
-        height: isLarge ? 100 : 60,
-        borderRadius: isLarge ? 50 : 30,
-        borderWidth: isLarge ? 8 : 5,
-        borderColor: colors.lighter,
-        justifyContent: 'center',
-        alignItems: 'center',
-        position: 'relative',
-      }}>
-        {/* Colored progress arc representation using segments */}
-        <View style={{
-          position: 'absolute',
-          width: isLarge ? 100 : 60,
-          height: isLarge ? 100 : 60,
-          borderRadius: isLarge ? 50 : 30,
-          borderWidth: isLarge ? 8 : 5,
-          borderColor: color,
-          borderTopColor: percentage >= 25 ? color : 'transparent',
-          borderRightColor: percentage >= 50 ? color : 'transparent',
-          borderBottomColor: percentage >= 75 ? color : 'transparent',
-          borderLeftColor: percentage >= 100 ? color : 'transparent',
-        }} />
-        <Text style={{
-          fontSize: isLarge ? 24 : 14,
-          fontFamily: 'Helvetica-Bold',
-          color: color,
-        }}>
-          {score.toFixed(1)}
-        </Text>
-      </View>
-      <Text style={{
-        fontSize: isLarge ? 10 : 8,
-        color: colors.medium,
-        marginTop: 6,
-        textTransform: 'uppercase',
-        letterSpacing: 1,
-      }}>
-        {label}
-      </Text>
-    </View>
-  );
-};
-
-// Horizontal Progress Bar with Label
-const ProgressBar = ({ value, maxValue, label, color, showPercentage = false }: {
-  value: number;
-  maxValue: number;
-  label: string;
-  color: string;
-  showPercentage?: boolean;
-}) => {
-  const percentage = Math.min(100, (value / maxValue) * 100);
-  return (
-    <View style={{ marginBottom: 8 }}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 3 }}>
-        <Text style={{ fontSize: 8, color: colors.medium }}>{label}</Text>
-        <Text style={{ fontSize: 8, fontFamily: 'Helvetica-Bold', color: color }}>
-          {showPercentage ? `${percentage.toFixed(0)}%` : value.toFixed(1)}
-        </Text>
-      </View>
-      <View style={{ height: 8, backgroundColor: colors.lighter, borderRadius: 4 }}>
-        <View style={{
-          height: 8,
-          backgroundColor: color,
-          borderRadius: 4,
-          width: `${percentage}%`
-        }} />
-      </View>
-    </View>
-  );
-};
-
-// Summary Statistics Row
-const StatsRow = ({ stats }: { stats: { label: string; value: string | number; color: string; bgColor: string }[] }) => (
-  <View style={{ flexDirection: 'row', marginBottom: 16 }}>
+// Stats Grid Component
+const StatsGrid = ({ stats }: { stats: { label: string; value: string | number; color: string; bg: string }[] }) => (
+  <View style={{ flexDirection: 'row', marginBottom: 20 }}>
     {stats.map((stat, idx) => (
       <View key={idx} style={{
         flex: 1,
-        padding: 12,
-        backgroundColor: stat.bgColor,
-        borderRadius: 6,
-        marginHorizontal: 3,
+        backgroundColor: stat.bg,
+        borderRadius: 8,
+        padding: 16,
+        marginHorizontal: 4,
         alignItems: 'center',
       }}>
-        <Text style={{ fontSize: 20, fontFamily: 'Helvetica-Bold', color: stat.color }}>
+        <Text style={{ fontSize: 26, fontFamily: 'Helvetica-Bold', color: stat.color }}>
           {stat.value}
         </Text>
-        <Text style={{ fontSize: 7, color: colors.medium, marginTop: 3, textTransform: 'uppercase' }}>
+        <Text style={{ fontSize: 8, color: colors.medium, marginTop: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>
           {stat.label}
         </Text>
       </View>
@@ -851,45 +602,22 @@ const StatsRow = ({ stats }: { stats: { label: string; value: string | number; c
   </View>
 );
 
-// Table of Contents Component
-const TableOfContents = ({ items }: { items: { title: string; page: number }[] }) => (
-  <View style={{ marginBottom: 20 }}>
-    <Text style={{
-      fontSize: 14,
-      fontFamily: 'Helvetica-Bold',
-      color: colors.dark,
-      marginBottom: 12,
-      paddingBottom: 6,
-      borderBottomWidth: 2,
-      borderBottomColor: colors.primary,
-    }}>
-      Table of Contents
-    </Text>
-    {items.map((item, idx) => (
-      <View key={idx} style={{
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingVertical: 6,
-        borderBottomWidth: 1,
-        borderBottomColor: colors.lighter,
-      }}>
-        <Text style={{ fontSize: 10, color: colors.dark }}>{item.title}</Text>
-        <Text style={{ fontSize: 10, color: colors.primary, fontFamily: 'Helvetica-Bold' }}>
-          {item.page}
-        </Text>
-      </View>
-    ))}
+// Table of Contents
+const TOCItem = ({ title, page, isLast = false }: { title: string; page: number; isLast?: boolean }) => (
+  <View style={{
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: isLast ? 0 : 1,
+    borderBottomColor: colors.lighter,
+  }}>
+    <Text style={{ fontSize: 11, color: colors.dark }}>{title}</Text>
+    <Text style={{ fontSize: 11, fontFamily: 'Helvetica-Bold', color: colors.primaryLight }}>{page}</Text>
   </View>
 );
 
-// Props
-interface ValidationReportProps {
-  validation: ValidationData;
-  agents: Agent[];
-}
-
-// Main Document
+// Main Document Component
 export const ValidationReportDocument = ({ validation, agents }: ValidationReportProps) => {
   const generatedDate = new Date().toLocaleDateString('en-US', {
     year: 'numeric',
@@ -911,337 +639,352 @@ export const ValidationReportDocument = ({ validation, agents }: ValidationRepor
     threat: allFindings.filter(f => f.type === 'threat').length,
   };
 
-  // Get agent scores for chart
   const agentScores = agents
     .map(agent => {
       const report = getAgentReport(agent.id);
-      return report ? { label: agent.name, value: report.score, maxValue: 10, color: getScoreColor(report.score) } : null;
+      if (!report) return null;
+      const normalized = normalizeScore(report.score);
+      return {
+        id: agent.id,
+        label: getAgentDisplayName(agent),
+        icon: agent.icon,
+        value: normalized,
+        color: getScoreColor(normalized),
+        investorGrade: agent.investorGrade,
+      };
     })
-    .filter(Boolean) as { label: string; value: number; maxValue: number; color: string }[];
+    .filter(Boolean) as { id: string; label: string; icon: string; value: number; color: string; investorGrade: boolean }[];
 
-  // Build table of contents
+  const agentsWithReports = agents.filter(a => getAgentReport(a.id));
+  const normalizedOverallScore = normalizeScore(validation.overallScore || 0);
+
+  // Build TOC
   const tocItems = [
-    { title: 'Executive Summary & Score Overview', page: 2 },
-    ...agents.filter(a => getAgentReport(a.id)).map((agent, idx) => ({
-      title: `${agent.name} Analysis`,
-      page: idx + 3,
+    { title: 'Executive Summary', page: 2 },
+    { title: 'Analysis Overview & Scores', page: 3 },
+    ...agentsWithReports.map((agent, idx) => ({
+      title: `${getAgentDisplayName(agent)} Report`,
+      page: idx + 4,
     })),
-    { title: 'Action Plan & Certification', page: agents.filter(a => getAgentReport(a.id)).length + 3 },
+    { title: 'Action Plan & Certification', page: agentsWithReports.length + 4 },
   ];
 
   return (
     <Document>
-      {/* Cover Page - Premium Dark Theme */}
+      {/* ========== COVER PAGE ========== */}
       <Page size="A4" style={styles.coverPage}>
         <View style={styles.coverContent}>
-          {/* Header */}
-          <View style={styles.coverHeader}>
+          <View style={styles.coverTop}>
             <Text style={styles.coverLogo}>STARTUP VERDICT</Text>
             <Text style={styles.coverTagline}>AI-Powered Validation Intelligence</Text>
           </View>
 
-          {/* Main Content */}
-          <View style={styles.coverMain}>
+          <View style={styles.coverCenter}>
             <View style={styles.coverBadge}>
-              <Text style={styles.coverBadgeText}>✓ CERTIFIED ANALYSIS</Text>
+              <Text style={styles.coverBadgeText}>✓ CERTIFIED VALIDATION</Text>
             </View>
+
             <Text style={styles.coverTitle}>{validation.title}</Text>
-            <Text style={styles.coverSubtitle}>
-              Comprehensive startup validation report powered by 12 specialized AI agents
+            <Text style={styles.coverDesc}>
+              Comprehensive startup validation powered by 12 specialized AI agents with investor-grade analysis
             </Text>
 
-            {/* Score Display */}
-            <View style={styles.coverScoreBox}>
-              <Text style={styles.coverScoreLabel}>Overall Score</Text>
-              <Text style={[styles.coverScoreValue, { color: getScoreColor(validation.overallScore || 0) }]}>
-                {validation.overallScore?.toFixed(1) || 'N/A'}
+            <View style={styles.coverScoreContainer}>
+              <Text style={styles.coverScoreLabel}>Validation Score</Text>
+              <Text style={[styles.coverScoreValue, { color: getScoreColor(normalizedOverallScore) }]}>
+                {normalizedOverallScore.toFixed(1)}
               </Text>
-              <Text style={styles.coverScoreMax}>out of 10.0</Text>
+              <Text style={styles.coverScoreMax}>out of 10.0 | Grade: {getGrade(normalizedOverallScore)}</Text>
             </View>
           </View>
 
-          {/* Footer */}
-          <View style={styles.coverFooter}>
+          <View style={styles.coverBottom}>
             <View style={styles.coverDivider} />
             <Text style={styles.coverMeta}>Report ID: {reportId}</Text>
             <Text style={styles.coverMeta}>Generated: {generatedDate}</Text>
-            <Text style={[styles.coverMeta, { marginTop: 8 }]}>
-              Confidence Level: {validation.overallConfidence || 0}%
+            <Text style={[styles.coverMeta, { marginTop: 10 }]}>
+              Confidence: {validation.overallConfidence || 0}% | Agents: {agentsWithReports.length}
             </Text>
           </View>
         </View>
       </Page>
 
-      {/* Page 2: Table of Contents & Executive Summary */}
+      {/* ========== PAGE 2: EXECUTIVE SUMMARY ========== */}
       <Page size="A4" style={styles.page}>
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.logoText}>Startup Verdict</Text>
-            <Text style={styles.logoSubtext}>AI-Powered Startup Validation</Text>
+        <View style={styles.pageHeader}>
+          <View style={styles.pageHeaderLeft}>
+            <Text style={styles.pageHeaderLogo}>Startup Verdict</Text>
+            <Text style={styles.pageHeaderSub}>Validation Report</Text>
           </View>
-          <View style={styles.headerRight}>
-            <Text style={styles.reportTitle}>Validation Report</Text>
-            <Text style={styles.reportMeta}>{generatedDate}</Text>
-            <Text style={styles.reportMeta}>ID: {reportId}</Text>
+          <View style={styles.pageHeaderRight}>
+            <Text style={styles.pageHeaderTitle}>{validation.title}</Text>
+            <Text style={styles.pageHeaderDate}>{generatedDate}</Text>
           </View>
         </View>
 
         {/* Table of Contents */}
-        <TableOfContents items={tocItems} />
+        <View style={[styles.section, { marginBottom: 25 }]}>
+          <Text style={styles.sectionTitle}>Table of Contents</Text>
+          {tocItems.map((item, idx) => (
+            <TOCItem key={idx} title={item.title} page={item.page} isLast={idx === tocItems.length - 1} />
+          ))}
+        </View>
 
-        {/* Certification */}
-        <View style={styles.certBadge}>
-          <View style={styles.certIcon}>
-            <Text style={styles.certIconText}>✓</Text>
+        {/* Certification Badge */}
+        <View style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          backgroundColor: '#ecfdf5',
+          padding: 16,
+          borderRadius: 8,
+          marginBottom: 20,
+          borderWidth: 1,
+          borderColor: colors.certified,
+        }}>
+          <View style={{
+            width: 44,
+            height: 44,
+            backgroundColor: colors.certified,
+            borderRadius: 22,
+            justifyContent: 'center',
+            alignItems: 'center',
+            marginRight: 16,
+          }}>
+            <Text style={{ color: colors.white, fontSize: 24, fontFamily: 'Helvetica-Bold' }}>✓</Text>
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.certTitle}>VERIFIED & CERTIFIED ANALYSIS</Text>
-            <Text style={styles.certSubtitle}>
+            <Text style={{ fontSize: 12, fontFamily: 'Helvetica-Bold', color: colors.certified, marginBottom: 4 }}>
+              VERIFIED & CERTIFIED ANALYSIS
+            </Text>
+            <Text style={{ fontSize: 9, color: colors.medium, lineHeight: 1.5 }}>
               Generated by Startup Verdict's 12-agent AI validation system. All data cross-referenced for investor-grade accuracy.
             </Text>
           </View>
         </View>
 
-        {/* Company Overview */}
+        {/* Startup Overview */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Startup Overview</Text>
-          <View style={styles.summaryBox}>
-            <Text style={styles.summaryTitle}>{validation.title}</Text>
-            <Text style={styles.summaryText}>{validation.description}</Text>
+          <View style={styles.card}>
+            <Text style={{ fontSize: 14, fontFamily: 'Helvetica-Bold', color: colors.dark, marginBottom: 8 }}>
+              {validation.title}
+            </Text>
+            <Text style={{ fontSize: 10, color: colors.medium, lineHeight: 1.6 }}>
+              {validation.description}
+            </Text>
           </View>
         </View>
 
-        {/* Visual Score Display */}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginBottom: 16 }}>
-          <ScoreGauge score={validation.overallScore || 0} label="Overall Score" />
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>Startup Verdict - Confidential</Text>
+          <Text style={styles.footerPage}>Page 2</Text>
+        </View>
+      </Page>
+
+      {/* ========== PAGE 3: ANALYSIS OVERVIEW ========== */}
+      <Page size="A4" style={styles.page}>
+        <View style={styles.pageHeader}>
+          <View style={styles.pageHeaderLeft}>
+            <Text style={styles.pageHeaderLogo}>Startup Verdict</Text>
+            <Text style={styles.pageHeaderSub}>Analysis Overview</Text>
+          </View>
+          <View style={styles.pageHeaderRight}>
+            <Text style={styles.pageHeaderTitle}>{validation.title}</Text>
+            <Text style={styles.pageHeaderDate}>{generatedDate}</Text>
+          </View>
+        </View>
+
+        {/* Score Overview */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginBottom: 25 }}>
+          <ScoreRing score={normalizedOverallScore} size={90} label="Overall Score" />
           <View style={{ alignItems: 'center' }}>
             <View style={{
-              width: 100,
-              height: 100,
-              borderRadius: 50,
+              width: 90,
+              height: 90,
+              borderRadius: 45,
               backgroundColor: colors.lightest,
+              borderWidth: 6,
+              borderColor: colors.primaryLight,
               justifyContent: 'center',
               alignItems: 'center',
-              borderWidth: 3,
-              borderColor: colors.primary,
             }}>
-              <Text style={{ fontSize: 28, fontFamily: 'Helvetica-Bold', color: colors.primary }}>
+              <Text style={{ fontSize: 24, fontFamily: 'Helvetica-Bold', color: colors.primaryLight }}>
                 {validation.overallConfidence || 0}%
               </Text>
             </View>
-            <Text style={{ fontSize: 10, color: colors.medium, marginTop: 6, textTransform: 'uppercase', letterSpacing: 1 }}>
+            <Text style={{ fontSize: 9, color: colors.medium, marginTop: 8, textTransform: 'uppercase', letterSpacing: 1 }}>
               Confidence
             </Text>
           </View>
           <View style={{ alignItems: 'center' }}>
             <View style={{
-              width: 100,
-              height: 100,
-              borderRadius: 50,
+              width: 90,
+              height: 90,
+              borderRadius: 45,
               backgroundColor: colors.lightest,
+              borderWidth: 6,
+              borderColor: colors.success,
               justifyContent: 'center',
               alignItems: 'center',
-              borderWidth: 3,
-              borderColor: colors.secondary,
             }}>
-              <Text style={{ fontSize: 28, fontFamily: 'Helvetica-Bold', color: colors.secondary }}>
-                {validation.agentReports?.length || 0}
+              <Text style={{ fontSize: 24, fontFamily: 'Helvetica-Bold', color: colors.success }}>
+                {agentsWithReports.length}
               </Text>
             </View>
-            <Text style={{ fontSize: 10, color: colors.medium, marginTop: 6, textTransform: 'uppercase', letterSpacing: 1 }}>
+            <Text style={{ fontSize: 9, color: colors.medium, marginTop: 8, textTransform: 'uppercase', letterSpacing: 1 }}>
               Agents
             </Text>
           </View>
         </View>
 
         {/* SWOT Summary */}
-        <StatsRow stats={[
-          { label: 'Strengths', value: findingCounts.strength, color: colors.success, bgColor: '#ecfdf5' },
-          { label: 'Weaknesses', value: findingCounts.weakness, color: colors.danger, bgColor: '#fef2f2' },
-          { label: 'Opportunities', value: findingCounts.opportunity, color: colors.primary, bgColor: '#eff6ff' },
-          { label: 'Threats', value: findingCounts.threat, color: colors.warning, bgColor: '#fefce8' },
+        <StatsGrid stats={[
+          { label: 'Strengths', value: findingCounts.strength, color: colors.success, bg: '#ecfdf5' },
+          { label: 'Weaknesses', value: findingCounts.weakness, color: colors.danger, bg: '#fef2f2' },
+          { label: 'Opportunities', value: findingCounts.opportunity, color: colors.primaryLight, bg: '#eff6ff' },
+          { label: 'Threats', value: findingCounts.threat, color: colors.warning, bg: '#fef3c7' },
         ]} />
 
-        {/* Verdict */}
-        {validation.verdict && (
-          <View style={[styles.summaryBox, { backgroundColor: '#ecfdf5', borderWidth: 1, borderColor: colors.certifiedGreen }]}>
-            <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: colors.certifiedGreen, marginBottom: 4 }}>
-              FINAL VERDICT
-            </Text>
-            <Text style={{ fontSize: 9, color: colors.dark, lineHeight: 1.5 }}>{validation.verdict}</Text>
-          </View>
-        )}
-
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>Startup Verdict - Confidential</Text>
-          <Text style={styles.pageNumber}>Page 2</Text>
-        </View>
-      </Page>
-
-      {/* Page 3: Executive Summary & Charts */}
-      <Page size="A4" style={styles.page}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 }}>
-          <Text style={{ fontSize: 9, color: colors.medium }}>{validation.title}</Text>
-          <Text style={{ fontSize: 9, color: colors.medium }}>Analysis Overview</Text>
-        </View>
-
-        {/* Executive Summary */}
-        {validation.executiveSummary && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Executive Summary</Text>
-            <Text style={{ fontSize: 9, color: colors.dark, lineHeight: 1.6 }}>{validation.executiveSummary}</Text>
-          </View>
-        )}
-
-        {/* Agent Score Chart */}
-        {agentScores.length > 0 && (
-          <BarChart title="Agent Scores Overview" data={agentScores.slice(0, 6)} />
-        )}
-
-        {/* Score Progress Bars */}
-        {agentScores.length > 6 && (
-          <View style={styles.chartContainer}>
-            <Text style={styles.chartTitle}>Additional Agent Scores</Text>
-            {agentScores.slice(6).map((score, idx) => (
-              <ProgressBar
+        {/* Agent Scores Chart */}
+        <View style={styles.section}>
+          <Text style={styles.sectionSubtitle}>Agent Analysis Scores</Text>
+          <View style={styles.card}>
+            {agentScores.slice(0, 6).map((agent, idx) => (
+              <HorizontalBar
                 key={idx}
-                label={score.label}
-                value={score.value}
-                maxValue={score.maxValue}
-                color={score.color}
+                label={`${agent.icon} ${agent.label}`}
+                value={agent.value}
+                color={agent.color}
+                showGrade
               />
             ))}
           </View>
-        )}
-
-        {/* Key Metrics Summary */}
-        <View style={styles.section}>
-          <Text style={styles.sectionSubtitle}>Key Validation Metrics</Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-            <View style={{ width: '50%', padding: 4 }}>
-              <ProgressBar label="Market Potential" value={agentScores.find(s => s.label === 'Marcus')?.value || 7} maxValue={10} color={colors.primary} />
-            </View>
-            <View style={{ width: '50%', padding: 4 }}>
-              <ProgressBar label="Financial Viability" value={agentScores.find(s => s.label === 'David')?.value || 7} maxValue={10} color={colors.success} />
-            </View>
-            <View style={{ width: '50%', padding: 4 }}>
-              <ProgressBar label="Technical Feasibility" value={agentScores.find(s => s.label === 'Nina')?.value || 7} maxValue={10} color={colors.accent} />
-            </View>
-            <View style={{ width: '50%', padding: 4 }}>
-              <ProgressBar label="Risk Assessment" value={agentScores.find(s => s.label === 'Rita')?.value || 7} maxValue={10} color={colors.warning} />
-            </View>
-          </View>
         </View>
+
+        {/* Verdict */}
+        {validation.verdict && (
+          <View style={{
+            backgroundColor: '#ecfdf5',
+            padding: 16,
+            borderRadius: 8,
+            borderWidth: 1,
+            borderColor: colors.certified,
+          }}>
+            <Text style={{ fontSize: 11, fontFamily: 'Helvetica-Bold', color: colors.certified, marginBottom: 6 }}>
+              FINAL VERDICT
+            </Text>
+            <Text style={{ fontSize: 10, color: colors.dark, lineHeight: 1.6 }}>
+              {validation.verdict}
+            </Text>
+          </View>
+        )}
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>Startup Verdict - Confidential</Text>
-          <Text style={styles.pageNumber}>Page 3</Text>
+          <Text style={styles.footerPage}>Page 3</Text>
         </View>
       </Page>
 
-      {/* Agent Report Pages */}
-      {agents.map((agent, idx) => {
-        const report = getAgentReport(agent.id);
-        if (!report) return null;
+      {/* ========== AGENT REPORT PAGES ========== */}
+      {agentsWithReports.map((agent, idx) => {
+        const report = getAgentReport(agent.id)!;
+        const normalized = normalizeScore(report.score);
+        const displayName = getAgentDisplayName(agent);
 
         return (
           <Page key={agent.id} size="A4" style={styles.page}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 }}>
-              <Text style={{ fontSize: 9, color: colors.medium }}>{validation.title}</Text>
-              <Text style={{ fontSize: 9, color: colors.medium }}>{agent.name} Analysis</Text>
+            <View style={styles.pageHeader}>
+              <View style={styles.pageHeaderLeft}>
+                <Text style={styles.pageHeaderLogo}>Startup Verdict</Text>
+                <Text style={styles.pageHeaderSub}>{displayName}</Text>
+              </View>
+              <View style={styles.pageHeaderRight}>
+                <Text style={styles.pageHeaderTitle}>{validation.title}</Text>
+                <Text style={styles.pageHeaderDate}>{generatedDate}</Text>
+              </View>
             </View>
 
-            {/* Agent Header Card - Enhanced */}
-            <View style={[styles.agentCard, { borderLeftColor: getScoreColor(report.score), marginBottom: 16 }]}>
+            {/* Agent Header */}
+            <View style={[styles.cardBordered, { borderLeftColor: getScoreColor(normalized), marginBottom: 20 }]}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.agentName}>{agent.icon} {agent.name}</Text>
-                  <Text style={styles.agentRole}>{agent.role}</Text>
-                  <Text style={{ fontSize: 8, color: colors.light, marginTop: 4, maxWidth: 280 }}>{agent.description}</Text>
+                  <Text style={{ fontSize: 18, fontFamily: 'Helvetica-Bold', color: colors.dark, marginBottom: 4 }}>
+                    {agent.icon} {displayName}
+                  </Text>
+                  <Text style={{ fontSize: 10, color: colors.medium, marginBottom: 8, lineHeight: 1.5 }}>
+                    {agent.description}
+                  </Text>
                   {agent.investorGrade && (
-                    <View style={[styles.investorBadge, { marginTop: 8 }]}>
-                      <View style={styles.investorDot} />
-                      <Text style={styles.investorText}>INVESTOR-GRADE ANALYSIS</Text>
+                    <View style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      backgroundColor: '#ecfdf5',
+                      paddingHorizontal: 10,
+                      paddingVertical: 4,
+                      borderRadius: 12,
+                      alignSelf: 'flex-start',
+                    }}>
+                      <View style={{ width: 8, height: 8, backgroundColor: colors.certified, borderRadius: 4, marginRight: 6 }} />
+                      <Text style={{ fontSize: 8, fontFamily: 'Helvetica-Bold', color: colors.certified }}>
+                        INVESTOR-GRADE ANALYSIS
+                      </Text>
                     </View>
                   )}
                 </View>
-                {/* Score Circle */}
-                <View style={{ alignItems: 'center', marginLeft: 16 }}>
-                  <View style={{
-                    width: 70,
-                    height: 70,
-                    borderRadius: 35,
-                    borderWidth: 5,
-                    borderColor: getScoreColor(report.score),
-                    backgroundColor: colors.lightest,
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                  }}>
-                    <Text style={{ fontSize: 22, fontFamily: 'Helvetica-Bold', color: getScoreColor(report.score) }}>
-                      {report.score.toFixed(1)}
-                    </Text>
-                  </View>
-                  <Text style={{ fontSize: 8, color: colors.light, marginTop: 4 }}>{report.confidence}% confidence</Text>
+                <View style={{ alignItems: 'center', marginLeft: 20 }}>
+                  <ScoreRing score={normalized} size={70} />
+                  <Text style={{ fontSize: 8, color: colors.light }}>{report.confidence}% confidence</Text>
                 </View>
               </View>
             </View>
 
-            {/* Market Data Charts for Marcus */}
+            {/* Agent-Specific Charts */}
             {agent.id === 'marcus' && report.marketData && (
-              <MarketChart
+              <MarketSizeChart
                 tam={report.marketData.tam || 1000000000}
                 sam={report.marketData.sam || 500000000}
                 som={report.marketData.som || 50000000}
               />
             )}
 
-            {/* Unit Economics for David */}
             {agent.id === 'david' && report.unitEconomics && (
-              <UnitEconomicsChart data={report.unitEconomics} />
+              <UnitEconomicsDisplay data={report.unitEconomics} />
             )}
 
-            {/* Scenario Analysis */}
             {report.scenarioAnalysis && (
-              <ScenarioChart
-                bull={report.scenarioAnalysis.bull}
-                base={report.scenarioAnalysis.base}
-                bear={report.scenarioAnalysis.bear}
-              />
+              <ScenarioDisplay scenarios={report.scenarioAnalysis} />
             )}
 
             {/* Key Findings */}
             {report.findings?.length > 0 && (
               <View style={styles.section}>
                 <Text style={styles.sectionSubtitle}>Key Findings ({report.findings.length})</Text>
-                {report.findings.slice(0, 5).map((finding, fidx) => (
-                  <View key={fidx} style={styles.findingItem}>
-                    <View style={[styles.findingDot, { backgroundColor: getTypeColor(finding.type) }]} />
-                    <View style={styles.findingContent}>
-                      <Text style={styles.findingTitle}>{finding.title}</Text>
-                      <Text style={styles.findingDesc}>{finding.description.substring(0, 150)}{finding.description.length > 150 ? '...' : ''}</Text>
-                    </View>
-                  </View>
-                ))}
-                {report.findings.length > 5 && (
-                  <Text style={{ fontSize: 8, color: colors.light, fontStyle: 'italic' }}>+{report.findings.length - 5} more findings</Text>
-                )}
-              </View>
-            )}
-
-            {/* Risks */}
-            {report.risks?.length > 0 && (
-              <View style={styles.section}>
-                <Text style={styles.sectionSubtitle}>Risks ({report.risks.length})</Text>
-                {report.risks.slice(0, 3).map((risk, ridx) => (
-                  <View key={ridx} style={styles.riskItem}>
-                    <View style={styles.riskHeader}>
-                      <Text style={[styles.riskBadge, { backgroundColor: risk.probability === 'high' ? colors.danger : colors.warning }]}>
-                        {risk.probability.toUpperCase()}
+                {report.findings.slice(0, 4).map((finding, fidx) => (
+                  <View key={fidx} style={{
+                    flexDirection: 'row',
+                    marginBottom: 10,
+                    paddingBottom: 10,
+                    borderBottomWidth: fidx < 3 ? 1 : 0,
+                    borderBottomColor: colors.lighter,
+                  }}>
+                    <View style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: 4,
+                      backgroundColor: finding.type === 'strength' ? colors.success :
+                        finding.type === 'weakness' ? colors.danger :
+                        finding.type === 'opportunity' ? colors.primaryLight : colors.warning,
+                      marginRight: 10,
+                      marginTop: 4,
+                    }} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: colors.dark, marginBottom: 3 }}>
+                        {finding.title}
                       </Text>
-                      <Text style={[styles.riskBadge, { backgroundColor: colors.medium }]}>{risk.impact}</Text>
+                      <Text style={{ fontSize: 9, color: colors.medium, lineHeight: 1.5 }}>
+                        {finding.description.substring(0, 120)}{finding.description.length > 120 ? '...' : ''}
+                      </Text>
                     </View>
-                    <Text style={styles.riskTitle}>{risk.title}</Text>
-                    <Text style={styles.riskDesc}>{risk.description.substring(0, 120)}{risk.description.length > 120 ? '...' : ''}</Text>
                   </View>
                 ))}
               </View>
@@ -1250,105 +993,173 @@ export const ValidationReportDocument = ({ validation, agents }: ValidationRepor
             {/* Recommendations */}
             {report.recommendations?.length > 0 && (
               <View style={styles.section}>
-                <Text style={styles.sectionSubtitle}>Recommendations ({report.recommendations.length})</Text>
-                {report.recommendations.slice(0, 3).map((rec, recidx) => (
-                  <View key={recidx} style={[styles.recItem, { borderLeftColor: getPriorityColor(rec.priority), backgroundColor: colors.lightest }]}>
-                    <View style={styles.recHeader}>
-                      <Text style={[styles.recBadge, { backgroundColor: getPriorityColor(rec.priority) }]}>
-                        {rec.priority.toUpperCase()}
-                      </Text>
-                      <Text style={styles.recTimeframe}>{rec.timeframe}</Text>
+                <Text style={styles.sectionSubtitle}>Recommendations</Text>
+                {report.recommendations.slice(0, 2).map((rec, ridx) => (
+                  <View key={ridx} style={[styles.cardBordered, {
+                    borderLeftColor: rec.priority === 'critical' ? colors.danger :
+                      rec.priority === 'high' ? colors.warning : colors.primaryLight,
+                    marginBottom: 8,
+                    padding: 12,
+                  }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                      <View style={{
+                        backgroundColor: rec.priority === 'critical' ? colors.danger :
+                          rec.priority === 'high' ? colors.warning : colors.primaryLight,
+                        paddingHorizontal: 8,
+                        paddingVertical: 3,
+                        borderRadius: 3,
+                        marginRight: 8,
+                      }}>
+                        <Text style={{ fontSize: 7, fontFamily: 'Helvetica-Bold', color: colors.white, textTransform: 'uppercase' }}>
+                          {rec.priority}
+                        </Text>
+                      </View>
+                      <Text style={{ fontSize: 8, color: colors.light }}>{rec.timeframe}</Text>
                     </View>
-                    <Text style={styles.recTitle}>{rec.title}</Text>
-                    <Text style={styles.recDesc}>{rec.description.substring(0, 150)}{rec.description.length > 150 ? '...' : ''}</Text>
+                    <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: colors.dark, marginBottom: 4 }}>
+                      {rec.title}
+                    </Text>
+                    <Text style={{ fontSize: 9, color: colors.medium, lineHeight: 1.5 }}>
+                      {rec.description.substring(0, 120)}{rec.description.length > 120 ? '...' : ''}
+                    </Text>
                   </View>
                 ))}
               </View>
             )}
 
             <View style={styles.footer}>
-              <Text style={styles.footerText}>Startup Verdict - {agent.name} Analysis</Text>
-              <Text style={styles.pageNumber}>Page {idx + 4}</Text>
+              <Text style={styles.footerText}>Startup Verdict - {displayName}</Text>
+              <Text style={styles.footerPage}>Page {idx + 4}</Text>
             </View>
           </Page>
         );
       })}
 
-      {/* Final Page: Summary & Certification */}
+      {/* ========== FINAL PAGE: ACTION PLAN ========== */}
       <Page size="A4" style={styles.page}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 }}>
-          <Text style={{ fontSize: 9, color: colors.medium }}>{validation.title}</Text>
-          <Text style={{ fontSize: 9, color: colors.medium }}>Action Plan & Certification</Text>
+        <View style={styles.pageHeader}>
+          <View style={styles.pageHeaderLeft}>
+            <Text style={styles.pageHeaderLogo}>Startup Verdict</Text>
+            <Text style={styles.pageHeaderSub}>Action Plan</Text>
+          </View>
+          <View style={styles.pageHeaderRight}>
+            <Text style={styles.pageHeaderTitle}>{validation.title}</Text>
+            <Text style={styles.pageHeaderDate}>{generatedDate}</Text>
+          </View>
         </View>
 
         <Text style={styles.sectionTitle}>Priority Action Items</Text>
 
         {allRecommendations
           .filter(r => r.priority === 'critical' || r.priority === 'high')
-          .slice(0, 6)
+          .slice(0, 5)
           .map((rec, idx) => (
-            <View key={idx} style={[styles.recItem, { borderLeftColor: getPriorityColor(rec.priority), backgroundColor: colors.lightest }]}>
-              <View style={styles.recHeader}>
-                <Text style={[styles.recBadge, { backgroundColor: getPriorityColor(rec.priority) }]}>
-                  {rec.priority.toUpperCase()}
-                </Text>
-                <Text style={styles.recTimeframe}>{rec.timeframe}</Text>
+            <View key={idx} style={[styles.cardBordered, {
+              borderLeftColor: rec.priority === 'critical' ? colors.danger : colors.warning,
+              marginBottom: 10,
+              padding: 12,
+            }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                <View style={{
+                  backgroundColor: rec.priority === 'critical' ? colors.danger : colors.warning,
+                  paddingHorizontal: 8,
+                  paddingVertical: 3,
+                  borderRadius: 3,
+                  marginRight: 8,
+                }}>
+                  <Text style={{ fontSize: 7, fontFamily: 'Helvetica-Bold', color: colors.white, textTransform: 'uppercase' }}>
+                    {rec.priority}
+                  </Text>
+                </View>
+                <Text style={{ fontSize: 8, color: colors.light }}>{rec.timeframe}</Text>
               </View>
-              <Text style={styles.recTitle}>{rec.title}</Text>
-              <Text style={styles.recDesc}>{rec.description.substring(0, 150)}{rec.description.length > 150 ? '...' : ''}</Text>
+              <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: colors.dark, marginBottom: 4 }}>
+                {rec.title}
+              </Text>
+              <Text style={{ fontSize: 9, color: colors.medium, lineHeight: 1.5 }}>
+                {rec.description.substring(0, 140)}{rec.description.length > 140 ? '...' : ''}
+              </Text>
             </View>
           ))}
 
-        {/* Risk Summary Table */}
-        <View style={[styles.section, { marginTop: 16 }]}>
-          <Text style={styles.sectionSubtitle}>Top Risks Summary</Text>
-          <View style={styles.table}>
-            <View style={styles.tableHeader}>
-              <Text style={[styles.tableHeaderCell, { width: '35%' }]}>Risk</Text>
-              <Text style={[styles.tableHeaderCell, { width: '15%' }]}>Probability</Text>
-              <Text style={[styles.tableHeaderCell, { width: '15%' }]}>Impact</Text>
-              <Text style={[styles.tableHeaderCell, { width: '35%' }]}>Key Mitigation</Text>
-            </View>
-            {allRisks.slice(0, 5).map((risk, idx) => (
-              <View key={idx} style={[styles.tableRow, idx % 2 === 1 ? styles.tableRowAlt : {}]}>
-                <Text style={[styles.tableCell, { width: '35%' }]}>{risk.title.substring(0, 30)}</Text>
-                <Text style={[styles.tableCell, { width: '15%', color: risk.probability === 'high' ? colors.danger : colors.warning }]}>
-                  {risk.probability}
-                </Text>
-                <Text style={[styles.tableCell, { width: '15%' }]}>{risk.impact}</Text>
-                <Text style={[styles.tableCell, { width: '35%' }]}>{risk.mitigations?.[0]?.substring(0, 40) || '-'}...</Text>
+        {/* Risk Summary */}
+        {allRisks.length > 0 && (
+          <View style={[styles.section, { marginTop: 20 }]}>
+            <Text style={styles.sectionSubtitle}>Top Risks</Text>
+            <View style={styles.table}>
+              <View style={styles.tableHeader}>
+                <Text style={[styles.tableHeaderCell, { width: '40%' }]}>Risk</Text>
+                <Text style={[styles.tableHeaderCell, { width: '20%' }]}>Probability</Text>
+                <Text style={[styles.tableHeaderCell, { width: '20%' }]}>Impact</Text>
+                <Text style={[styles.tableHeaderCell, { width: '20%' }]}>Status</Text>
               </View>
-            ))}
+              {allRisks.slice(0, 4).map((risk, idx) => (
+                <View key={idx} style={[styles.tableRow, idx % 2 === 1 ? styles.tableRowAlt : {}]}>
+                  <Text style={[styles.tableCell, { width: '40%' }]}>{risk.title.substring(0, 35)}</Text>
+                  <Text style={[styles.tableCell, { width: '20%', color: risk.probability === 'high' ? colors.danger : colors.warning }]}>
+                    {risk.probability}
+                  </Text>
+                  <Text style={[styles.tableCell, { width: '20%' }]}>{risk.impact}</Text>
+                  <Text style={[styles.tableCell, { width: '20%', color: colors.warning }]}>Monitor</Text>
+                </View>
+              ))}
+            </View>
           </View>
-        </View>
+        )}
 
         {/* Disclaimer */}
-        <View style={styles.disclaimer}>
-          <Text style={styles.disclaimerTitle}>Important Disclaimer</Text>
-          <Text style={styles.disclaimerText}>
-            This report is for informational purposes only. While our AI system provides comprehensive analysis,
-            this should not be considered financial, legal, or investment advice. Conduct your own due diligence
-            before making decisions. Startup Verdict does not guarantee the accuracy of this report.
+        <View style={{
+          marginTop: 20,
+          padding: 14,
+          backgroundColor: '#fef3c7',
+          borderRadius: 6,
+          borderWidth: 1,
+          borderColor: '#fcd34d',
+        }}>
+          <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold', color: '#92400e', marginBottom: 4 }}>
+            Important Disclaimer
+          </Text>
+          <Text style={{ fontSize: 8, color: '#92400e', lineHeight: 1.6 }}>
+            This report is for informational purposes only and does not constitute financial, legal, or investment advice.
+            Conduct independent due diligence before making any decisions.
           </Text>
         </View>
 
         {/* Final Certification */}
-        <View style={[styles.certBadge, { marginTop: 16 }]}>
-          <View style={styles.certIcon}>
-            <Text style={styles.certIconText}>✓</Text>
+        <View style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          backgroundColor: '#ecfdf5',
+          padding: 16,
+          borderRadius: 8,
+          marginTop: 20,
+          borderWidth: 1,
+          borderColor: colors.certified,
+        }}>
+          <View style={{
+            width: 40,
+            height: 40,
+            backgroundColor: colors.certified,
+            borderRadius: 20,
+            justifyContent: 'center',
+            alignItems: 'center',
+            marginRight: 14,
+          }}>
+            <Text style={{ color: colors.white, fontSize: 20, fontFamily: 'Helvetica-Bold' }}>✓</Text>
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.certTitle}>CERTIFIED BY STARTUP VERDICT</Text>
-            <Text style={styles.certSubtitle}>Report ID: {reportId} | Generated: {generatedDate}</Text>
-            <Text style={[styles.certSubtitle, { marginTop: 2 }]}>
-              This document has been verified by Startup Verdict's validation system.
+            <Text style={{ fontSize: 11, fontFamily: 'Helvetica-Bold', color: colors.certified, marginBottom: 3 }}>
+              CERTIFIED BY STARTUP VERDICT
+            </Text>
+            <Text style={{ fontSize: 8, color: colors.medium }}>
+              Report ID: {reportId} | Generated: {generatedDate}
             </Text>
           </View>
         </View>
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>Startup Verdict - www.startupverdict.com</Text>
-          <Text style={styles.pageNumber}>Final Page</Text>
+          <Text style={styles.footerPage}>Final Page</Text>
         </View>
       </Page>
     </Document>
