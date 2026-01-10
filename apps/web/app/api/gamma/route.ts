@@ -259,58 +259,132 @@ export async function POST(request: NextRequest) {
         textMode: 'generate',
         format: 'presentation',
         numCards: 12,
+        textOptions: {
+          amount: 'detailed',
+          tone: 'professional, data-driven',
+          audience: 'investors, founders, VCs',
+          language: 'en'
+        },
+        imageOptions: {
+          source: 'pictographic',
+        },
+        cardOptions: {
+          dimensions: '16x9'
+        }
       }),
     });
 
-    if (!gammaResponse.ok) {
-      const errorText = await gammaResponse.text();
-      console.error('Gamma API error:', gammaResponse.status, errorText);
+    const responseText = await gammaResponse.text();
+    console.log('Gamma API response status:', gammaResponse.status);
+    console.log('Gamma API response:', responseText);
 
-      // Return a more helpful error message
+    if (!gammaResponse.ok) {
+      console.error('Gamma API error:', gammaResponse.status, responseText);
+
+      // Return a more helpful error message based on status code
+      let errorMessage = 'Could not generate presentation.';
+      if (gammaResponse.status === 401) {
+        errorMessage = 'Invalid API key. Please verify your Gamma API key.';
+      } else if (gammaResponse.status === 403) {
+        errorMessage = 'No API credits available. Please check your Gamma subscription.';
+      } else if (gammaResponse.status === 429) {
+        errorMessage = 'Rate limit exceeded. Please try again later.';
+      }
+
       return NextResponse.json({
         success: false,
         error: `Gamma API error: ${gammaResponse.status}`,
-        details: errorText,
-        fallbackContent: inputText,
-        message: 'Could not generate presentation. Please check your Gamma API key and ensure you have a Pro subscription.',
+        details: responseText,
+        message: errorMessage,
       });
     }
 
-    const gammaData = await gammaResponse.json();
+    let gammaData;
+    try {
+      gammaData = JSON.parse(responseText);
+    } catch {
+      console.error('Failed to parse Gamma response as JSON:', responseText);
+      return NextResponse.json({
+        success: false,
+        error: 'Invalid response from Gamma API',
+        details: responseText,
+      });
+    }
 
-    // If we got a generationId, we need to poll for completion
-    if (gammaData.generationId) {
+    console.log('Gamma API parsed data:', JSON.stringify(gammaData, null, 2));
+
+    // v1.0 API returns the URL directly in the response
+    // Check for various possible URL fields
+    const presentationUrl = gammaData.url
+      || gammaData.gammaUrl
+      || gammaData.viewUrl
+      || gammaData.link
+      || gammaData.shareUrl
+      || gammaData.publicUrl;
+
+    const editUrl = gammaData.editUrl || gammaData.editorUrl;
+
+    if (presentationUrl) {
+      return NextResponse.json({
+        success: true,
+        presentationUrl: presentationUrl,
+        editUrl: editUrl,
+        raw: gammaData, // Include raw response for debugging
+      });
+    }
+
+    // If we got a generationId or id, we need to poll for completion
+    const generationId = gammaData.generationId || gammaData.id;
+    if (generationId) {
       try {
-        const completedData = await pollForCompletion(gammaData.generationId);
+        const completedData = await pollForCompletion(generationId);
+        console.log('Poll completed data:', JSON.stringify(completedData, null, 2));
+
+        const completedUrl = completedData.url
+          || completedData.gammaUrl
+          || completedData.viewUrl
+          || completedData.link
+          || completedData.shareUrl
+          || completedData.publicUrl;
 
         return NextResponse.json({
           success: true,
-          presentationUrl: completedData.url || completedData.gammaUrl || completedData.viewUrl,
-          editUrl: completedData.editUrl,
-          generationId: gammaData.generationId,
+          presentationUrl: completedUrl,
+          editUrl: completedData.editUrl || completedData.editorUrl,
+          generationId: generationId,
+          raw: completedData,
         });
       } catch (pollError) {
         console.error('Polling error:', pollError);
+
+        // Even if polling fails, return the generation ID so user can check manually
         return NextResponse.json({
           success: false,
-          error: 'Generation timed out or failed',
-          generationId: gammaData.generationId,
-          message: 'The presentation is being generated. Please check Gamma.app directly.',
+          error: 'Generation is still processing',
+          generationId: generationId,
+          message: 'Your presentation is being generated. Check your Gamma dashboard at gamma.app',
+          gammaUrl: 'https://gamma.app',
         });
       }
     }
 
-    // Direct response (if Gamma returns URL immediately)
+    // If no URL and no generationId, return the raw response for debugging
     return NextResponse.json({
-      success: true,
-      presentationUrl: gammaData.url || gammaData.gammaUrl || gammaData.viewUrl,
-      editUrl: gammaData.editUrl,
+      success: false,
+      error: 'Unexpected response format from Gamma',
+      raw: gammaData,
+      message: 'The API returned an unexpected format. Please check your Gamma dashboard.',
+      gammaUrl: 'https://gamma.app',
     });
 
   } catch (error) {
     console.error('Gamma presentation generation error:', error);
     return NextResponse.json(
-      { error: 'Failed to generate presentation', details: String(error) },
+      {
+        error: 'Failed to generate presentation',
+        details: String(error),
+        message: 'An unexpected error occurred. Please try again.'
+      },
       { status: 500 }
     );
   }

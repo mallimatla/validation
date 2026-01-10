@@ -313,11 +313,17 @@ export default function ValidationProgressPage() {
       });
 
       const data = await response.json();
+      console.log('Gamma API response:', data);
 
       if (data.success && data.presentationUrl) {
         window.open(data.presentationUrl, '_blank');
-      } else if (data.fallbackContent) {
-        alert('Presentation generation is temporarily unavailable. Please try again later.');
+      } else if (data.gammaUrl) {
+        // If generation is still processing, redirect to Gamma dashboard
+        alert(data.message || 'Your presentation is being generated. Check your Gamma dashboard.');
+        window.open(data.gammaUrl, '_blank');
+      } else if (data.message) {
+        // Show the specific error message from the API
+        alert(data.message);
       } else {
         throw new Error(data.error || 'Failed to generate presentation');
       }
