@@ -24,11 +24,21 @@ async function bootstrap() {
     // Security
     app.use(helmet());
 
-    // CORS
+    // CORS - sanitize origin to prevent invalid character errors
+    const corsOrigin = process.env.CORS_ORIGIN?.trim() || '*';
+    // Handle multiple origins (comma-separated) or single origin
+    const origin = corsOrigin === '*'
+      ? '*'
+      : corsOrigin.includes(',')
+        ? corsOrigin.split(',').map(o => o.trim())
+        : corsOrigin;
+
+    logger.log(`CORS origin configured: ${JSON.stringify(origin)}`);
+
     app.enableCors({
-      origin: process.env.CORS_ORIGIN || '*',
+      origin,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-      credentials: true,
+      credentials: corsOrigin !== '*',
     });
 
     // API Versioning
