@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from 'react';
+
 interface Risk {
   title: string;
   probability: string;
@@ -21,6 +23,8 @@ const CELL_COLORS = [
 ];
 
 export function RiskHeatmap({ risks }: RiskHeatmapProps) {
+  const [hoveredCell, setHoveredCell] = useState<{ row: number; col: number } | null>(null);
+
   // Build risk matrix
   const matrix: Risk[][][] = Array(3).fill(null).map(() => Array(4).fill(null).map(() => []));
 
@@ -36,12 +40,12 @@ export function RiskHeatmap({ risks }: RiskHeatmapProps) {
   const impactLabels = ['Minor', 'Moderate', 'Major', 'Critical'];
 
   return (
-    <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-4">
+    <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-4 relative">
       <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
         <span>🎯</span> Risk Matrix
       </h3>
 
-      <div className="overflow-x-auto">
+      <div className="overflow-visible">
         <div className="min-w-[400px]">
           {/* Header - Impact */}
           <div className="flex mb-1">
@@ -64,30 +68,19 @@ export function RiskHeatmap({ risks }: RiskHeatmapProps) {
                 {impactLabels.map((_, colIdx) => {
                   const cellRisks = matrix[actualRow][colIdx];
                   const hasRisks = cellRisks.length > 0;
+                  const isHovered = hoveredCell?.row === actualRow && hoveredCell?.col === colIdx;
+
                   return (
                     <div
                       key={colIdx}
-                      className={`flex-1 h-16 rounded-lg mx-0.5 flex items-center justify-center relative group cursor-pointer transition-all ${
+                      className={`flex-1 h-16 rounded-lg mx-0.5 flex items-center justify-center relative cursor-pointer transition-all ${
                         CELL_COLORS[actualRow][colIdx]
-                      } ${hasRisks ? 'ring-2 ring-white/30' : ''}`}
+                      } ${hasRisks ? 'ring-2 ring-white/30' : ''} ${isHovered ? 'ring-4 ring-white/50 scale-105' : ''}`}
+                      onMouseEnter={() => hasRisks && setHoveredCell({ row: actualRow, col: colIdx })}
+                      onMouseLeave={() => setHoveredCell(null)}
                     >
                       {hasRisks && (
-                        <>
-                          <span className="text-white font-bold text-lg">{cellRisks.length}</span>
-                          {/* Tooltip */}
-                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10">
-                            <div className="bg-slate-900 border border-slate-600 rounded-lg p-3 shadow-xl max-w-xs">
-                              {cellRisks.map((risk, i) => (
-                                <div key={i} className={i > 0 ? 'mt-2 pt-2 border-t border-slate-700' : ''}>
-                                  <p className="text-white text-sm font-medium">{risk.title}</p>
-                                  {risk.category && (
-                                    <span className="text-xs text-slate-400">{risk.category}</span>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </>
+                        <span className="text-white font-bold text-lg">{cellRisks.length}</span>
                       )}
                     </div>
                   );
@@ -103,6 +96,42 @@ export function RiskHeatmap({ risks }: RiskHeatmapProps) {
           </div>
         </div>
       </div>
+
+      {/* Floating Tooltip - rendered outside the grid */}
+      {hoveredCell && matrix[hoveredCell.row][hoveredCell.col].length > 0 && (
+        <div
+          className="fixed z-[9999] pointer-events-none"
+          style={{
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+          }}
+        >
+          <div className="bg-slate-900 border-2 border-slate-500 rounded-xl p-4 shadow-2xl max-w-sm">
+            <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-700">
+              <span className="text-lg">⚠️</span>
+              <span className="font-semibold text-white">
+                {probLabels[hoveredCell.row]} Probability / {impactLabels[hoveredCell.col]} Impact
+              </span>
+            </div>
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              {matrix[hoveredCell.row][hoveredCell.col].map((risk, i) => (
+                <div key={i} className="bg-slate-800 rounded-lg p-2">
+                  <p className="text-white text-sm font-medium">{risk.title}</p>
+                  {risk.category && (
+                    <span className="text-xs text-slate-400 mt-1 inline-block bg-slate-700 px-2 py-0.5 rounded">
+                      {risk.category}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-slate-500 mt-3 text-center">
+              {matrix[hoveredCell.row][hoveredCell.col].length} risk(s) in this category
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Risk count summary */}
       <div className="mt-4 pt-4 border-t border-slate-700">
