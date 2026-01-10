@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
 import Link from 'next/link';
+import jsPDF from 'jspdf';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://validation-production.up.railway.app';
 
@@ -180,72 +181,183 @@ export default function ValidationProgressPage() {
     setShowDownloadMenu(false);
 
     try {
-      // Generate PDF content from already-loaded validation data
-      let content = `THE VALIDATION COUNCIL - OFFICIAL REPORT\n`;
-      content += `${'='.repeat(60)}\n\n`;
-      content += `STARTUP: ${validation.title}\n`;
-      content += `REPORT ID: ${validationId}\n`;
-      content += `DATE: ${new Date(validation.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}\n`;
-      content += `STATUS: ${validation.status?.toUpperCase()}\n\n`;
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const margin = 20;
+      const contentWidth = pageWidth - (margin * 2);
+      let y = 20;
 
-      content += `${'─'.repeat(60)}\n`;
-      content += `EXECUTIVE SUMMARY\n`;
-      content += `${'─'.repeat(60)}\n\n`;
-      content += `OVERALL SCORE: ${validation.overallScore}/100\n`;
-      content += `CONFIDENCE LEVEL: ${validation.overallConfidence}%\n`;
-      content += `VERDICT: ${validation.verdict?.replace(/_/g, ' ')}\n`;
-      content += `RECOMMENDATION: ${validation.recommendation}\n\n`;
-      content += `${validation.executiveSummary || 'No executive summary available.'}\n\n`;
+      // Helper function to add text with word wrap
+      const addWrappedText = (text: string, x: number, startY: number, maxWidth: number, lineHeight: number = 6): number => {
+        const lines = doc.splitTextToSize(text, maxWidth);
+        lines.forEach((line: string) => {
+          if (startY > 270) {
+            doc.addPage();
+            startY = 20;
+          }
+          doc.text(line, x, startY);
+          startY += lineHeight;
+        });
+        return startY;
+      };
 
-      content += `${'─'.repeat(60)}\n`;
-      content += `DETAILED AGENT ANALYSIS\n`;
-      content += `${'─'.repeat(60)}\n\n`;
+      // Header
+      doc.setFillColor(15, 23, 42); // Dark slate
+      doc.rect(0, 0, pageWidth, 45, 'F');
+
+      doc.setTextColor(74, 222, 128); // Emerald
+      doc.setFontSize(24);
+      doc.setFont('helvetica', 'bold');
+      doc.text('THE VALIDATION COUNCIL', pageWidth / 2, 20, { align: 'center' });
+
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(14);
+      doc.text('OFFICIAL VALIDATION REPORT', pageWidth / 2, 32, { align: 'center' });
+
+      y = 55;
+
+      // Report Info Box
+      doc.setFillColor(30, 41, 59); // Slate 800
+      doc.rect(margin, y, contentWidth, 35, 'F');
+
+      doc.setTextColor(148, 163, 184); // Slate 400
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text('STARTUP', margin + 5, y + 10);
+      doc.text('DATE', margin + 5, y + 22);
+      doc.text('REPORT ID', pageWidth / 2, y + 10);
+      doc.text('STATUS', pageWidth / 2, y + 22);
+
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.text(validation.title || 'N/A', margin + 35, y + 10);
+      doc.text(new Date(validation.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }), margin + 25, y + 22);
+      doc.text(validationId.substring(0, 20) + '...', pageWidth / 2 + 35, y + 10);
+      doc.text(validation.status?.toUpperCase() || 'N/A', pageWidth / 2 + 30, y + 22);
+
+      y += 45;
+
+      // Score Box
+      const scoreColor = (validation.overallScore || 0) >= 70 ? [74, 222, 128] : (validation.overallScore || 0) >= 50 ? [250, 204, 21] : [248, 113, 113];
+      doc.setFillColor(scoreColor[0], scoreColor[1], scoreColor[2]);
+      doc.rect(margin, y, 50, 30, 'F');
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(28);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${validation.overallScore || 0}`, margin + 25, y + 20, { align: 'center' });
+      doc.setFontSize(10);
+      doc.text('/100', margin + 40, y + 20);
+
+      // Verdict and Confidence
+      doc.setTextColor(100, 116, 139);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text('VERDICT', margin + 60, y + 8);
+      doc.text('CONFIDENCE', margin + 60, y + 20);
+      doc.text('RECOMMENDATION', margin + 120, y + 8);
+
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text(validation.verdict?.replace(/_/g, ' ') || 'N/A', margin + 60, y + 15);
+      doc.text(`${validation.overallConfidence || 0}%`, margin + 60, y + 27);
+      doc.text(validation.recommendation || 'N/A', margin + 120, y + 15);
+
+      y += 40;
+
+      // Executive Summary
+      doc.setFillColor(30, 41, 59);
+      doc.rect(margin, y, contentWidth, 8, 'F');
+      doc.setTextColor(74, 222, 128);
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('EXECUTIVE SUMMARY', margin + 5, y + 6);
+      y += 12;
+
+      doc.setTextColor(71, 85, 105);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      y = addWrappedText(validation.executiveSummary || 'No executive summary available.', margin, y, contentWidth, 5);
+      y += 10;
+
+      // Agent Reports
+      doc.setFillColor(30, 41, 59);
+      doc.rect(margin, y, contentWidth, 8, 'F');
+      doc.setTextColor(74, 222, 128);
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('AI AGENT ANALYSIS', margin + 5, y + 6);
+      y += 15;
 
       validation.agentReports?.forEach(report => {
+        if (y > 250) {
+          doc.addPage();
+          y = 20;
+        }
+
         const agent = getAgent(report.agentId);
-        content += `\n${'▸'} ${agent?.name?.toUpperCase()} - ${agent?.role?.toUpperCase()}\n`;
-        content += `  Score: ${report.score}/100 | Confidence: ${report.confidence}%\n`;
+        const agentScoreColor = report.score >= 70 ? [74, 222, 128] : report.score >= 50 ? [250, 204, 21] : [248, 113, 113];
 
+        // Agent header
+        doc.setFillColor(51, 65, 85);
+        doc.rect(margin, y, contentWidth, 12, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`${agent?.name?.toUpperCase() || 'AGENT'} - ${agent?.role?.toUpperCase() || 'ROLE'}`, margin + 5, y + 8);
+
+        doc.setFillColor(agentScoreColor[0], agentScoreColor[1], agentScoreColor[2]);
+        doc.rect(pageWidth - margin - 30, y + 2, 25, 8, 'F');
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(9);
+        doc.text(`${report.score}/100`, pageWidth - margin - 17.5, y + 8, { align: 'center' });
+
+        y += 16;
+
+        // Findings
         if (report.findings?.length) {
-          content += `\n  KEY FINDINGS:\n`;
-          report.findings.forEach((f, i) => {
-            content += `    ${i + 1}. [${f.type?.toUpperCase()}] ${f.title}\n`;
-            content += `       ${f.description}\n`;
+          doc.setTextColor(100, 116, 139);
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'bold');
+          doc.text('Key Findings:', margin + 5, y);
+          y += 5;
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(71, 85, 105);
+          report.findings.slice(0, 3).forEach((f) => {
+            y = addWrappedText(`• [${f.type?.toUpperCase()}] ${f.title}: ${f.description}`, margin + 8, y, contentWidth - 10, 4);
           });
+          y += 3;
         }
 
+        // Risks
         if (report.risks?.length) {
-          content += `\n  RISKS IDENTIFIED:\n`;
-          report.risks.forEach((r, i) => {
-            content += `    ${i + 1}. ${r.title} (${r.probability}/${r.impact})\n`;
-            content += `       ${r.description}\n`;
+          doc.setTextColor(251, 146, 60);
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'bold');
+          doc.text('Risks:', margin + 5, y);
+          y += 5;
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(71, 85, 105);
+          report.risks.slice(0, 2).forEach((r) => {
+            y = addWrappedText(`• ${r.title} (${r.probability}/${r.impact})`, margin + 8, y, contentWidth - 10, 4);
           });
+          y += 3;
         }
 
-        if (report.recommendations?.length) {
-          content += `\n  RECOMMENDATIONS:\n`;
-          report.recommendations.forEach((rec, i) => {
-            content += `    ${i + 1}. ${rec.title} [${rec.priority}]\n`;
-            content += `       ${rec.description}\n`;
-          });
-        }
-        content += `\n`;
+        y += 5;
       });
 
-      content += `${'═'.repeat(60)}\n`;
-      content += `Generated by The Validation Council AI Platform\n`;
-      content += `www.startupverdict.com\n`;
-      content += `Report Generated: ${new Date().toISOString()}\n`;
+      // Footer
+      doc.setFillColor(15, 23, 42);
+      doc.rect(0, 280, pageWidth, 17, 'F');
+      doc.setTextColor(100, 116, 139);
+      doc.setFontSize(8);
+      doc.text('Generated by The Validation Council AI Platform | www.startupverdict.com', pageWidth / 2, 288, { align: 'center' });
+      doc.text(`Report Generated: ${new Date().toISOString()}`, pageWidth / 2, 293, { align: 'center' });
 
-      const blob = new Blob([content], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Validation-Report-${validation.title?.replace(/[^a-zA-Z0-9]/g, '-')}.txt`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      // Save PDF
+      doc.save(`Validation-Report-${validation.title?.replace(/[^a-zA-Z0-9]/g, '-')}.pdf`);
     } catch (err) {
       console.error('Validation PDF download error:', err);
       alert('Failed to download report. Please try again.');
@@ -262,73 +374,209 @@ export default function ValidationProgressPage() {
 
     try {
       const victorReport = validation.agentReports?.find(r => r.agentId === 'victor');
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const margin = 20;
+      const contentWidth = pageWidth - (margin * 2);
+      let y = 20;
 
-      let content = `THE VALIDATION COUNCIL - VALUATION ANALYSIS\n`;
-      content += `${'='.repeat(60)}\n\n`;
-      content += `STARTUP: ${validation.title}\n`;
-      content += `VALUATION REPORT ID: ${validationId}\n`;
-      content += `DATE: ${new Date(validation.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}\n\n`;
+      // Helper function to add text with word wrap
+      const addWrappedText = (text: string, x: number, startY: number, maxWidth: number, lineHeight: number = 6): number => {
+        const lines = doc.splitTextToSize(text, maxWidth);
+        lines.forEach((line: string) => {
+          if (startY > 270) {
+            doc.addPage();
+            startY = 20;
+          }
+          doc.text(line, x, startY);
+          startY += lineHeight;
+        });
+        return startY;
+      };
 
-      content += `${'─'.repeat(60)}\n`;
-      content += `VALUATION SUMMARY (Victor AI Agent)\n`;
-      content += `${'─'.repeat(60)}\n\n`;
+      // Header
+      doc.setFillColor(15, 23, 42);
+      doc.rect(0, 0, pageWidth, 45, 'F');
+
+      doc.setTextColor(168, 85, 247); // Purple
+      doc.setFontSize(24);
+      doc.setFont('helvetica', 'bold');
+      doc.text('THE VALIDATION COUNCIL', pageWidth / 2, 20, { align: 'center' });
+
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(14);
+      doc.text('VALUATION ANALYSIS REPORT', pageWidth / 2, 32, { align: 'center' });
+
+      y = 55;
+
+      // Report Info
+      doc.setFillColor(30, 41, 59);
+      doc.rect(margin, y, contentWidth, 25, 'F');
+
+      doc.setTextColor(148, 163, 184);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text('STARTUP', margin + 5, y + 10);
+      doc.text('DATE', margin + 5, y + 18);
+      doc.text('ANALYZED BY', pageWidth / 2, y + 10);
+
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.text(validation.title || 'N/A', margin + 35, y + 10);
+      doc.text(new Date(validation.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }), margin + 25, y + 18);
+      doc.text('Victor AI - Valuation Agent', pageWidth / 2 + 40, y + 10);
+
+      y += 35;
 
       if (victorReport) {
-        content += `VALUATION SCORE: ${victorReport.score}/100\n`;
-        content += `CONFIDENCE LEVEL: ${victorReport.confidence}%\n\n`;
+        // Valuation Score
+        const scoreColor = victorReport.score >= 70 ? [74, 222, 128] : victorReport.score >= 50 ? [250, 204, 21] : [248, 113, 113];
+        doc.setFillColor(scoreColor[0], scoreColor[1], scoreColor[2]);
+        doc.rect(margin, y, 60, 35, 'F');
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(32);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`${victorReport.score}`, margin + 30, y + 22, { align: 'center' });
+        doc.setFontSize(12);
+        doc.text('/100', margin + 50, y + 22);
+        doc.setFontSize(9);
+        doc.text('VALUATION SCORE', margin + 30, y + 30, { align: 'center' });
 
+        // Confidence
+        doc.setTextColor(100, 116, 139);
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text('CONFIDENCE LEVEL', margin + 75, y + 10);
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(24);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`${victorReport.confidence}%`, margin + 75, y + 25);
+
+        y += 45;
+
+        // Findings Section
         if (victorReport.findings?.length) {
-          content += `VALUATION FINDINGS:\n`;
+          doc.setFillColor(30, 41, 59);
+          doc.rect(margin, y, contentWidth, 8, 'F');
+          doc.setTextColor(168, 85, 247);
+          doc.setFontSize(12);
+          doc.setFont('helvetica', 'bold');
+          doc.text('VALUATION FINDINGS', margin + 5, y + 6);
+          y += 15;
+
+          doc.setTextColor(71, 85, 105);
+          doc.setFontSize(10);
+          doc.setFont('helvetica', 'normal');
           victorReport.findings.forEach((f, i) => {
-            content += `\n${i + 1}. ${f.title}\n`;
-            content += `   Type: ${f.type} | Severity: ${f.severity}\n`;
-            content += `   ${f.description}\n`;
+            if (y > 250) {
+              doc.addPage();
+              y = 20;
+            }
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(255, 255, 255);
+            y = addWrappedText(`${i + 1}. ${f.title}`, margin, y, contentWidth, 5);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(100, 116, 139);
+            doc.text(`Type: ${f.type} | Severity: ${f.severity}`, margin + 5, y);
+            y += 5;
+            doc.setTextColor(71, 85, 105);
+            y = addWrappedText(f.description, margin + 5, y, contentWidth - 10, 4);
             if (f.evidence?.length) {
-              content += `   Evidence: ${f.evidence.join(', ')}\n`;
+              doc.setTextColor(148, 163, 184);
+              y = addWrappedText(`Evidence: ${f.evidence.join(', ')}`, margin + 5, y, contentWidth - 10, 4);
             }
+            y += 5;
           });
-          content += `\n`;
         }
 
+        // Risks Section
         if (victorReport.risks?.length) {
-          content += `VALUATION RISKS:\n`;
+          if (y > 220) {
+            doc.addPage();
+            y = 20;
+          }
+          doc.setFillColor(30, 41, 59);
+          doc.rect(margin, y, contentWidth, 8, 'F');
+          doc.setTextColor(251, 146, 60);
+          doc.setFontSize(12);
+          doc.setFont('helvetica', 'bold');
+          doc.text('VALUATION RISKS', margin + 5, y + 6);
+          y += 15;
+
           victorReport.risks.forEach((r, i) => {
-            content += `\n${i + 1}. ${r.title}\n`;
-            content += `   Probability: ${r.probability} | Impact: ${r.impact}\n`;
-            content += `   ${r.description}\n`;
-            if (r.mitigations?.length) {
-              content += `   Mitigations: ${r.mitigations.join('; ')}\n`;
+            if (y > 250) {
+              doc.addPage();
+              y = 20;
             }
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(255, 255, 255);
+            y = addWrappedText(`${i + 1}. ${r.title}`, margin, y, contentWidth, 5);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(251, 146, 60);
+            doc.text(`Probability: ${r.probability} | Impact: ${r.impact}`, margin + 5, y);
+            y += 5;
+            doc.setTextColor(71, 85, 105);
+            y = addWrappedText(r.description, margin + 5, y, contentWidth - 10, 4);
+            if (r.mitigations?.length) {
+              doc.setTextColor(74, 222, 128);
+              y = addWrappedText(`Mitigations: ${r.mitigations.join('; ')}`, margin + 5, y, contentWidth - 10, 4);
+            }
+            y += 5;
           });
-          content += `\n`;
         }
 
+        // Recommendations Section
         if (victorReport.recommendations?.length) {
-          content += `VALUATION RECOMMENDATIONS:\n`;
+          if (y > 220) {
+            doc.addPage();
+            y = 20;
+          }
+          doc.setFillColor(30, 41, 59);
+          doc.rect(margin, y, contentWidth, 8, 'F');
+          doc.setTextColor(96, 165, 250);
+          doc.setFontSize(12);
+          doc.setFont('helvetica', 'bold');
+          doc.text('VALUATION RECOMMENDATIONS', margin + 5, y + 6);
+          y += 15;
+
           victorReport.recommendations.forEach((rec, i) => {
-            content += `\n${i + 1}. ${rec.title}\n`;
-            content += `   Priority: ${rec.priority} | Timeframe: ${rec.timeframe}\n`;
-            content += `   ${rec.description}\n`;
+            if (y > 250) {
+              doc.addPage();
+              y = 20;
+            }
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(255, 255, 255);
+            y = addWrappedText(`${i + 1}. ${rec.title}`, margin, y, contentWidth, 5);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(96, 165, 250);
+            doc.text(`Priority: ${rec.priority} | Timeframe: ${rec.timeframe}`, margin + 5, y);
+            y += 5;
+            doc.setTextColor(71, 85, 105);
+            y = addWrappedText(rec.description, margin + 5, y, contentWidth - 10, 4);
+            y += 5;
           });
         }
       } else {
-        content += `Valuation analysis not yet completed.\n`;
+        doc.setTextColor(148, 163, 184);
+        doc.setFontSize(14);
+        doc.text('Valuation analysis not yet completed.', pageWidth / 2, y + 20, { align: 'center' });
       }
 
-      content += `\n${'═'.repeat(60)}\n`;
-      content += `Generated by The Validation Council - Victor AI\n`;
-      content += `www.startupverdict.com\n`;
-      content += `Report Generated: ${new Date().toISOString()}\n`;
+      // Footer
+      const pageCount = doc.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFillColor(15, 23, 42);
+        doc.rect(0, 280, pageWidth, 17, 'F');
+        doc.setTextColor(100, 116, 139);
+        doc.setFontSize(8);
+        doc.text('Generated by The Validation Council - Victor AI | www.startupverdict.com', pageWidth / 2, 288, { align: 'center' });
+        doc.text(`Page ${i} of ${pageCount}`, pageWidth / 2, 293, { align: 'center' });
+      }
 
-      const blob = new Blob([content], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Valuation-Report-${validation.title?.replace(/[^a-zA-Z0-9]/g, '-')}.txt`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      // Save PDF
+      doc.save(`Valuation-Report-${validation.title?.replace(/[^a-zA-Z0-9]/g, '-')}.pdf`);
     } catch (err) {
       console.error('Valuation PDF download error:', err);
       alert('Failed to download valuation report. Please try again.');
