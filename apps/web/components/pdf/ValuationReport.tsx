@@ -1248,7 +1248,162 @@ const ValuationReportDocument: React.FC<ValuationReportProps> = ({ validation, a
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>Valuation Report - {validation.title}</Text>
-          <Text style={styles.footerPage}>Page 12 of 12</Text>
+          <Text style={styles.footerPage}>Page 12 of 13</Text>
+        </View>
+      </Page>
+
+      {/* Certificate of Valuation */}
+      <Page size="A4" style={styles.page}>
+        <View style={styles.pageHeader}>
+          <View style={styles.pageHeaderLeft}>
+            <Text style={styles.pageHeaderTitle}>Valuation Report</Text>
+            <Text style={styles.pageHeaderCompany}>{validation.title}</Text>
+          </View>
+          <View style={styles.pageHeaderRight}>
+            <Text style={styles.pageNumber}>Certificate</Text>
+          </View>
+        </View>
+
+        <View style={styles.content}>
+          {/* Certificate Header */}
+          <View style={{
+            alignItems: 'center',
+            marginBottom: 30,
+            paddingTop: 10,
+          }}>
+            <View style={{
+              width: 70,
+              height: 70,
+              borderRadius: 35,
+              borderWidth: 3,
+              borderColor: colors.primary,
+              backgroundColor: colors.lightest,
+              justifyContent: 'center',
+              alignItems: 'center',
+              marginBottom: 12,
+            }}>
+              <Text style={{ fontSize: 28, fontFamily: 'Helvetica-Bold', color: colors.primary }}>SV</Text>
+            </View>
+            <Text style={{ fontSize: 20, fontFamily: 'Helvetica-Bold', color: colors.dark, marginBottom: 6, letterSpacing: 2 }}>
+              CERTIFICATE OF VALUATION
+            </Text>
+            <Text style={{ fontSize: 9, color: colors.medium, letterSpacing: 1 }}>
+              AI-POWERED EQUITY VALUATION ASSESSMENT
+            </Text>
+          </View>
+
+          {/* Certificate Body */}
+          <View style={{
+            borderWidth: 2,
+            borderColor: colors.primary,
+            padding: 25,
+            marginBottom: 15,
+          }}>
+            <Text style={{ fontSize: 10, color: colors.dark, lineHeight: 1.7, textAlign: 'center', marginBottom: 15 }}>
+              This is to certify that the equity shares of
+            </Text>
+            <Text style={{ fontSize: 16, fontFamily: 'Helvetica-Bold', color: colors.primary, textAlign: 'center', marginBottom: 15 }}>
+              {validation.title}
+            </Text>
+            <Text style={{ fontSize: 10, color: colors.dark, lineHeight: 1.7, textAlign: 'center', marginBottom: 15 }}>
+              have been comprehensively valued using the Discounted Cash Flow (DCF) Method
+              under the Income Approach and are estimated at a fair value of
+            </Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'baseline', marginBottom: 15 }}>
+              <Text style={{ fontSize: 36, fontFamily: 'Helvetica-Bold', color: colors.primary }}>
+                {formatCurrency(estimatedValuation)}
+              </Text>
+            </View>
+            <Text style={{ fontSize: 10, color: colors.medium, textAlign: 'center' }}>
+              As of {currentDate}
+            </Text>
+          </View>
+
+          {/* Valuation Details */}
+          <View style={{ marginBottom: 15 }}>
+            <Text style={{ fontSize: 11, fontFamily: 'Helvetica-Bold', color: colors.dark, marginBottom: 10 }}>
+              Valuation Summary
+            </Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+              <View style={{ width: '50%', marginBottom: 8 }}>
+                <Text style={{ fontSize: 8, color: colors.light, marginBottom: 2 }}>Report ID</Text>
+                <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold', color: colors.dark }}>{reportId}</Text>
+              </View>
+              <View style={{ width: '50%', marginBottom: 8 }}>
+                <Text style={{ fontSize: 8, color: colors.light, marginBottom: 2 }}>Valuation Date</Text>
+                <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold', color: colors.dark }}>{currentDate}</Text>
+              </View>
+              <View style={{ width: '50%', marginBottom: 8 }}>
+                <Text style={{ fontSize: 8, color: colors.light, marginBottom: 2 }}>Primary Methodology</Text>
+                <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold', color: colors.dark }}>DCF (Income Approach)</Text>
+              </View>
+              <View style={{ width: '50%', marginBottom: 8 }}>
+                <Text style={{ fontSize: 8, color: colors.light, marginBottom: 2 }}>Validation Score</Text>
+                <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold', color: colors.dark }}>{overallScore.toFixed(1)}/10</Text>
+              </View>
+              <View style={{ width: '50%', marginBottom: 8 }}>
+                <Text style={{ fontSize: 8, color: colors.light, marginBottom: 2 }}>Market Opportunity (TAM)</Text>
+                <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold', color: colors.dark }}>{formatCurrency(tam)}</Text>
+              </View>
+              <View style={{ width: '50%', marginBottom: 8 }}>
+                <Text style={{ fontSize: 8, color: colors.light, marginBottom: 2 }}>LTV:CAC Ratio</Text>
+                <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold', color: colors.dark }}>{ltvCacRatio.toFixed(1)}x</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Authenticity Statement */}
+          <View style={{
+            backgroundColor: colors.lightest,
+            padding: 12,
+            borderRadius: 4,
+            marginBottom: 15,
+          }}>
+            <Text style={{ fontSize: 8, fontFamily: 'Helvetica-Bold', color: colors.dark, marginBottom: 4 }}>
+              Authenticity Statement
+            </Text>
+            <Text style={{ fontSize: 7, color: colors.medium, lineHeight: 1.5 }}>
+              This valuation certificate was generated by Startup Verdict's AI-powered valuation system using internationally
+              accepted pricing methodologies. The valuation is based on the Going Concern principle and reflects fair market value
+              as defined by established valuation standards. This certificate does not constitute investment advice.
+              Verify at: www.startupverdict.com/verify/{reportId}
+            </Text>
+          </View>
+
+          {/* Digital Seal */}
+          <View style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            paddingTop: 15,
+            borderTopWidth: 2,
+            borderTopColor: colors.tableBorder,
+          }}>
+            <View>
+              <Text style={{ fontSize: 7, color: colors.light, marginBottom: 3 }}>Digital Verification Code</Text>
+              <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold', color: colors.dark, letterSpacing: 1 }}>
+                {reportId}-VAL-{Math.floor(estimatedValuation / 1000).toString(16).toUpperCase().padStart(6, '0')}
+              </Text>
+            </View>
+            <View style={{
+              width: 50,
+              height: 50,
+              borderWidth: 2,
+              borderColor: colors.primary,
+              borderRadius: 25,
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}>
+              <Text style={{ fontSize: 7, fontFamily: 'Helvetica-Bold', color: colors.primary, textAlign: 'center' }}>
+                CERTIFIED
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>Startup Verdict - Valuation Certificate</Text>
+          <Text style={styles.footerPage}>Page 13 of 13</Text>
         </View>
       </Page>
     </Document>

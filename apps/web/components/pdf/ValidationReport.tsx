@@ -1172,6 +1172,176 @@ export const ValidationReportDocument = ({ validation, agents }: ValidationRepor
           <Text style={styles.footerPage}>Final Page</Text>
         </View>
       </Page>
+
+      {/* ========== CERTIFICATION PAGE ========== */}
+      <Page size="A4" style={styles.page}>
+        <View style={styles.pageHeader}>
+          <View style={styles.pageHeaderLeft}>
+            <Text style={styles.pageHeaderLogo}>Startup Verdict</Text>
+            <Text style={styles.pageHeaderSub}>Certificate of Validation</Text>
+          </View>
+          <View style={styles.pageHeaderRight}>
+            <Text style={styles.pageHeaderTitle}>{validation.title}</Text>
+            <Text style={styles.pageHeaderDate}>{generatedDate}</Text>
+          </View>
+        </View>
+
+        {/* Certificate Header */}
+        <View style={{
+          alignItems: 'center',
+          marginBottom: 30,
+          paddingTop: 20,
+        }}>
+          <View style={{
+            width: 80,
+            height: 80,
+            borderRadius: 40,
+            borderWidth: 3,
+            borderColor: colors.primaryLight,
+            backgroundColor: colors.lightest,
+            justifyContent: 'center',
+            alignItems: 'center',
+            marginBottom: 16,
+          }}>
+            <Text style={{ fontSize: 32, fontFamily: 'Helvetica-Bold', color: colors.primaryLight }}>SV</Text>
+          </View>
+          <Text style={{ fontSize: 24, fontFamily: 'Helvetica-Bold', color: colors.dark, marginBottom: 8, letterSpacing: 2 }}>
+            CERTIFICATE OF VALIDATION
+          </Text>
+          <Text style={{ fontSize: 10, color: colors.medium, letterSpacing: 1 }}>
+            AI-POWERED STARTUP ASSESSMENT
+          </Text>
+        </View>
+
+        {/* Certificate Body */}
+        <View style={{
+          borderWidth: 2,
+          borderColor: colors.primaryLight,
+          padding: 30,
+          marginBottom: 20,
+        }}>
+          <Text style={{ fontSize: 11, color: colors.dark, lineHeight: 1.8, textAlign: 'center', marginBottom: 20 }}>
+            This is to certify that the startup idea
+          </Text>
+          <Text style={{ fontSize: 18, fontFamily: 'Helvetica-Bold', color: colors.primaryLight, textAlign: 'center', marginBottom: 20 }}>
+            "{validation.title}"
+          </Text>
+          <Text style={{ fontSize: 11, color: colors.dark, lineHeight: 1.8, textAlign: 'center', marginBottom: 20 }}>
+            has been comprehensively evaluated by the Startup Verdict 12-Agent AI Validation System
+            and has achieved a validation score of
+          </Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'baseline', marginBottom: 20 }}>
+            <Text style={{ fontSize: 48, fontFamily: 'Helvetica-Bold', color: getScoreColor(normalizedOverallScore) }}>
+              {normalizedOverallScore.toFixed(1)}
+            </Text>
+            <Text style={{ fontSize: 20, color: colors.medium, marginLeft: 4 }}>/10</Text>
+          </View>
+          <Text style={{ fontSize: 12, fontFamily: 'Helvetica-Bold', color: colors.dark, textAlign: 'center', marginBottom: 10 }}>
+            Grade: {getGrade(normalizedOverallScore)} | Verdict: {validation.verdict || 'PENDING'}
+          </Text>
+          <Text style={{ fontSize: 10, color: colors.medium, textAlign: 'center' }}>
+            Confidence Level: {validation.overallConfidence || 0}%
+          </Text>
+        </View>
+
+        {/* Validation Details */}
+        <View style={{ marginBottom: 20 }}>
+          <Text style={{ fontSize: 12, fontFamily: 'Helvetica-Bold', color: colors.dark, marginBottom: 12 }}>
+            Validation Details
+          </Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+            <View style={{ width: '50%', marginBottom: 10 }}>
+              <Text style={{ fontSize: 8, color: colors.light, marginBottom: 2 }}>Report ID</Text>
+              <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: colors.dark }}>{reportId}</Text>
+            </View>
+            <View style={{ width: '50%', marginBottom: 10 }}>
+              <Text style={{ fontSize: 8, color: colors.light, marginBottom: 2 }}>Issue Date</Text>
+              <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: colors.dark }}>{generatedDate}</Text>
+            </View>
+            <View style={{ width: '50%', marginBottom: 10 }}>
+              <Text style={{ fontSize: 8, color: colors.light, marginBottom: 2 }}>Agents Deployed</Text>
+              <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: colors.dark }}>{agentsWithReports.length} of 12</Text>
+            </View>
+            <View style={{ width: '50%', marginBottom: 10 }}>
+              <Text style={{ fontSize: 8, color: colors.light, marginBottom: 2 }}>Analysis Dimensions</Text>
+              <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: colors.dark }}>
+                {allFindings.length} findings, {allRisks.length} risks
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Agent Signatures */}
+        <View style={{ marginBottom: 20 }}>
+          <Text style={{ fontSize: 12, fontFamily: 'Helvetica-Bold', color: colors.dark, marginBottom: 12 }}>
+            Validating Agents
+          </Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+            {agentScores.slice(0, 6).map((agent, idx) => (
+              <View key={idx} style={{ width: '33.33%', marginBottom: 8 }}>
+                <Text style={{ fontSize: 8, color: colors.medium }}>{agent.label}</Text>
+                <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: agent.color }}>
+                  {agent.value.toFixed(1)}/10
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {/* Authenticity Statement */}
+        <View style={{
+          backgroundColor: colors.lightest,
+          padding: 16,
+          borderRadius: 6,
+          marginTop: 10,
+        }}>
+          <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold', color: colors.dark, marginBottom: 6 }}>
+            Authenticity Statement
+          </Text>
+          <Text style={{ fontSize: 8, color: colors.medium, lineHeight: 1.6 }}>
+            This certificate was generated by Startup Verdict's automated validation system using advanced AI analysis.
+            All findings, scores, and recommendations are based on the information provided and publicly available data
+            at the time of assessment. This certificate does not constitute investment advice or guarantee future outcomes.
+            Verify this report at: www.startupverdict.com/verify/{reportId}
+          </Text>
+        </View>
+
+        {/* Digital Seal */}
+        <View style={{
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginTop: 30,
+          paddingTop: 20,
+          borderTopWidth: 2,
+          borderTopColor: colors.lighter,
+        }}>
+          <View>
+            <Text style={{ fontSize: 8, color: colors.light, marginBottom: 4 }}>Digital Verification Code</Text>
+            <Text style={{ fontSize: 10, fontFamily: 'Helvetica-Bold', color: colors.dark, letterSpacing: 2 }}>
+              {reportId}-{(validation.overallScore || 0).toString(16).toUpperCase().padStart(4, '0')}
+            </Text>
+          </View>
+          <View style={{
+            width: 60,
+            height: 60,
+            borderWidth: 2,
+            borderColor: colors.primaryLight,
+            borderRadius: 30,
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}>
+            <Text style={{ fontSize: 8, fontFamily: 'Helvetica-Bold', color: colors.primaryLight, textAlign: 'center' }}>
+              VALIDATED
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>Startup Verdict - Certificate of Validation</Text>
+          <Text style={styles.footerPage}>Certificate</Text>
+        </View>
+      </Page>
     </Document>
   );
 };

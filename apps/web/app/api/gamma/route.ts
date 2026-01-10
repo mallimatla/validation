@@ -24,6 +24,8 @@ interface AgentReport {
   marketData?: any;
   unitEconomics?: any;
   scenarioAnalysis?: any;
+  financialProjections?: any;
+  competitors?: any[];
 }
 
 interface Finding {
@@ -88,7 +90,27 @@ const getGrade = (score: number): string => {
   return 'F';
 };
 
-// Build presentation content from validation data
+// Currency formatting helper
+const formatCurrency = (v: number): string => {
+  if (v >= 1e12) return `$${(v / 1e12).toFixed(1)}T`;
+  if (v >= 1e9) return `$${(v / 1e9).toFixed(1)}B`;
+  if (v >= 1e6) return `$${(v / 1e6).toFixed(0)}M`;
+  if (v >= 1e3) return `$${(v / 1e3).toFixed(0)}K`;
+  return `$${v.toFixed(0)}`;
+};
+
+// Get verdict display text
+const getVerdictDisplay = (verdict: string | null): string => {
+  const verdictMap: Record<string, string> = {
+    'PROCEED': 'STRONG PROCEED - High confidence investment opportunity',
+    'PROCEED_WITH_CAUTION': 'PROCEED WITH CAUTION - Promising with notable risks',
+    'PIVOT_RECOMMENDED': 'PIVOT RECOMMENDED - Significant changes needed',
+    'DO_NOT_PROCEED': 'DO NOT PROCEED - Critical issues identified',
+  };
+  return verdictMap[verdict || ''] || verdict || 'Analysis in progress...';
+};
+
+// Build presentation content from validation data - Investor-Grade Format
 function buildPresentationContent(validation: ValidationData, agents: Agent[]): string {
   const score = normalizeScore(validation.overallScore || 0);
   const grade = getGrade(score);
@@ -101,95 +123,241 @@ function buildPresentationContent(validation: ValidationData, agents: Agent[]): 
   const weaknesses = allFindings.filter(f => f.type === 'weakness').slice(0, 5);
   const opportunities = allFindings.filter(f => f.type === 'opportunity').slice(0, 5);
   const threats = allFindings.filter(f => f.type === 'threat').slice(0, 5);
-  const topRisks = allRisks.slice(0, 5);
-  const topRecommendations = allRecommendations.filter(r => r.priority === 'critical' || r.priority === 'high').slice(0, 5);
+  const highRisks = allRisks.filter(r => r.probability === 'high').slice(0, 3);
+  const criticalActions = allRecommendations.filter(r => r.priority === 'critical' || r.priority === 'high').slice(0, 5);
 
-  // Build agent scores section
-  const agentScores = validation.agentReports?.map(report => {
+  // Get agent reports
+  const marketAgent = validation.agentReports?.find((r: any) => r.agentId === 'marcus');
+  const financeAgent = validation.agentReports?.find((r: any) => r.agentId === 'david');
+  const competitionAgent = validation.agentReports?.find((r: any) => r.agentId === 'sophia');
+  const teamAgent = validation.agentReports?.find((r: any) => r.agentId === 'james');
+  const valuationAgent = validation.agentReports?.find((r: any) => r.agentId === 'victor');
+  const fundingAgent = validation.agentReports?.find((r: any) => r.agentId === 'nora');
+  const techAgent = validation.agentReports?.find((r: any) => r.agentId === 'omar');
+
+  // Build agent scorecard
+  const agentScorecard = validation.agentReports?.map((report: any) => {
     const normalizedScore = normalizeScore(report.score);
-    return `- ${getAgentDisplayName(report.agentId)}: ${normalizedScore.toFixed(1)}/10 (Grade: ${getGrade(normalizedScore)})`;
+    const status = normalizedScore >= 7 ? 'Strong' : normalizedScore >= 5 ? 'Moderate' : 'Weak';
+    return `${getAgentDisplayName(report.agentId)}: ${normalizedScore.toFixed(1)}/10 [${status}]`;
   }).join('\n') || '';
 
-  // Build market data section if available
-  const marketAgent = validation.agentReports?.find(r => r.agentId === 'marcus');
+  // Market opportunity section
   let marketSection = '';
   if (marketAgent?.marketData) {
-    const formatCurrency = (v: number) => {
-      if (v >= 1e9) return `$${(v / 1e9).toFixed(1)}B`;
-      if (v >= 1e6) return `$${(v / 1e6).toFixed(0)}M`;
-      return `$${v.toFixed(0)}`;
-    };
+    const md = marketAgent.marketData;
+    const growthText = md.growthRate ? ` (${(md.growthRate * 100).toFixed(1)}% CAGR)` : '';
     marketSection = `
+SLIDE: Market Opportunity
 
-Market Size Analysis:
-- Total Addressable Market (TAM): ${formatCurrency(marketAgent.marketData.tam || 0)}
-- Serviceable Addressable Market (SAM): ${formatCurrency(marketAgent.marketData.sam || 0)}
-- Serviceable Obtainable Market (SOM): ${formatCurrency(marketAgent.marketData.som || 0)}
+The market analysis reveals a substantial addressable opportunity with significant growth potential.
+
+Total Addressable Market (TAM): ${formatCurrency(md.tam || 0)}${growthText}
+Serviceable Addressable Market (SAM): ${formatCurrency(md.sam || 0)}
+Serviceable Obtainable Market (SOM): ${formatCurrency(md.som || 0)} - 5-year realistic capture
+
+Market Timing: ${md.marketTiming || 'Favorable conditions for market entry'}
+Competitive Density: ${md.competitorCount ? `${md.competitorCount} identified competitors` : 'Analysis pending'}
 `;
   }
 
-  // Build unit economics section if available
-  const financeAgent = validation.agentReports?.find(r => r.agentId === 'david');
+  // Unit economics section
   let unitEconSection = '';
   if (financeAgent?.unitEconomics) {
     const ue = financeAgent.unitEconomics;
     const cac = ue.cac?.mid || 0;
     const ltv = ue.ltv?.mid || 0;
-    const ratio = cac > 0 ? (ltv / cac).toFixed(1) : 'N/A';
-    unitEconSection = `
+    const ratio = cac > 0 ? (ltv / cac) : 0;
+    const ratioStatus = ratio >= 3 ? 'Healthy (Target: 3x+)' : ratio >= 2 ? 'Acceptable (Target: 3x)' : 'Below target';
+    const payback = ue.paybackMonths?.mid || 0;
+    const grossMargin = ue.grossMargin?.mid || 0;
 
-Unit Economics:
-- Customer Acquisition Cost (CAC): $${cac}
-- Lifetime Value (LTV): $${ltv}
-- LTV:CAC Ratio: ${ratio}x ${parseFloat(ratio as string) >= 3 ? '(Healthy)' : '(Needs Improvement)'}
+    unitEconSection = `
+SLIDE: Unit Economics & Financial Metrics
+
+Understanding the core economics that drive profitability and scalability.
+
+Customer Acquisition Cost (CAC): ${formatCurrency(cac)}
+Customer Lifetime Value (LTV): ${formatCurrency(ltv)}
+LTV:CAC Ratio: ${ratio.toFixed(1)}x - ${ratioStatus}
+${payback ? `Payback Period: ${payback.toFixed(0)} months` : ''}
+${grossMargin ? `Gross Margin: ${(grossMargin * 100).toFixed(0)}%` : ''}
+${ue.churnRate?.mid ? `Monthly Churn: ${(ue.churnRate.mid * 100).toFixed(1)}%` : ''}
 `;
   }
 
-  const content = `${validation.title} - Startup Validation Report
+  // Financial projections section
+  let projectionsSection = '';
+  if (financeAgent?.financialProjections) {
+    const fp = financeAgent.financialProjections;
+    projectionsSection = `
+SLIDE: Financial Projections
 
-This is a comprehensive startup validation report powered by Startup Verdict's 12-agent AI system.
+Forward-looking financial metrics based on current data and market conditions.
 
-Executive Overview:
-- Startup: ${validation.title}
-- Description: ${validation.description}
-- Overall Score: ${score.toFixed(1)}/10 (Grade: ${grade})
-- Confidence Level: ${validation.overallConfidence || 0}%
-- Agents Completed: ${validation.agentReports?.length || 0}/12
+${fp.burnRate?.mid ? `Monthly Burn Rate: ${formatCurrency(fp.burnRate.mid)}` : ''}
+${fp.runway?.mid ? `Runway: ${fp.runway.mid.toFixed(0)} months` : ''}
+${fp.revenueMonth12?.mid ? `12-Month Revenue Projection: ${formatCurrency(fp.revenueMonth12.mid)}` : ''}
+${fp.revenueMonth24?.mid ? `24-Month Revenue Projection: ${formatCurrency(fp.revenueMonth24.mid)}` : ''}
+${fp.breakEvenMonths?.mid ? `Projected Break-even: ${fp.breakEvenMonths.mid.toFixed(0)} months` : ''}
+`;
+  }
 
-Validation Verdict:
-${validation.verdict || 'Analysis in progress...'}
+  // Competitive landscape section
+  let competitionSection = '';
+  if (competitionAgent?.competitors && competitionAgent.competitors.length > 0) {
+    const topCompetitors = competitionAgent.competitors.slice(0, 4);
+    const competitorList = topCompetitors.map((c: any) => {
+      let details = c.name;
+      if (c.fundingRaised) details += ` - ${formatCurrency(c.fundingRaised)} raised`;
+      if (c.stage) details += ` (${c.stage})`;
+      return details;
+    }).join('\n');
 
-Executive Summary:
-${validation.executiveSummary || 'Comprehensive analysis by 12 specialized AI agents covering market opportunity, competitive landscape, financial viability, technical feasibility, and more.'}
+    competitionSection = `
+SLIDE: Competitive Landscape
 
-Agent Analysis Scores:
-${agentScores}
-${marketSection}
-${unitEconSection}
+Key competitors and market positioning analysis.
 
-SWOT Analysis:
+Top Competitors Identified:
+${competitorList}
 
-Strengths:
-${strengths.map(s => `- ${s.title}: ${s.description.substring(0, 100)}...`).join('\n') || '- No strengths identified yet'}
+Competitive Differentiation: Focus on unique value proposition and defensible moats.
+`;
+  }
 
-Weaknesses:
-${weaknesses.map(w => `- ${w.title}: ${w.description.substring(0, 100)}...`).join('\n') || '- No weaknesses identified yet'}
+  // Valuation section
+  let valuationSection = '';
+  if (valuationAgent?.scenarioAnalysis) {
+    const sa = valuationAgent.scenarioAnalysis;
+    valuationSection = `
+SLIDE: Valuation Analysis
 
-Opportunities:
-${opportunities.map(o => `- ${o.title}: ${o.description.substring(0, 100)}...`).join('\n') || '- No opportunities identified yet'}
+Multi-scenario valuation based on comparable transactions and financial modeling.
 
-Threats:
-${threats.map(t => `- ${t.title}: ${t.description.substring(0, 100)}...`).join('\n') || '- No threats identified yet'}
+Bull Case: ${sa.bull?.description || 'Favorable market conditions'} (${(sa.bull?.probability * 100 || 0).toFixed(0)}% probability)
+Base Case: ${sa.base?.description || 'Expected market conditions'} (${(sa.base?.probability * 100 || 0).toFixed(0)}% probability)
+Bear Case: ${sa.bear?.description || 'Conservative assumptions'} (${(sa.bear?.probability * 100 || 0).toFixed(0)}% probability)
+${sa.expectedValue ? `Expected Value: ${formatCurrency(sa.expectedValue)}` : ''}
+`;
+  }
 
-Key Risks:
-${topRisks.map(r => `- ${r.title} (${r.probability} probability, ${r.impact} impact): ${r.description.substring(0, 100)}...`).join('\n') || 'No significant risks identified.'}
+  // Team assessment section
+  let teamSection = '';
+  if (teamAgent) {
+    const teamFindings = teamAgent.findings?.slice(0, 3) || [];
+    const teamStrengths = teamFindings.filter((f: any) => f.type === 'strength');
+    const teamRisks = teamAgent.risks?.slice(0, 2) || [];
 
-Priority Recommendations:
-${topRecommendations.map((r, i) => `${i + 1}. ${r.title} [${r.priority.toUpperCase()}] (${r.timeframe}): ${r.description.substring(0, 100)}...`).join('\n') || 'No recommendations yet.'}
+    teamSection = `
+SLIDE: Team Assessment
+
+Evaluation of founding team capability and execution potential.
+
+${teamStrengths.length > 0 ? `Team Strengths:\n${teamStrengths.map((s: any) => `- ${s.title}`).join('\n')}` : ''}
+${teamRisks.length > 0 ? `\nKey Team Risks:\n${teamRisks.map((r: any) => `- ${r.title}`).join('\n')}` : ''}
+
+Team Score: ${normalizeScore(teamAgent.score).toFixed(1)}/10
+`;
+  }
+
+  // Technical feasibility section
+  let techSection = '';
+  if (techAgent) {
+    const techFindings = techAgent.findings?.slice(0, 3) || [];
+    techSection = `
+SLIDE: Technical Feasibility
+
+Assessment of technical approach, scalability, and execution risk.
+
+${techFindings.length > 0 ? `Key Technical Findings:\n${techFindings.map((f: any) => `- ${f.title}: ${f.description.substring(0, 80)}...`).join('\n')}` : ''}
+
+Technical Score: ${normalizeScore(techAgent.score).toFixed(1)}/10
+`;
+  }
+
+  // Build the complete presentation content
+  const content = `${validation.title}
+INVESTOR-GRADE STARTUP VALIDATION REPORT
+
+Powered by Startup Verdict's 12-Agent AI Validation System
+
+SLIDE: Executive Summary
+
+${validation.title} has undergone comprehensive validation by 12 specialized AI agents analyzing market opportunity, competitive positioning, financial viability, team capability, and technical feasibility.
+
+VERDICT: ${getVerdictDisplay(validation.verdict)}
+
+Overall Score: ${score.toFixed(1)}/10 (Grade: ${grade})
+Confidence Level: ${validation.overallConfidence || 0}%
+Analysis Depth: ${validation.agentReports?.length || 0}/12 agents completed
+
+${validation.executiveSummary || 'This validation provides a data-driven assessment across all critical investment dimensions.'}
+
+SLIDE: Validation Scorecard
+
+Agent-by-Agent Assessment Results:
+
+${agentScorecard}
+
+Each agent applies rigorous analysis methodologies to evaluate specific aspects of the business opportunity.
+${marketSection}${unitEconSection}${projectionsSection}${competitionSection}${valuationSection}${teamSection}${techSection}
+SLIDE: SWOT Analysis - Strengths
+
+Key strengths identified across all analysis dimensions:
+
+${strengths.length > 0 ? strengths.map(s => `${s.title}: ${s.description.substring(0, 120)}...`).join('\n\n') : 'Strength analysis pending...'}
+
+SLIDE: SWOT Analysis - Weaknesses & Risks
+
+Areas requiring attention and improvement:
+
+${weaknesses.length > 0 ? weaknesses.map(w => `${w.title}: ${w.description.substring(0, 120)}...`).join('\n\n') : 'No critical weaknesses identified.'}
+
+${highRisks.length > 0 ? `\nHigh-Priority Risks:\n${highRisks.map(r => `${r.title} (${r.impact} impact): ${r.description.substring(0, 100)}...`).join('\n')}` : ''}
+
+SLIDE: Growth Opportunities
+
+Market opportunities and expansion potential:
+
+${opportunities.length > 0 ? opportunities.map(o => `${o.title}: ${o.description.substring(0, 120)}...`).join('\n\n') : 'Opportunity analysis in progress...'}
+
+SLIDE: External Threats
+
+Market and competitive threats to consider:
+
+${threats.length > 0 ? threats.map(t => `${t.title}: ${t.description.substring(0, 120)}...`).join('\n\n') : 'Threat analysis in progress...'}
+
+SLIDE: Action Plan
+
+Priority recommendations for improving validation score and investment readiness:
+
+${criticalActions.length > 0 ? criticalActions.map((r, i) => `${i + 1}. ${r.title} [${r.priority.toUpperCase()}]\nTimeframe: ${r.timeframe}\n${r.description.substring(0, 150)}...`).join('\n\n') : 'Action items being generated...'}
+
+SLIDE: Investment Considerations
+
+Key factors for investment decision:
+
+Positive Indicators:
+${strengths.slice(0, 3).map(s => `- ${s.title}`).join('\n') || '- Analysis pending'}
+
+Watch Items:
+${highRisks.slice(0, 3).map(r => `- ${r.title}`).join('\n') || '- No critical items'}
+
+SLIDE: Next Steps
+
+Recommended actions to advance this opportunity:
+
+1. Address critical action items within specified timeframes
+2. Schedule follow-up validation after implementing changes
+3. Engage with specialist advisors in identified weak areas
+4. Prepare detailed due diligence materials
 
 Report ID: SVR-${validation.id.slice(0, 8).toUpperCase()}
 Generated: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-Powered by Startup Verdict - AI-Powered Validation Intelligence`;
+
+Startup Verdict - AI-Powered Investment Intelligence
+www.startupverdict.com`;
 
   return content;
 }
