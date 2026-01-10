@@ -24,6 +24,7 @@ const CompetitorAnalysis = dynamic(() => import('../../../components/charts/Comp
 const ValidationScorecard = dynamic(() => import('../../../components/charts/ValidationScorecard').then(mod => ({ default: mod.ValidationScorecard })), { ssr: false });
 import { EvidenceCard } from '../../../components/charts/EvidenceCard';
 import { downloadValidationPDF } from '../../../components/pdf';
+import { generateValuationReportPdf } from '../../../components/pdf/ValuationReport';
 
 // The 12 AI agents with their investor-grade status
 const AGENTS = [
@@ -276,6 +277,7 @@ export default function ValidationProgressPage() {
   }) || [];
 
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isDownloadingValuation, setIsDownloadingValuation] = useState(false);
   const [isGeneratingPresentation, setIsGeneratingPresentation] = useState(false);
 
   const downloadPDF = async () => {
@@ -293,6 +295,28 @@ export default function ValidationProgressPage() {
       alert('Failed to generate PDF. Please try again.');
     } finally {
       setIsDownloading(false);
+    }
+  };
+
+  const downloadValuationReport = async () => {
+    if (!validation) return;
+
+    setIsDownloadingValuation(true);
+    try {
+      const blob = await generateValuationReportPdf(validation, AGENTS);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `ValuationReport-${validation.title.replace(/\s+/g, '-')}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to generate Valuation Report:', error);
+      alert('Failed to generate Valuation Report. Please try again.');
+    } finally {
+      setIsDownloadingValuation(false);
     }
   };
 
@@ -399,7 +423,24 @@ export default function ValidationProgressPage() {
                 ) : (
                   <>
                     <span className="text-lg">📄</span>
-                    Download PDF Report
+                    Validation Report
+                  </>
+                )}
+              </button>
+              <button
+                onClick={downloadValuationReport}
+                disabled={isDownloadingValuation}
+                className="bg-amber-600 hover:bg-amber-700 disabled:bg-amber-800 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+              >
+                {isDownloadingValuation ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <span className="text-lg">💎</span>
+                    Valuation Report
                   </>
                 )}
               </button>
