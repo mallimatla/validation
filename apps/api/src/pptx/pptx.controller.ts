@@ -6,13 +6,14 @@
 import {
   Controller,
   Get,
-  Post,
   Param,
   Query,
   Res,
   UseGuards,
   Request,
   HttpStatus,
+  Logger,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -30,6 +31,8 @@ import { PptxService } from './pptx.service';
 @UseGuards(AuthGuard)
 @Controller('pptx')
 export class PptxController {
+  private readonly logger = new Logger(PptxController.name);
+
   constructor(private readonly pptxService: PptxService) {}
 
   @Get('templates')
@@ -57,17 +60,26 @@ export class PptxController {
   ) {
     const userId = req.user?.id || 'anonymous';
 
-    // Generate PPTX
-    const buffer = await this.pptxService.generatePptx(id, userId, template);
+    try {
+      this.logger.log(`Generating PPTX for validation ${id} with template ${template}`);
 
-    // Set response headers for file download
-    const filename = `validation-report-${id}-${template}.pptx`;
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.setHeader('Content-Length', buffer.length);
+      // Generate PPTX
+      const buffer = await this.pptxService.generatePptx(id, userId, template);
 
-    // Send file
-    res.status(HttpStatus.OK).send(buffer);
+      // Set response headers for file download
+      const filename = `validation-report-${id}-${template}.pptx`;
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Length', buffer.length);
+
+      this.logger.log(`PPTX generated successfully: ${buffer.length} bytes`);
+
+      // Send file
+      res.status(HttpStatus.OK).send(buffer);
+    } catch (error) {
+      this.logger.error(`Failed to generate PPTX: ${error.message}`, error.stack);
+      throw error;
+    }
   }
 
   @Get('validation/:id/preview')
