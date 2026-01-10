@@ -276,6 +276,7 @@ export default function ValidationProgressPage() {
   }) || [];
 
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isGeneratingPresentation, setIsGeneratingPresentation] = useState(false);
 
   const downloadPDF = async () => {
     if (!validation) return;
@@ -292,6 +293,39 @@ export default function ValidationProgressPage() {
       alert('Failed to generate PDF. Please try again.');
     } finally {
       setIsDownloading(false);
+    }
+  };
+
+  const generatePresentation = async () => {
+    if (!validation) return;
+
+    setIsGeneratingPresentation(true);
+    try {
+      const response = await fetch('/api/gamma', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          validation,
+          agents: AGENTS,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.presentationUrl) {
+        window.open(data.presentationUrl, '_blank');
+      } else if (data.fallbackContent) {
+        alert('Presentation generation is temporarily unavailable. Please try again later.');
+      } else {
+        throw new Error(data.error || 'Failed to generate presentation');
+      }
+    } catch (error) {
+      console.error('Failed to generate presentation:', error);
+      alert('Failed to generate presentation. Please try again.');
+    } finally {
+      setIsGeneratingPresentation(false);
     }
   };
 
@@ -331,24 +365,42 @@ export default function ValidationProgressPage() {
               <span className="text-slate-600">|</span>
               <Link href="/validate" className="text-slate-400 hover:text-white">+ New Validation</Link>
             </div>
-            <button
-              onClick={downloadPDF}
-              disabled={isDownloading}
-              className="bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-800 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-            >
-              {isDownloading ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Generating PDF...
-                </>
-              ) : (
-                <>
-                  <span className="text-lg">📄</span>
-                  Download Certified Report
-                  <span className="text-emerald-300">✓</span>
-                </>
-              )}
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={generatePresentation}
+                disabled={isGeneratingPresentation}
+                className="bg-purple-600 hover:bg-purple-700 disabled:bg-purple-800 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+              >
+                {isGeneratingPresentation ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <span className="text-lg">🎯</span>
+                    Generate Presentation
+                  </>
+                )}
+              </button>
+              <button
+                onClick={downloadPDF}
+                disabled={isDownloading}
+                className="bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-800 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+              >
+                {isDownloading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Generating PDF...
+                  </>
+                ) : (
+                  <>
+                    <span className="text-lg">📄</span>
+                    Download PDF Report
+                  </>
+                )}
+              </button>
+            </div>
           </div>
 
           {/* Header */}
