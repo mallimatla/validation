@@ -535,7 +535,17 @@ const UnitEconomicsDisplay = ({ data }: { data: any }) => {
         flexDirection: 'row',
         alignItems: 'center',
       }}>
-        <Text style={{ fontSize: 14, marginRight: 8 }}>{ratio >= 3 ? '✓' : '⚠'}</Text>
+        <View style={{
+          width: 18,
+          height: 18,
+          borderRadius: 9,
+          backgroundColor: ratio >= 3 ? colors.success : colors.warning,
+          justifyContent: 'center',
+          alignItems: 'center',
+          marginRight: 8,
+        }}>
+          <Text style={{ fontSize: 10, color: colors.white, fontFamily: 'Helvetica-Bold' }}>{ratio >= 3 ? 'OK' : '!'}</Text>
+        </View>
         <Text style={{ fontSize: 9, color: ratio >= 3 ? colors.success : colors.warning }}>
           {ratio >= 3
             ? 'Healthy unit economics - LTV:CAC ratio exceeds 3:1 benchmark'
@@ -681,7 +691,7 @@ export const ValidationReportDocument = ({ validation, agents }: ValidationRepor
 
           <View style={styles.coverCenter}>
             <View style={styles.coverBadge}>
-              <Text style={styles.coverBadgeText}>✓ CERTIFIED VALIDATION</Text>
+              <Text style={styles.coverBadgeText}>CERTIFIED VALIDATION</Text>
             </View>
 
             <Text style={styles.coverTitle}>{validation.title}</Text>
@@ -750,7 +760,7 @@ export const ValidationReportDocument = ({ validation, agents }: ValidationRepor
             alignItems: 'center',
             marginRight: 16,
           }}>
-            <Text style={{ color: colors.white, fontSize: 24, fontFamily: 'Helvetica-Bold' }}>✓</Text>
+            <Text style={{ color: colors.white, fontSize: 18, fontFamily: 'Helvetica-Bold' }}>OK</Text>
           </View>
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: 12, fontFamily: 'Helvetica-Bold', color: colors.certified, marginBottom: 4 }}>
@@ -852,7 +862,7 @@ export const ValidationReportDocument = ({ validation, agents }: ValidationRepor
             {agentScores.slice(0, 6).map((agent, idx) => (
               <HorizontalBar
                 key={idx}
-                label={`${agent.icon} ${agent.label}`}
+                label={agent.label}
                 value={agent.value}
                 color={agent.color}
                 showGrade
@@ -909,7 +919,7 @@ export const ValidationReportDocument = ({ validation, agents }: ValidationRepor
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: 18, fontFamily: 'Helvetica-Bold', color: colors.dark, marginBottom: 4 }}>
-                    {agent.icon} {displayName}
+                    {displayName}
                   </Text>
                   <Text style={{ fontSize: 10, color: colors.medium, marginBottom: 8, lineHeight: 1.5 }}>
                     {agent.description}
@@ -1145,7 +1155,7 @@ export const ValidationReportDocument = ({ validation, agents }: ValidationRepor
             alignItems: 'center',
             marginRight: 14,
           }}>
-            <Text style={{ color: colors.white, fontSize: 20, fontFamily: 'Helvetica-Bold' }}>✓</Text>
+            <Text style={{ color: colors.white, fontSize: 16, fontFamily: 'Helvetica-Bold' }}>OK</Text>
           </View>
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: 11, fontFamily: 'Helvetica-Bold', color: colors.certified, marginBottom: 3 }}>
