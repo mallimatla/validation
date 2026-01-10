@@ -273,6 +273,7 @@ export async function POST(request: NextRequest) {
         textMode: 'generate',
         format: 'presentation',
         numCards: 12,
+        exportAs: 'pptx', // Export as downloadable PPTX file
         textOptions: {
           amount: 'detailed',
           tone: 'professional, data-driven',
@@ -284,6 +285,9 @@ export async function POST(request: NextRequest) {
         },
         cardOptions: {
           dimensions: '16x9'
+        },
+        sharingOptions: {
+          externalAccess: 'view', // Allow external viewing
         }
       }),
     });
@@ -328,22 +332,42 @@ export async function POST(request: NextRequest) {
     console.log('Gamma API parsed data:', JSON.stringify(gammaData, null, 2));
 
     // v1.0 API returns the URL directly in the response
-    // Check for various possible URL fields
+    // Check for various possible URL fields including export/download URLs
     const presentationUrl = gammaData.url
       || gammaData.gammaUrl
       || gammaData.viewUrl
       || gammaData.link
       || gammaData.shareUrl
-      || gammaData.publicUrl;
+      || gammaData.publicUrl
+      || gammaData.exportUrl
+      || gammaData.downloadUrl
+      || gammaData.pptxUrl
+      || gammaData.pdfUrl;
 
     const editUrl = gammaData.editUrl || gammaData.editorUrl;
+
+    // Check for export object if exportAs was requested
+    const exportUrl = gammaData.export?.url
+      || gammaData.export?.downloadUrl
+      || gammaData.exports?.pptx
+      || gammaData.exports?.pdf;
+
+    if (exportUrl) {
+      return NextResponse.json({
+        success: true,
+        presentationUrl: exportUrl,
+        downloadUrl: exportUrl,
+        editUrl: editUrl,
+        raw: gammaData,
+      });
+    }
 
     if (presentationUrl) {
       return NextResponse.json({
         success: true,
         presentationUrl: presentationUrl,
         editUrl: editUrl,
-        raw: gammaData, // Include raw response for debugging
+        raw: gammaData,
       });
     }
 
@@ -354,7 +378,16 @@ export async function POST(request: NextRequest) {
         const completedData = await pollForCompletion(generationId);
         console.log('Poll completed data:', JSON.stringify(completedData, null, 2));
 
-        const completedUrl = completedData.url
+        // Check for export/download URLs first
+        const completedExportUrl = completedData.export?.url
+          || completedData.export?.downloadUrl
+          || completedData.exports?.pptx
+          || completedData.exports?.pdf
+          || completedData.exportUrl
+          || completedData.downloadUrl;
+
+        const completedUrl = completedExportUrl
+          || completedData.url
           || completedData.gammaUrl
           || completedData.viewUrl
           || completedData.link
@@ -364,6 +397,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
           success: true,
           presentationUrl: completedUrl,
+          downloadUrl: completedExportUrl || completedUrl,
           editUrl: completedData.editUrl || completedData.editorUrl,
           generationId: generationId,
           raw: completedData,
@@ -383,11 +417,13 @@ export async function POST(request: NextRequest) {
           if (finalCheck.ok) {
             const finalData = await finalCheck.json();
             console.log('Final check data:', JSON.stringify(finalData, null, 2));
-            const finalUrl = finalData.url || finalData.gammaUrl || finalData.viewUrl || finalData.link;
+            const finalExportUrl = finalData.export?.url || finalData.exportUrl || finalData.downloadUrl;
+            const finalUrl = finalExportUrl || finalData.url || finalData.gammaUrl || finalData.viewUrl || finalData.link;
             if (finalUrl) {
               return NextResponse.json({
                 success: true,
                 presentationUrl: finalUrl,
+                downloadUrl: finalExportUrl || finalUrl,
                 editUrl: finalData.editUrl,
                 generationId: generationId,
               });
