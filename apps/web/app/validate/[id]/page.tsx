@@ -316,11 +316,8 @@ export default function ValidationProgressPage() {
       console.log('Gamma API response:', data);
 
       if (data.success && data.presentationUrl) {
+        // Open the generated presentation in a new tab
         window.open(data.presentationUrl, '_blank');
-      } else if (data.gammaUrl) {
-        // If generation is still processing, redirect to Gamma dashboard
-        alert(data.message || 'Your presentation is being generated. Check your Gamma dashboard.');
-        window.open(data.gammaUrl, '_blank');
       } else if (data.message) {
         // Show the specific error message from the API
         alert(data.message);

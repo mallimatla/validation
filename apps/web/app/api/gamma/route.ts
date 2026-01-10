@@ -194,35 +194,49 @@ Powered by Startup Verdict - AI-Powered Validation Intelligence`;
   return content;
 }
 
-// Poll for generation completion
-async function pollForCompletion(generationId: string, maxAttempts = 30): Promise<any> {
+// Poll for generation completion - increased timeout to 3 minutes
+async function pollForCompletion(generationId: string, maxAttempts = 60): Promise<any> {
   for (let i = 0; i < maxAttempts; i++) {
+    console.log(`Polling attempt ${i + 1}/${maxAttempts} for generation ${generationId}`);
+
     const response = await fetch(`${GAMMA_API_URL}/generations/${generationId}`, {
       method: 'GET',
       headers: {
         'X-API-KEY': GAMMA_API_KEY!,
+        'accept': 'application/json',
       },
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Poll request failed: ${response.status}`, errorText);
       throw new Error(`Failed to poll generation status: ${response.status}`);
     }
 
     const data = await response.json();
+    console.log(`Poll response (attempt ${i + 1}):`, JSON.stringify(data, null, 2));
 
-    if (data.status === 'completed' || data.status === 'success') {
+    // Check for completion - handle various status values
+    const status = (data.status || '').toLowerCase();
+    if (status === 'completed' || status === 'success' || status === 'done' || status === 'ready') {
       return data;
     }
 
-    if (data.status === 'failed' || data.status === 'error') {
-      throw new Error(data.error || 'Generation failed');
+    // Check if URL is already available even if status isn't "completed"
+    if (data.url || data.gammaUrl || data.viewUrl || data.link) {
+      console.log('URL found in poll response, returning data');
+      return data;
     }
 
-    // Wait 2 seconds before next poll
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    if (status === 'failed' || status === 'error') {
+      throw new Error(data.error || data.message || 'Generation failed');
+    }
+
+    // Wait 3 seconds before next poll
+    await new Promise(resolve => setTimeout(resolve, 3000));
   }
 
-  throw new Error('Generation timed out');
+  throw new Error('Generation timed out after 3 minutes');
 }
 
 export async function POST(request: NextRequest) {
@@ -357,13 +371,37 @@ export async function POST(request: NextRequest) {
       } catch (pollError) {
         console.error('Polling error:', pollError);
 
-        // Even if polling fails, return the generation ID so user can check manually
+        // Try one more time to get the generation status
+        try {
+          const finalCheck = await fetch(`${GAMMA_API_URL}/generations/${generationId}`, {
+            method: 'GET',
+            headers: {
+              'X-API-KEY': GAMMA_API_KEY!,
+              'accept': 'application/json',
+            },
+          });
+          if (finalCheck.ok) {
+            const finalData = await finalCheck.json();
+            console.log('Final check data:', JSON.stringify(finalData, null, 2));
+            const finalUrl = finalData.url || finalData.gammaUrl || finalData.viewUrl || finalData.link;
+            if (finalUrl) {
+              return NextResponse.json({
+                success: true,
+                presentationUrl: finalUrl,
+                editUrl: finalData.editUrl,
+                generationId: generationId,
+              });
+            }
+          }
+        } catch (e) {
+          console.error('Final check failed:', e);
+        }
+
         return NextResponse.json({
           success: false,
-          error: 'Generation is still processing',
+          error: 'Generation is taking longer than expected',
           generationId: generationId,
-          message: 'Your presentation is being generated. Check your Gamma dashboard at gamma.app',
-          gammaUrl: 'https://gamma.app',
+          message: 'The presentation is still being generated. Please try again in a few moments.',
         });
       }
     }
@@ -373,8 +411,7 @@ export async function POST(request: NextRequest) {
       success: false,
       error: 'Unexpected response format from Gamma',
       raw: gammaData,
-      message: 'The API returned an unexpected format. Please check your Gamma dashboard.',
-      gammaUrl: 'https://gamma.app',
+      message: 'Unable to generate presentation. Please try again.',
     });
 
   } catch (error) {
