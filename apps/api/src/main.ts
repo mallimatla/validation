@@ -25,15 +25,24 @@ async function bootstrap() {
     app.use(helmet());
 
     // CORS - sanitize origin to prevent invalid character errors
-    const corsOrigin = process.env.CORS_ORIGIN?.trim() || '*';
+    // Remove all control characters, newlines, carriage returns, and trim whitespace
+    const rawCorsOrigin = process.env.CORS_ORIGIN || '*';
+    const sanitizedCorsOrigin = rawCorsOrigin
+      .replace(/[\x00-\x1F\x7F]/g, '') // Remove all control characters
+      .replace(/\s+/g, ' ') // Collapse multiple whitespace
+      .trim();
+
+    const corsOrigin = sanitizedCorsOrigin || '*';
+
     // Handle multiple origins (comma-separated) or single origin
     const origin = corsOrigin === '*'
-      ? '*'
+      ? true // Allow all origins
       : corsOrigin.includes(',')
-        ? corsOrigin.split(',').map(o => o.trim())
+        ? corsOrigin.split(',').map(o => o.trim()).filter(o => o.length > 0)
         : corsOrigin;
 
-    logger.log(`CORS origin configured: ${JSON.stringify(origin)}`);
+    logger.log(`CORS origin raw: "${rawCorsOrigin.substring(0, 50)}..." (${rawCorsOrigin.length} chars)`);
+    logger.log(`CORS origin sanitized: ${JSON.stringify(origin)}`);
 
     app.enableCors({
       origin,
