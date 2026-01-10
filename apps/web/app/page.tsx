@@ -7,8 +7,8 @@ export default function Home() {
       {/* Navigation */}
       <header className="border-b border-slate-700/50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="text-2xl font-bold">
-            <span className="text-emerald-400">Validation</span> Council
+          <Link href="/" className="flex items-center gap-2">
+            <img src="/logo.svg" alt="Validation Council" className="h-10" />
           </Link>
           <nav className="flex items-center gap-4">
             <SignedIn>

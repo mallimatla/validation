@@ -174,17 +174,13 @@ export default function ValidationProgressPage() {
   };
 
   // Download Validation Report PDF
-  const downloadValidationPDF = async () => {
+  const downloadValidationPDF = () => {
     if (!validation) return;
     setIsDownloading(true);
     setShowDownloadMenu(false);
 
     try {
-      const response = await fetch(`${API_URL}/api/v1/validations/${validationId}/report`);
-      if (!response.ok) throw new Error('Failed to fetch report');
-      const reportData = await response.json();
-
-      // Generate PDF content
+      // Generate PDF content from already-loaded validation data
       let content = `THE VALIDATION COUNCIL - OFFICIAL REPORT\n`;
       content += `${'='.repeat(60)}\n\n`;
       content += `STARTUP: ${validation.title}\n`;
@@ -259,7 +255,7 @@ export default function ValidationProgressPage() {
   };
 
   // Download Valuation Report PDF (Victor's analysis)
-  const downloadValuationPDF = async () => {
+  const downloadValuationPDF = () => {
     if (!validation) return;
     setIsDownloading(true);
     setShowDownloadMenu(false);
