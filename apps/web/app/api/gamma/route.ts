@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const GAMMA_API_KEY = process.env.GAMMA_API_KEY;
-const GAMMA_API_URL = 'https://api.gamma.app/v1';
+const GAMMA_API_URL = 'https://public-api.gamma.app/v1.0';
 
 interface ValidationData {
   id: string;
@@ -107,7 +107,7 @@ function buildPresentationContent(validation: ValidationData, agents: Agent[]): 
   // Build agent scores section
   const agentScores = validation.agentReports?.map(report => {
     const normalizedScore = normalizeScore(report.score);
-    return `- ${getAgentDisplayName(report.agentId)}: ${normalizedScore.toFixed(1)}/10 (${getGrade(normalizedScore)})`;
+    return `- ${getAgentDisplayName(report.agentId)}: ${normalizedScore.toFixed(1)}/10 (Grade: ${getGrade(normalizedScore)})`;
   }).join('\n') || '';
 
   // Build market data section if available
@@ -120,11 +120,11 @@ function buildPresentationContent(validation: ValidationData, agents: Agent[]): 
       return `$${v.toFixed(0)}`;
     };
     marketSection = `
-## Market Size Analysis
 
-- **Total Addressable Market (TAM):** ${formatCurrency(marketAgent.marketData.tam || 0)}
-- **Serviceable Addressable Market (SAM):** ${formatCurrency(marketAgent.marketData.sam || 0)}
-- **Serviceable Obtainable Market (SOM):** ${formatCurrency(marketAgent.marketData.som || 0)}
+Market Size Analysis:
+- Total Addressable Market (TAM): ${formatCurrency(marketAgent.marketData.tam || 0)}
+- Serviceable Addressable Market (SAM): ${formatCurrency(marketAgent.marketData.sam || 0)}
+- Serviceable Obtainable Market (SOM): ${formatCurrency(marketAgent.marketData.som || 0)}
 `;
   }
 
@@ -137,111 +137,92 @@ function buildPresentationContent(validation: ValidationData, agents: Agent[]): 
     const ltv = ue.ltv?.mid || 0;
     const ratio = cac > 0 ? (ltv / cac).toFixed(1) : 'N/A';
     unitEconSection = `
-## Unit Economics
 
-- **Customer Acquisition Cost (CAC):** $${cac}
-- **Lifetime Value (LTV):** $${ltv}
-- **LTV:CAC Ratio:** ${ratio}x ${parseFloat(ratio as string) >= 3 ? '(Healthy)' : '(Needs Improvement)'}
+Unit Economics:
+- Customer Acquisition Cost (CAC): $${cac}
+- Lifetime Value (LTV): $${ltv}
+- LTV:CAC Ratio: ${ratio}x ${parseFloat(ratio as string) >= 3 ? '(Healthy)' : '(Needs Improvement)'}
 `;
   }
 
-  const content = `
-# ${validation.title}
-## Startup Validation Report
+  const content = `${validation.title} - Startup Validation Report
 
-Create a professional investor-grade presentation for this startup validation. The presentation should be visually stunning, use modern design, and include data visualizations.
+This is a comprehensive startup validation report powered by Startup Verdict's 12-agent AI system.
 
----
+Executive Overview:
+- Startup: ${validation.title}
+- Description: ${validation.description}
+- Overall Score: ${score.toFixed(1)}/10 (Grade: ${grade})
+- Confidence Level: ${validation.overallConfidence || 0}%
+- Agents Completed: ${validation.agentReports?.length || 0}/12
 
-# Executive Overview
-
-**Startup:** ${validation.title}
-
-**Description:** ${validation.description}
-
-**Overall Score:** ${score.toFixed(1)}/10 (Grade: ${grade})
-
-**Confidence Level:** ${validation.overallConfidence || 0}%
-
-**Agents Completed:** ${validation.agentReports?.length || 0}/12
-
----
-
-# Validation Verdict
-
+Validation Verdict:
 ${validation.verdict || 'Analysis in progress...'}
 
----
-
-# Executive Summary
-
+Executive Summary:
 ${validation.executiveSummary || 'Comprehensive analysis by 12 specialized AI agents covering market opportunity, competitive landscape, financial viability, technical feasibility, and more.'}
 
----
-
-# Agent Analysis Scores
-
+Agent Analysis Scores:
 ${agentScores}
-
----
 ${marketSection}
----
 ${unitEconSection}
----
 
-# SWOT Analysis
+SWOT Analysis:
 
-## Strengths
-${strengths.map(s => `- **${s.title}:** ${s.description.substring(0, 100)}...`).join('\n') || '- No strengths identified yet'}
+Strengths:
+${strengths.map(s => `- ${s.title}: ${s.description.substring(0, 100)}...`).join('\n') || '- No strengths identified yet'}
 
-## Weaknesses
-${weaknesses.map(w => `- **${w.title}:** ${w.description.substring(0, 100)}...`).join('\n') || '- No weaknesses identified yet'}
+Weaknesses:
+${weaknesses.map(w => `- ${w.title}: ${w.description.substring(0, 100)}...`).join('\n') || '- No weaknesses identified yet'}
 
-## Opportunities
-${opportunities.map(o => `- **${o.title}:** ${o.description.substring(0, 100)}...`).join('\n') || '- No opportunities identified yet'}
+Opportunities:
+${opportunities.map(o => `- ${o.title}: ${o.description.substring(0, 100)}...`).join('\n') || '- No opportunities identified yet'}
 
-## Threats
-${threats.map(t => `- **${t.title}:** ${t.description.substring(0, 100)}...`).join('\n') || '- No threats identified yet'}
+Threats:
+${threats.map(t => `- ${t.title}: ${t.description.substring(0, 100)}...`).join('\n') || '- No threats identified yet'}
 
----
+Key Risks:
+${topRisks.map(r => `- ${r.title} (${r.probability} probability, ${r.impact} impact): ${r.description.substring(0, 100)}...`).join('\n') || 'No significant risks identified.'}
 
-# Key Risks
+Priority Recommendations:
+${topRecommendations.map((r, i) => `${i + 1}. ${r.title} [${r.priority.toUpperCase()}] (${r.timeframe}): ${r.description.substring(0, 100)}...`).join('\n') || 'No recommendations yet.'}
 
-${topRisks.map(r => `### ${r.title}
-- **Probability:** ${r.probability}
-- **Impact:** ${r.impact}
-- ${r.description.substring(0, 150)}...`).join('\n\n') || 'No significant risks identified.'}
-
----
-
-# Priority Recommendations
-
-${topRecommendations.map((r, i) => `### ${i + 1}. ${r.title}
-- **Priority:** ${r.priority.toUpperCase()}
-- **Timeframe:** ${r.timeframe}
-- ${r.description.substring(0, 150)}...`).join('\n\n') || 'No recommendations yet.'}
-
----
-
-# Conclusion
-
-This validation report was generated by Startup Verdict's 12-agent AI validation system.
-
-**Report ID:** SVR-${validation.id.slice(0, 8).toUpperCase()}
-
-**Generated:** ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-
----
-
-Make this presentation visually stunning with:
-- Modern, professional design
-- Data visualizations for scores and metrics
-- Color-coded sections (green for strengths, red for risks, blue for recommendations)
-- Clean typography and spacing
-- Include the Startup Verdict branding
-`;
+Report ID: SVR-${validation.id.slice(0, 8).toUpperCase()}
+Generated: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+Powered by Startup Verdict - AI-Powered Validation Intelligence`;
 
   return content;
+}
+
+// Poll for generation completion
+async function pollForCompletion(generationId: string, maxAttempts = 30): Promise<any> {
+  for (let i = 0; i < maxAttempts; i++) {
+    const response = await fetch(`${GAMMA_API_URL}/generations/${generationId}`, {
+      method: 'GET',
+      headers: {
+        'X-API-KEY': GAMMA_API_KEY!,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to poll generation status: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (data.status === 'completed' || data.status === 'success') {
+      return data;
+    }
+
+    if (data.status === 'failed' || data.status === 'error') {
+      throw new Error(data.error || 'Generation failed');
+    }
+
+    // Wait 2 seconds before next poll
+    await new Promise(resolve => setTimeout(resolve, 2000));
+  }
+
+  throw new Error('Generation timed out');
 }
 
 export async function POST(request: NextRequest) {
@@ -263,44 +244,67 @@ export async function POST(request: NextRequest) {
     }
 
     // Build the presentation content
-    const content = buildPresentationContent(validation, agents || []);
+    const inputText = buildPresentationContent(validation, agents || []);
 
     // Call Gamma API to generate presentation
-    const gammaResponse = await fetch(`${GAMMA_API_URL}/generate`, {
+    // Using the correct endpoint: https://public-api.gamma.app/v1.0/generations
+    const gammaResponse = await fetch(`${GAMMA_API_URL}/generations`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${GAMMA_API_KEY}`,
+        'X-API-KEY': GAMMA_API_KEY,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        content: content,
+        inputText: inputText,
+        textMode: 'generate',
         format: 'presentation',
-        style: 'professional',
-        theme: 'modern',
-        title: `${validation.title} - Validation Report`,
+        numCards: 12,
       }),
     });
 
     if (!gammaResponse.ok) {
       const errorText = await gammaResponse.text();
-      console.error('Gamma API error:', errorText);
+      console.error('Gamma API error:', gammaResponse.status, errorText);
 
-      // If Gamma API fails, return a fallback with the content
+      // Return a more helpful error message
       return NextResponse.json({
         success: false,
-        error: 'Gamma API returned an error',
-        fallbackContent: content,
-        message: 'Could not generate presentation. The content is available for manual creation.',
+        error: `Gamma API error: ${gammaResponse.status}`,
+        details: errorText,
+        fallbackContent: inputText,
+        message: 'Could not generate presentation. Please check your Gamma API key and ensure you have a Pro subscription.',
       });
     }
 
     const gammaData = await gammaResponse.json();
 
+    // If we got a generationId, we need to poll for completion
+    if (gammaData.generationId) {
+      try {
+        const completedData = await pollForCompletion(gammaData.generationId);
+
+        return NextResponse.json({
+          success: true,
+          presentationUrl: completedData.url || completedData.gammaUrl || completedData.viewUrl,
+          editUrl: completedData.editUrl,
+          generationId: gammaData.generationId,
+        });
+      } catch (pollError) {
+        console.error('Polling error:', pollError);
+        return NextResponse.json({
+          success: false,
+          error: 'Generation timed out or failed',
+          generationId: gammaData.generationId,
+          message: 'The presentation is being generated. Please check Gamma.app directly.',
+        });
+      }
+    }
+
+    // Direct response (if Gamma returns URL immediately)
     return NextResponse.json({
       success: true,
-      presentationUrl: gammaData.url || gammaData.presentation_url,
-      presentationId: gammaData.id || gammaData.presentation_id,
-      editUrl: gammaData.edit_url,
+      presentationUrl: gammaData.url || gammaData.gammaUrl || gammaData.viewUrl,
+      editUrl: gammaData.editUrl,
     });
 
   } catch (error) {
