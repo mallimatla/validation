@@ -27,6 +27,7 @@ import { AuditModule } from './audit/audit.module';
 import { OutcomesModule } from './outcomes/outcomes.module';
 import { UsersModule } from './users/users.module';
 import { PaymentsModule } from './payments/payments.module';
+import { PptxModule } from './pptx/pptx.module';
 
 // Health check
 import { HealthController } from './health/health.controller';
@@ -148,6 +149,7 @@ if (!isRedisConfigured) {
     OutcomesModule,
     UsersModule,
     PaymentsModule,
+    PptxModule,
   ],
   controllers: [HealthController],
   providers: [],

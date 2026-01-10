@@ -80,6 +80,20 @@ export default function ValidationProgressPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedAgent, setExpandedAgent] = useState<string | null>(null);
+  const [showDownloadMenu, setShowDownloadMenu] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (showDownloadMenu && !target.closest('.download-menu-container')) {
+        setShowDownloadMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showDownloadMenu]);
 
   useEffect(() => {
     const fetchValidation = async () => {
@@ -117,6 +131,7 @@ export default function ValidationProgressPage() {
 
   const downloadPDF = () => {
     if (!validation) return;
+    setShowDownloadMenu(false);
 
     // Create PDF content
     let content = `VALIDATION COUNCIL REPORT\n`;
@@ -193,6 +208,40 @@ export default function ValidationProgressPage() {
     URL.revokeObjectURL(url);
   };
 
+  const downloadPPTX = async (template: string = 'professional') => {
+    if (!validation) return;
+    setIsDownloading(true);
+    setShowDownloadMenu(false);
+
+    try {
+      const response = await fetch(`${API_URL}/api/v1/pptx/validation/${validationId}?template=${template}`);
+      if (!response.ok) {
+        throw new Error('Failed to generate PPTX');
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `validation-report-${validationId}-${template}.pptx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('PPTX download error:', err);
+      alert('Failed to download PPTX. Please try again.');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  const openGamma = () => {
+    // Open Gamma.app for more advanced AI presentation creation
+    window.open('https://gamma.app/create', '_blank');
+    setShowDownloadMenu(false);
+  };
+
   if (isLoading) {
     return (
       <main className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white flex items-center justify-center">
@@ -229,12 +278,115 @@ export default function ValidationProgressPage() {
               <span className="text-slate-600">|</span>
               <Link href="/validate" className="text-slate-400 hover:text-white">+ New Validation</Link>
             </div>
-            <button
-              onClick={downloadPDF}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-            >
-              <span>Download Report</span>
-            </button>
+            <div className="relative download-menu-container">
+              <button
+                onClick={() => setShowDownloadMenu(!showDownloadMenu)}
+                disabled={isDownloading}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 disabled:opacity-50"
+              >
+                {isDownloading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
+                    <span>Generating...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Download Report</span>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </>
+                )}
+              </button>
+
+              {showDownloadMenu && (
+                <div className="absolute right-0 mt-2 w-72 bg-slate-800 rounded-lg shadow-xl border border-slate-700 z-50 overflow-hidden">
+                  <div className="p-2 border-b border-slate-700">
+                    <p className="text-xs text-slate-400 uppercase px-2">PowerPoint (Free - PptxGenJS)</p>
+                  </div>
+                  <button
+                    onClick={() => downloadPPTX('professional')}
+                    className="w-full text-left px-4 py-3 hover:bg-slate-700 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-xl">📊</span>
+                      <div>
+                        <p className="font-medium text-white">Professional</p>
+                        <p className="text-xs text-slate-400">Corporate dark blue theme</p>
+                      </div>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => downloadPPTX('modern')}
+                    className="w-full text-left px-4 py-3 hover:bg-slate-700 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-xl">✨</span>
+                      <div>
+                        <p className="font-medium text-white">Modern</p>
+                        <p className="text-xs text-slate-400">Vibrant gradient style</p>
+                      </div>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => downloadPPTX('minimal')}
+                    className="w-full text-left px-4 py-3 hover:bg-slate-700 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-xl">📄</span>
+                      <div>
+                        <p className="font-medium text-white">Minimal</p>
+                        <p className="text-xs text-slate-400">Clean, simple design</p>
+                      </div>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => downloadPPTX('investor')}
+                    className="w-full text-left px-4 py-3 hover:bg-slate-700 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-xl">💼</span>
+                      <div>
+                        <p className="font-medium text-white">Investor Pitch</p>
+                        <p className="text-xs text-slate-400">Pitch deck format</p>
+                      </div>
+                    </div>
+                  </button>
+
+                  <div className="p-2 border-t border-slate-700">
+                    <p className="text-xs text-slate-400 uppercase px-2">Other Formats</p>
+                  </div>
+                  <button
+                    onClick={downloadPDF}
+                    className="w-full text-left px-4 py-3 hover:bg-slate-700 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-xl">📝</span>
+                      <div>
+                        <p className="font-medium text-white">Text Report</p>
+                        <p className="text-xs text-slate-400">Plain text format</p>
+                      </div>
+                    </div>
+                  </button>
+
+                  <div className="p-2 border-t border-slate-700">
+                    <p className="text-xs text-slate-400 uppercase px-2">External Tools</p>
+                  </div>
+                  <button
+                    onClick={openGamma}
+                    className="w-full text-left px-4 py-3 hover:bg-slate-700 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-xl">🎨</span>
+                      <div>
+                        <p className="font-medium text-white">Create with Gamma.app</p>
+                        <p className="text-xs text-slate-400">Advanced AI presentation tool</p>
+                      </div>
+                    </div>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Header */}
