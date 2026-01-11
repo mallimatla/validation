@@ -92,7 +92,7 @@ export default function InvestorDashboard() {
   const fetchProfile = useCallback(async () => {
     try {
       const token = await getToken();
-      const res = await fetch(`${API_URL}/investor/profile`, {
+      const res = await fetch(`${API_URL}/api/v1/investor/profile`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -116,7 +116,7 @@ export default function InvestorDashboard() {
       if (filters.minScore > 0) queryParams.set('minScore', String(filters.minScore));
       queryParams.set('sortBy', filters.sortBy);
 
-      const res = await fetch(`${API_URL}/investor/discover?${queryParams}`, {
+      const res = await fetch(`${API_URL}/api/v1/investor/discover?${queryParams}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -138,7 +138,7 @@ export default function InvestorDashboard() {
   const fetchShortlist = useCallback(async () => {
     try {
       const token = await getToken();
-      const res = await fetch(`${API_URL}/investor/shortlist`, {
+      const res = await fetch(`${API_URL}/api/v1/investor/shortlist`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -154,7 +154,7 @@ export default function InvestorDashboard() {
   const fetchIntroRequests = useCallback(async () => {
     try {
       const token = await getToken();
-      const res = await fetch(`${API_URL}/investor/intros`, {
+      const res = await fetch(`${API_URL}/api/v1/investor/intros`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -176,7 +176,7 @@ export default function InvestorDashboard() {
     try {
       const token = await getToken();
       const method = isCurrentlyShortlisted ? 'DELETE' : 'POST';
-      const res = await fetch(`${API_URL}/investor/shortlist/${id}`, {
+      const res = await fetch(`${API_URL}/api/v1/investor/shortlist/${id}`, {
         method,
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -205,7 +205,7 @@ export default function InvestorDashboard() {
     setIsSendingIntro(true);
     try {
       const token = await getToken();
-      const res = await fetch(`${API_URL}/investor/intros/${selectedStartup.id}`, {
+      const res = await fetch(`${API_URL}/api/v1/investor/intros/${selectedStartup.id}`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,

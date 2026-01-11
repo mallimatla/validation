@@ -81,6 +81,7 @@ export default function DashboardPage() {
   const [selectedValidation, setSelectedValidation] = useState<Validation | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'validations' | 'analytics'>('overview');
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isLoaded && user) {
@@ -91,25 +92,38 @@ export default function DashboardPage() {
   }, [isLoaded, user]);
 
   const fetchValidations = async () => {
+    setError(null);
     try {
       const token = await getToken();
+      console.log('Fetching validations with token:', token?.substring(0, 20) + '...');
+
       const response = await fetch(`${API_URL}/api/v1/validations`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        const validationsData = data.data || [];
-        setValidations(validationsData);
+      console.log('Response status:', response.status);
 
-        // Auto-select latest completed validation for the overview
-        const latestCompleted = validationsData.find((v: Validation) => v.status === 'COMPLETE');
-        if (latestCompleted) {
-          await fetchValidationDetails(latestCompleted.id, token!);
-        }
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API error response:', errorText);
+        setError(`API Error ${response.status}: ${errorText}`);
+        return;
       }
-    } catch (error) {
+
+      const data = await response.json();
+      console.log('Validations data:', data);
+
+      const validationsData = data.data || [];
+      setValidations(validationsData);
+
+      // Auto-select latest completed validation for the overview
+      const latestCompleted = validationsData.find((v: Validation) => v.status === 'COMPLETE');
+      if (latestCompleted) {
+        await fetchValidationDetails(latestCompleted.id, token!);
+      }
+    } catch (error: any) {
       console.error('Failed to fetch validations:', error);
+      setError(`Network error: ${error.message}`);
     } finally {
       setIsLoading(false);
     }
@@ -278,6 +292,25 @@ export default function DashboardPage() {
           </div>
         </div>
 
+        {/* Error Display */}
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 mb-6">
+            <div className="flex items-center gap-3">
+              <span className="text-red-400 text-xl">⚠️</span>
+              <div>
+                <p className="text-red-400 font-medium">Failed to load validations</p>
+                <p className="text-red-300/70 text-sm mt-1">{error}</p>
+              </div>
+            </div>
+            <button
+              onClick={fetchValidations}
+              className="mt-3 text-sm text-red-400 hover:text-red-300 underline"
+            >
+              Try again
+            </button>
+          </div>
+        )}
+
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
             <div className="text-center">
@@ -285,7 +318,7 @@ export default function DashboardPage() {
               <p className="text-slate-400 text-lg">Loading your dashboard...</p>
             </div>
           </div>
-        ) : validations.length === 0 ? (
+        ) : !error && validations.length === 0 ? (
           /* Empty State */
           <div className="bg-slate-800/30 rounded-2xl border border-slate-700/50 p-12 text-center">
             <div className="text-8xl mb-6">🚀</div>
