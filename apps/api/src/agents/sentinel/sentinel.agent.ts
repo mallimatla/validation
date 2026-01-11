@@ -17,6 +17,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import * as crypto from 'crypto';
+import {
+  CB_INSIGHTS_FAILURE_CAUSES,
+  FALSE_POSITIVE_PATTERNS,
+} from '../validation-framework.constants';
 
 interface Citation {
   id: string;
@@ -39,12 +43,13 @@ interface AgentReport {
 }
 
 interface TrustIssue {
-  type: 'unverified_citation' | 'low_confidence' | 'missing_source' | 'contradiction' | 'stale_data';
+  type: 'unverified_citation' | 'low_confidence' | 'missing_source' | 'contradiction' | 'stale_data' | 'cb_insights_risk' | 'false_positive_pattern';
   severity: 'critical' | 'major' | 'minor';
   agentId: string;
   description: string;
   citationId?: string;
   recommendation: string;
+  relatedPattern?: string;
 }
 
 interface AuditResult {
@@ -82,7 +87,8 @@ export class SentinelAgent {
 
   async audit(
     validationId: string,
-    agentReports: AgentReport[]
+    agentReports: AgentReport[],
+    ideaContext?: { description?: string; industry?: string }
   ): Promise<AuditResult> {
     this.logger.log(`Starting audit for validation ${validationId}`);
 
@@ -100,10 +106,16 @@ export class SentinelAgent {
     // Step 4: Check agent accuracy history
     const agentAccuracyFlags = await this.checkAgentAccuracy(agentReports);
 
-    // Step 5: Calculate trust score
+    // Step 5: Analyze CB Insights failure risk factors
+    await this.analyzeCBInsightsRisks(agentReports, issues);
+
+    // Step 6: Detect false positive patterns (Theranos/FTX/WeWork)
+    await this.detectFalsePositivePatterns(agentReports, issues, ideaContext);
+
+    // Step 7: Calculate trust score
     const trustScore = this.calculateTrustScore(citationStats, issues);
 
-    // Step 6: Generate integrity hash
+    // Step 8: Generate integrity hash
     const integrityHash = this.generateIntegrityHash(validationId, agentReports);
 
     const result: AuditResult = {
@@ -124,6 +136,162 @@ export class SentinelAgent {
 
     this.logger.log(`Audit complete: trustScore=${trustScore}, issues=${issues.length}`);
     return result;
+  }
+
+  /**
+   * Analyze risk factors based on CB Insights top startup failure causes
+   * Source: CB Insights analysis of 101+ startup failure post-mortems
+   */
+  private async analyzeCBInsightsRisks(
+    agentReports: AgentReport[],
+    issues: TrustIssue[]
+  ): Promise<void> {
+    // Check for "No Market Need" risk (42% of failures)
+    const elenaReport = agentReports.find(r => r.agentId === 'elena');
+    if (elenaReport && elenaReport.score < 5) {
+      issues.push({
+        type: 'cb_insights_risk',
+        severity: 'critical',
+        agentId: 'sentinel',
+        description: `CB Insights Risk: No Market Need - The #1 cause of startup failure (${(CB_INSIGHTS_FAILURE_CAUSES.no_market_need.percentage * 100).toFixed(0)}% of failures). Low PMF score suggests this risk is elevated.`,
+        recommendation: 'Conduct more customer validation before proceeding. Sean Ellis 40% test recommended.',
+        relatedPattern: 'no_market_need',
+      });
+    }
+
+    // Check for "Ran Out of Cash" risk (29% of failures)
+    const davidReport = agentReports.find(r => r.agentId === 'david');
+    if (davidReport && davidReport.score < 4) {
+      issues.push({
+        type: 'cb_insights_risk',
+        severity: 'critical',
+        agentId: 'sentinel',
+        description: `CB Insights Risk: Ran Out of Cash - The #2 cause of startup failure (${(CB_INSIGHTS_FAILURE_CAUSES.ran_out_of_cash.percentage * 100).toFixed(0)}% of failures). Financial analysis shows concerning burn rate or runway.`,
+        recommendation: 'Reduce burn rate or secure additional runway before scaling.',
+        relatedPattern: 'ran_out_of_cash',
+      });
+    }
+
+    // Check for "Not Right Team" risk (23% of failures)
+    const jamesReport = agentReports.find(r => r.agentId === 'james');
+    if (jamesReport && jamesReport.score < 5) {
+      issues.push({
+        type: 'cb_insights_risk',
+        severity: 'major',
+        agentId: 'sentinel',
+        description: `CB Insights Risk: Not the Right Team - The #3 cause of startup failure (${(CB_INSIGHTS_FAILURE_CAUSES.not_right_team.percentage * 100).toFixed(0)}% of failures). Team assessment shows gaps or concerns.`,
+        recommendation: 'Address team gaps or skill coverage before proceeding.',
+        relatedPattern: 'not_right_team',
+      });
+    }
+
+    // Check for "Got Outcompeted" risk (19% of failures)
+    const sophiaReport = agentReports.find(r => r.agentId === 'sophia');
+    if (sophiaReport && sophiaReport.score < 4) {
+      issues.push({
+        type: 'cb_insights_risk',
+        severity: 'major',
+        agentId: 'sentinel',
+        description: `CB Insights Risk: Got Outcompeted - The #4 cause of startup failure (${(CB_INSIGHTS_FAILURE_CAUSES.got_outcompeted.percentage * 100).toFixed(0)}% of failures). Competitive analysis shows weak moat or positioning.`,
+        recommendation: 'Strengthen competitive moat using 7 Powers framework.',
+        relatedPattern: 'got_outcompeted',
+      });
+    }
+
+    // Check for "Pricing/Cost Issues" risk (18% of failures)
+    if (davidReport) {
+      const pricingWeakness = davidReport.findings?.some(
+        (f: any) => f.type === 'weakness' && f.title?.toLowerCase().includes('pricing')
+      );
+      if (pricingWeakness) {
+        issues.push({
+          type: 'cb_insights_risk',
+          severity: 'major',
+          agentId: 'sentinel',
+          description: `CB Insights Risk: Pricing/Cost Issues - The #5 cause of startup failure (${(CB_INSIGHTS_FAILURE_CAUSES.pricing_cost_issues.percentage * 100).toFixed(0)}% of failures). Pricing model may be unsustainable.`,
+          recommendation: 'Validate pricing with Van Westendorp or conjoint analysis.',
+          relatedPattern: 'pricing_cost_issues',
+        });
+      }
+    }
+  }
+
+  /**
+   * Detect false positive patterns based on Theranos/FTX/WeWork analysis
+   * These are warning signs that may not be caught by normal analysis
+   */
+  private async detectFalsePositivePatterns(
+    agentReports: AgentReport[],
+    issues: TrustIssue[],
+    ideaContext?: { description?: string; industry?: string }
+  ): Promise<void> {
+    const industry = (ideaContext?.industry || '').toLowerCase();
+
+    // Theranos Pattern: Charismatic founder + weak technical validation
+    const jamesReport = agentReports.find(r => r.agentId === 'james');
+    const omarReport = agentReports.find(r => r.agentId === 'omar');
+
+    if (jamesReport && jamesReport.score >= 8 && omarReport && omarReport.score < 4) {
+      issues.push({
+        type: 'false_positive_pattern',
+        severity: 'critical',
+        agentId: 'sentinel',
+        description: `FALSE POSITIVE WARNING: ${FALSE_POSITIVE_PATTERNS.theranos.pattern}. High team charisma (${jamesReport.score}/10) with weak technical validation (${omarReport.score}/10).`,
+        recommendation: 'Require independent technical due diligence. Insist on live product demonstrations, not presentations.',
+        relatedPattern: 'theranos',
+      });
+    }
+
+    // WeWork Pattern: High growth metrics but fundamentally broken unit economics
+    const marcusReport = agentReports.find(r => r.agentId === 'marcus');
+    const davidReport = agentReports.find(r => r.agentId === 'david');
+
+    if (marcusReport && marcusReport.score >= 7 && davidReport && davidReport.score < 4) {
+      issues.push({
+        type: 'false_positive_pattern',
+        severity: 'critical',
+        agentId: 'sentinel',
+        description: `FALSE POSITIVE WARNING: ${FALSE_POSITIVE_PATTERNS.wework.pattern}. Strong market story (${marcusReport.score}/10) but weak unit economics (${davidReport.score}/10).`,
+        recommendation: 'Verify each growth metric ties to sustainable revenue. Ask: What is the path to profitability?',
+        relatedPattern: 'wework',
+      });
+    }
+
+    // FTX Pattern: Complex industry with inconsistent analysis
+    const complexIndustries = ['crypto', 'defi', 'trading', 'derivatives'];
+    const isComplexIndustry = complexIndustries.some(c => industry.includes(c));
+
+    if (isComplexIndustry) {
+      const scores = agentReports.filter(r => r.weight > 0).map(r => r.score);
+      if (scores.length >= 3) {
+        const mean = scores.reduce((a, b) => a + b, 0) / scores.length;
+        const variance = scores.reduce((sum, s) => sum + Math.pow(s - mean, 2), 0) / scores.length;
+
+        if (variance > 6) {
+          issues.push({
+            type: 'false_positive_pattern',
+            severity: 'critical',
+            agentId: 'sentinel',
+            description: `FALSE POSITIVE WARNING: ${FALSE_POSITIVE_PATTERNS.ftx.pattern}. High score variance (${variance.toFixed(1)}) in complex industry suggests analysis uncertainty.`,
+            recommendation: 'Require simplified business model explanation. If it can\'t be explained simply, investigate further.',
+            relatedPattern: 'ftx',
+          });
+        }
+      }
+    }
+
+    // Fyre Festival Pattern: Marketing exceeds product reality
+    const elenaReport = agentReports.find(r => r.agentId === 'elena');
+    if (marcusReport && marcusReport.score >= 7 && elenaReport && elenaReport.score < 3) {
+      issues.push({
+        type: 'false_positive_pattern',
+        severity: 'major',
+        agentId: 'sentinel',
+        description: `FALSE POSITIVE WARNING: ${FALSE_POSITIVE_PATTERNS.fyre.pattern}. Strong marketing/market story but very weak customer validation.`,
+        recommendation: 'Verify product can deliver on marketing promises. Request customer testimonials and usage data.',
+        relatedPattern: 'fyre',
+      });
+    }
   }
 
   private async auditCitations(

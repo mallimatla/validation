@@ -10,6 +10,13 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { BaseAnalysisAgent, AnalysisInput, Citation } from '../base/base-analysis.agent';
+import {
+  FOUNDER_THRESHOLDS,
+  FOUNDER_KILL_SIGNALS,
+  FOUNDER_SCORING,
+  FOUNDER_PENALTIES,
+  SUCCESS_FACTOR_WEIGHTS,
+} from '../validation-framework.constants';
 
 interface TeamMember {
   role: string;
@@ -100,7 +107,7 @@ Be direct about weaknesses. The team is the top predictor of success.`;
     // Step 2: Identify skills gaps
     await this.identifySkillGaps(input);
 
-    // Step 3: Assess domain expertise
+    // Step 3: Assess domain expertise (MIT/Northwestern research)
     await this.assessDomainExpertise(input);
 
     // Step 4: Evaluate solo founder risk
@@ -109,10 +116,149 @@ Be direct about weaknesses. The team is the top predictor of success.`;
     // Step 5: Assess execution capability
     await this.assessExecutionCapability(input);
 
-    // Step 6: Generate team recommendations
+    // Step 6: Analyze founder age and experience (MIT research)
+    await this.analyzeFounderResearch(input);
+
+    // Step 7: Check founder kill signals
+    await this.checkFounderKillSignals(input);
+
+    // Step 8: Generate team recommendations
     await this.generateTeamRecommendations(input);
 
     this.buildRawAnalysis();
+  }
+
+  /**
+   * Analyze founders based on MIT/Northwestern research on 2.7M founders
+   */
+  private async analyzeFounderResearch(input: AnalysisInput): Promise<void> {
+    const founderData = input.founderData || {};
+
+    // Age analysis (MIT research: optimal age is 35-55)
+    if (founderData.founderAge !== undefined) {
+      const age = founderData.founderAge;
+
+      const citation = this.addCitation({
+        claim: `Founder age: ${age}. MIT/Northwestern research on 2.7M founders shows optimal range is ${FOUNDER_THRESHOLDS.OPTIMAL_AGE_MIN}-${FOUNDER_THRESHOLDS.OPTIMAL_AGE_MAX}.`,
+        source: 'MIT/Northwestern Founder Research',
+        sourceUrl: 'internal://james/age-research',
+        confidence: 0.85,
+        dataType: 'secondary',
+      });
+
+      if (age >= FOUNDER_THRESHOLDS.OPTIMAL_AGE_MIN && age <= FOUNDER_THRESHOLDS.OPTIMAL_AGE_MAX) {
+        this.addFinding({
+          title: 'Optimal Founder Age Range',
+          description: `Founder age ${age} is in optimal range (${FOUNDER_THRESHOLDS.OPTIMAL_AGE_MIN}-${FOUNDER_THRESHOLDS.OPTIMAL_AGE_MAX}). 50-year-olds are ${FOUNDER_THRESHOLDS.AGE_50_SUCCESS_MULTIPLIER}x more likely to succeed than 30-year-olds.`,
+          type: 'strength',
+          severity: 'major',
+          evidence: [citation],
+          confidence: 8,
+        });
+      } else if (age < 25) {
+        this.addFinding({
+          title: 'Young Founder',
+          description: `Founder age ${age} is below optimal range. Research shows 50-year-olds are ${FOUNDER_THRESHOLDS.AGE_50_VS_25_MULTIPLIER}x more likely to succeed than 25-year-olds.`,
+          type: 'neutral',
+          severity: 'minor',
+          evidence: [citation],
+          confidence: 7,
+        });
+      }
+    }
+
+    // Prior exit analysis
+    if (founderData.hasSuccessfulExit) {
+      const citation = this.addCitation({
+        claim: `Founder has prior successful exit. Prior success founders have ${(FOUNDER_THRESHOLDS.SUCCESS_RATES.prior_success * 100).toFixed(0)}% success rate vs ${(FOUNDER_THRESHOLDS.SUCCESS_RATES.first_time * 100).toFixed(0)}% for first-timers.`,
+        source: 'Founder Success Research',
+        sourceUrl: 'internal://james/prior-exit-research',
+        confidence: 0.9,
+        dataType: 'primary',
+      });
+
+      this.addFinding({
+        title: 'Serial Entrepreneur with Exit',
+        description: `Prior exit nearly doubles success probability (${(FOUNDER_THRESHOLDS.SUCCESS_RATES.prior_success * 100).toFixed(0)}% vs ${(FOUNDER_THRESHOLDS.SUCCESS_RATES.first_time * 100).toFixed(0)}% for first-timers).`,
+        type: 'strength',
+        severity: 'critical',
+        evidence: [citation],
+        confidence: 9,
+      });
+    }
+
+    // Immigrant founder analysis (55% of unicorns)
+    if (founderData.isImmigrant) {
+      this.addCitation({
+        claim: `${(FOUNDER_THRESHOLDS.UNICORN_IMMIGRANT_PERCENTAGE * 100).toFixed(0)}% of US unicorns have at least one immigrant founder.`,
+        source: 'Immigrant Founder Research',
+        sourceUrl: 'internal://james/immigrant-research',
+        confidence: 0.85,
+        dataType: 'secondary',
+      });
+    }
+
+    // Team execution weight (32% of success per Bill Gross)
+    this.addCitation({
+      claim: `Team/execution accounts for ${(SUCCESS_FACTOR_WEIGHTS.team_execution * 100).toFixed(0)}% of startup success (Bill Gross research).`,
+      source: 'Bill Gross Success Factors',
+      sourceUrl: 'internal://james/success-factors',
+      confidence: 0.8,
+      dataType: 'secondary',
+    });
+  }
+
+  /**
+   * Check founder-related kill signals
+   */
+  private async checkFounderKillSignals(input: AnalysisInput): Promise<void> {
+    const founderData = input.founderData || {};
+    const founderCount = founderData.founderCount || 1;
+
+    this.checkKillSignals([
+      {
+        signal: FOUNDER_KILL_SIGNALS[0], // Solo founder with no technical capability
+        severity: 'critical',
+        condition: founderCount === 1 && !founderData.canBuildMVP && !founderData.hasTechnicalCofounder,
+        evidence: 'Solo non-technical founder cannot build product without significant capital for hiring.',
+        recommendation: 'Find technical co-founder or develop technical skills before proceeding.',
+      },
+      {
+        signal: FOUNDER_KILL_SIGNALS[1], // Co-founders just met
+        severity: 'major',
+        condition: founderCount > 1 && founderData.cofounderRelationshipMonths !== undefined && founderData.cofounderRelationshipMonths < 6,
+        evidence: `Co-founders have only known each other ${founderData.cofounderRelationshipMonths || 0} months. Lack of shared history increases conflict risk.`,
+        recommendation: 'Work together on a smaller project first to test compatibility.',
+      },
+      {
+        signal: FOUNDER_KILL_SIGNALS[2], // Founder refuses feedback
+        severity: 'major',
+        condition: founderData.coachabilityScore !== undefined && founderData.coachabilityScore < 3,
+        evidence: 'Founder shows resistance to feedback and external input.',
+        recommendation: 'Coachability is critical for startup success. Consider working with an executive coach.',
+      },
+      {
+        signal: FOUNDER_KILL_SIGNALS[5], // Co-founder conflict evident
+        severity: 'critical',
+        condition: founderData.cofounderConflict === true,
+        evidence: 'Signs of co-founder conflict detected. This is a leading cause of startup failure.',
+        recommendation: 'Address co-founder dynamics immediately. Consider mediator or clear division of responsibilities.',
+      },
+      {
+        signal: FOUNDER_KILL_SIGNALS[6], // Key founder departure within 18 months
+        severity: 'critical',
+        condition: founderData.recentFounderDeparture === true,
+        evidence: 'Key founder has departed recently. This signals potential deeper issues.',
+        recommendation: 'Investigate reasons for departure. Assess impact on execution and culture.',
+      },
+      {
+        signal: FOUNDER_KILL_SIGNALS[7], // Employee turnover above 30%
+        severity: 'major',
+        condition: founderData.yearOneEmployeeTurnover !== undefined && founderData.yearOneEmployeeTurnover > 0.30,
+        evidence: `Year 1 employee turnover of ${((founderData.yearOneEmployeeTurnover || 0) * 100).toFixed(0)}% exceeds 30% threshold.`,
+        recommendation: 'High turnover suggests culture or leadership issues. Conduct stay interviews.',
+      },
+    ]);
   }
 
   private async analyzeFounderBackgrounds(input: AnalysisInput): Promise<void> {

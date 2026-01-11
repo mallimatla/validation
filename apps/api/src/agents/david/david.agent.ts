@@ -10,6 +10,10 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { BaseAnalysisAgent, AnalysisInput, Citation } from '../base/base-analysis.agent';
+import {
+  FINANCIAL_THRESHOLDS,
+  FINANCIAL_KILL_SIGNALS,
+} from '../validation-framework.constants';
 
 interface UnitEconomics {
   cac: number;
@@ -112,7 +116,174 @@ Be conservative in your estimates. Challenge optimistic assumptions. Protect the
     // Step 6: Detect red flags
     await this.detectRedFlags(input);
 
+    // Step 7: Analyze Rule of 40 and T2D3
+    await this.analyzeGrowthEfficiency(input);
+
+    // Step 8: Check for financial kill signals
+    await this.checkFinancialKillSignals(input);
+
     this.buildRawAnalysis();
+  }
+
+  /**
+   * Analyze Rule of 40 and T2D3 growth trajectory
+   * Based on venture benchmarks for scaling companies
+   */
+  private async analyzeGrowthEfficiency(input: AnalysisInput): Promise<void> {
+    const founderData = input.founderData || {};
+    const stage = (input.idea.stage || '').toLowerCase();
+
+    // Rule of 40 analysis (Growth% + EBITDA% >= 40%)
+    if (founderData.growthRate && founderData.ebitdaMargin !== undefined) {
+      const ruleOf40Score = (founderData.growthRate * 100) + (founderData.ebitdaMargin * 100);
+
+      const citation = this.addCitation({
+        claim: `Rule of 40 Score: ${ruleOf40Score.toFixed(0)}% (Growth: ${(founderData.growthRate * 100).toFixed(0)}% + EBITDA: ${(founderData.ebitdaMargin * 100).toFixed(0)}%)`,
+        source: 'Rule of 40 Analysis',
+        sourceUrl: 'internal://david/rule-of-40',
+        confidence: 0.8,
+        dataType: 'primary',
+      });
+
+      if (ruleOf40Score >= FINANCIAL_THRESHOLDS.RULE_OF_40_THRESHOLD) {
+        this.addFinding({
+          title: 'Strong Rule of 40 Performance',
+          description: `Score of ${ruleOf40Score.toFixed(0)}% exceeds the ${FINANCIAL_THRESHOLDS.RULE_OF_40_THRESHOLD}% threshold. Companies meeting Rule of 40 command ${FINANCIAL_THRESHOLDS.RULE_OF_40_VALUATION_PREMIUM}x valuation premiums.`,
+          type: 'strength',
+          severity: 'critical',
+          evidence: [citation],
+          confidence: 8,
+        });
+      } else if (ruleOf40Score >= FINANCIAL_THRESHOLDS.RULE_OF_40_MEDIAN_2025) {
+        this.addFinding({
+          title: 'Average Rule of 40 Performance',
+          description: `Score of ${ruleOf40Score.toFixed(0)}% is near Q1 2025 median of ${FINANCIAL_THRESHOLDS.RULE_OF_40_MEDIAN_2025}%. Focus on either accelerating growth or improving margins.`,
+          type: 'neutral',
+          severity: 'major',
+          evidence: [citation],
+          confidence: 7,
+        });
+      } else {
+        this.addFinding({
+          title: 'Below Rule of 40 Threshold',
+          description: `Score of ${ruleOf40Score.toFixed(0)}% is below the ${FINANCIAL_THRESHOLDS.RULE_OF_40_THRESHOLD}% threshold. This signals inefficient growth or poor unit economics.`,
+          type: 'weakness',
+          severity: 'major',
+          evidence: [citation],
+          confidence: 7,
+        });
+      }
+    }
+
+    // T2D3 trajectory analysis for growth-stage companies
+    if (stage.includes('series') || stage.includes('growth')) {
+      const currentARR = founderData.arr || (founderData.mrr ? founderData.mrr * 12 : 0);
+
+      if (currentARR > 0) {
+        // Check against T2D3 trajectory
+        const t2d3Year0 = FINANCIAL_THRESHOLDS.T2D3_TRAJECTORY.year_0;
+        const arrRatio = currentARR / t2d3Year0;
+
+        this.addCitation({
+          claim: `T2D3 Analysis: Current ARR $${(currentARR / 1e6).toFixed(1)}M vs T2D3 starting point of $${(t2d3Year0 / 1e6).toFixed(0)}M`,
+          source: 'T2D3 Growth Framework',
+          sourceUrl: 'internal://david/t2d3-analysis',
+          confidence: 0.7,
+          dataType: 'computed',
+        });
+
+        this.addRecommendation({
+          title: 'Track T2D3 Trajectory',
+          description: `T2D3 path to $100M+ ARR: Triple (→$6M), Triple (→$18M), Double (→$36M), Double (→$72M), Double (→$144M). Current position: $${(currentARR / 1e6).toFixed(1)}M ARR.`,
+          priority: 'high',
+          timeframe: 'medium-term',
+          effort: 'high',
+          impact: 'high',
+        });
+      }
+    }
+
+    // Burn Multiple analysis (Net Burn / Net New ARR)
+    if (founderData.burnRate && founderData.newARR) {
+      const burnMultiple = (founderData.burnRate * 12) / founderData.newARR;
+
+      const citation = this.addCitation({
+        claim: `Burn Multiple: ${burnMultiple.toFixed(1)}x (Annual Burn: $${((founderData.burnRate * 12) / 1e6).toFixed(1)}M / New ARR: $${(founderData.newARR / 1e6).toFixed(1)}M)`,
+        source: 'Burn Multiple Analysis',
+        sourceUrl: 'internal://david/burn-multiple',
+        confidence: 0.8,
+        dataType: 'primary',
+      });
+
+      if (burnMultiple <= FINANCIAL_THRESHOLDS.BURN_MULTIPLE_GREAT) {
+        this.addFinding({
+          title: 'Excellent Capital Efficiency',
+          description: `Burn multiple of ${burnMultiple.toFixed(1)}x is exceptional (<${FINANCIAL_THRESHOLDS.BURN_MULTIPLE_GREAT}x). Strong indicator of efficient growth.`,
+          type: 'strength',
+          severity: 'major',
+          evidence: [citation],
+          confidence: 8,
+        });
+      } else if (burnMultiple >= FINANCIAL_THRESHOLDS.BURN_MULTIPLE_DANGER) {
+        this.addFinding({
+          title: 'Dangerous Burn Multiple',
+          description: `Burn multiple of ${burnMultiple.toFixed(1)}x exceeds danger threshold of ${FINANCIAL_THRESHOLDS.BURN_MULTIPLE_DANGER}x. Company is burning cash faster than growing.`,
+          type: 'weakness',
+          severity: 'critical',
+          evidence: [citation],
+          confidence: 8,
+        });
+      }
+    }
+  }
+
+  /**
+   * Check for financial kill signals based on VC research
+   */
+  private async checkFinancialKillSignals(input: AnalysisInput): Promise<void> {
+    const u = this.unitEconomics;
+    const f = this.financials;
+    const founderData = input.founderData || {};
+
+    this.checkKillSignals([
+      {
+        signal: FINANCIAL_KILL_SIGNALS[0], // LTV/CAC below 1:1
+        severity: 'critical',
+        condition: u ? u.ltvCacRatio < FINANCIAL_THRESHOLDS.LTV_CAC_UNSUSTAINABLE : false,
+        evidence: u ? `LTV/CAC ratio of ${u.ltvCacRatio.toFixed(1)}:1 means losing money on every customer.` : 'Unit economics not available.',
+        recommendation: 'Reduce CAC through organic channels or increase LTV through pricing/upsells before scaling.',
+      },
+      {
+        signal: FINANCIAL_KILL_SIGNALS[1], // Burn multiple above 5x
+        severity: 'critical',
+        condition: founderData.burnRate && founderData.newARR ?
+          ((founderData.burnRate * 12) / founderData.newARR) > FINANCIAL_THRESHOLDS.BURN_MULTIPLE_DANGER : false,
+        evidence: 'Burning cash faster than generating new revenue. Capital inefficiency at dangerous levels.',
+        recommendation: 'Cut burn or dramatically improve sales efficiency before runway depletes.',
+      },
+      {
+        signal: FINANCIAL_KILL_SIGNALS[2], // Runway below 3 months
+        severity: 'critical',
+        condition: f ? f.runway < 3 && f.runway > 0 : false,
+        evidence: f ? `Only ${f.runway.toFixed(0)} months of runway remaining. Imminent cash crisis.` : 'Runway unknown.',
+        recommendation: 'Emergency fundraising or bridge financing required immediately.',
+      },
+      {
+        signal: FINANCIAL_KILL_SIGNALS[3], // Declining retention by cohort
+        severity: 'critical',
+        condition: founderData.cohortRetentionTrend === 'declining',
+        evidence: 'Later cohorts showing worse retention than earlier ones. Product-market fit may be degrading.',
+        recommendation: 'Investigate why newer customers churn faster. May indicate market saturation or product issues.',
+      },
+      {
+        signal: FINANCIAL_KILL_SIGNALS[6], // Founder ownership below 15% pre-Series B
+        severity: 'major',
+        condition: founderData.founderOwnership && founderData.founderOwnership < 0.15 &&
+          !(input.idea.stage || '').toLowerCase().includes('series b'),
+        evidence: `Founder ownership at ${(founderData.founderOwnership * 100).toFixed(0)}% pre-Series B indicates excessive dilution.`,
+        recommendation: 'Assess if founders have sufficient motivation for the long journey ahead.',
+      },
+    ]);
   }
 
   private async analyzeUnitEconomics(input: AnalysisInput): Promise<void> {

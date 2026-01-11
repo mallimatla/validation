@@ -11,6 +11,11 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { LLMService } from '../../common/llm/llm.service';
 import { BaseAnalysisAgent, AnalysisInput, Citation } from '../base/base-analysis.agent';
+import {
+  PMF_THRESHOLDS,
+  PMF_KILL_SIGNALS,
+  CB_INSIGHTS_FAILURE_CAUSES,
+} from '../validation-framework.constants';
 
 interface CustomerSignal {
   type: 'strong' | 'weak' | 'negative';
@@ -128,10 +133,221 @@ Be ruthlessly honest. If there's no real customer evidence, say so clearly.`;
     // Step 5: Analyze willingness to pay
     await this.analyzeWillingnessToPay(input);
 
-    // Step 6: Calculate PMF score
+    // Step 6: Run Sean Ellis PMF Test (40% threshold)
+    await this.runSeanEllisTest(input);
+
+    // Step 7: Analyze retention metrics (NRR, DAU/MAU)
+    await this.analyzeRetentionMetrics(input);
+
+    // Step 8: Calculate PMF score
     await this.calculatePMFScore(input);
 
+    // Step 9: Check PMF kill signals
+    await this.checkPMFKillSignals(input);
+
     this.buildRawAnalysis();
+  }
+
+  /**
+   * Sean Ellis Test: "How would you feel if you could no longer use [product]?"
+   * PMF threshold: 40%+ say "Very disappointed"
+   */
+  private async runSeanEllisTest(input: AnalysisInput): Promise<void> {
+    const founderData = input.founderData || {};
+    const veryDisappointedPercentage = founderData.seanEllisScore || founderData.veryDisappointedRate;
+
+    if (veryDisappointedPercentage !== undefined) {
+      const sampleSize = founderData.seanEllisSampleSize || 0;
+
+      const citation = this.addCitation({
+        claim: `Sean Ellis PMF Test: ${(veryDisappointedPercentage * 100).toFixed(0)}% would be "very disappointed" (n=${sampleSize})`,
+        source: 'Sean Ellis PMF Survey',
+        sourceUrl: 'internal://elena/sean-ellis-test',
+        confidence: sampleSize >= PMF_THRESHOLDS.SEAN_ELLIS_CONFIDENT_RESPONSES ? 0.9 :
+                   sampleSize >= PMF_THRESHOLDS.SEAN_ELLIS_MINIMUM_RESPONSES ? 0.7 : 0.5,
+        dataType: 'primary',
+      });
+
+      if (veryDisappointedPercentage >= PMF_THRESHOLDS.SEAN_ELLIS_PMF_THRESHOLD) {
+        this.addFinding({
+          title: 'Strong PMF Signal (Sean Ellis)',
+          description: `${(veryDisappointedPercentage * 100).toFixed(0)}% "very disappointed" exceeds the ${(PMF_THRESHOLDS.SEAN_ELLIS_PMF_THRESHOLD * 100).toFixed(0)}% PMF threshold. This is a strong indicator of product-market fit.`,
+          type: 'strength',
+          severity: 'critical',
+          evidence: [citation],
+          confidence: 9,
+        });
+      } else if (veryDisappointedPercentage >= 0.25) {
+        this.addFinding({
+          title: 'Emerging PMF (Sean Ellis)',
+          description: `${(veryDisappointedPercentage * 100).toFixed(0)}% "very disappointed" is below the ${(PMF_THRESHOLDS.SEAN_ELLIS_PMF_THRESHOLD * 100).toFixed(0)}% threshold but shows promise. Focus on the most engaged segment.`,
+          type: 'neutral',
+          severity: 'major',
+          evidence: [citation],
+          confidence: 7,
+        });
+      } else {
+        this.addFinding({
+          title: 'No PMF Detected (Sean Ellis)',
+          description: `Only ${(veryDisappointedPercentage * 100).toFixed(0)}% "very disappointed" - significantly below ${(PMF_THRESHOLDS.SEAN_ELLIS_PMF_THRESHOLD * 100).toFixed(0)}% threshold. This is CB Insights' #1 startup failure cause (${(CB_INSIGHTS_FAILURE_CAUSES.no_market_need.percentage * 100).toFixed(0)}% of failures).`,
+          type: 'weakness',
+          severity: 'critical',
+          evidence: [citation],
+          confidence: 8,
+        });
+      }
+
+      if (sampleSize < PMF_THRESHOLDS.SEAN_ELLIS_MINIMUM_RESPONSES) {
+        this.addRecommendation({
+          title: 'Increase Survey Sample Size',
+          description: `Current sample of ${sampleSize} is below ${PMF_THRESHOLDS.SEAN_ELLIS_MINIMUM_RESPONSES} minimum for directional guidance. Need ${PMF_THRESHOLDS.SEAN_ELLIS_CONFIDENT_RESPONSES}+ for confidence.`,
+          priority: 'high',
+          timeframe: 'immediate',
+          effort: 'low',
+          impact: 'high',
+        });
+      }
+    }
+  }
+
+  /**
+   * Analyze retention metrics: NRR, DAU/MAU, activation rates
+   */
+  private async analyzeRetentionMetrics(input: AnalysisInput): Promise<void> {
+    const founderData = input.founderData || {};
+
+    // Net Revenue Retention (NRR)
+    if (founderData.nrr !== undefined) {
+      const nrr = founderData.nrr;
+
+      const citation = this.addCitation({
+        claim: `Net Revenue Retention: ${(nrr * 100).toFixed(0)}%`,
+        source: 'Retention Analysis',
+        sourceUrl: 'internal://elena/nrr-analysis',
+        confidence: 0.85,
+        dataType: 'primary',
+      });
+
+      if (nrr >= PMF_THRESHOLDS.NRR_EXCEPTIONAL) {
+        this.addFinding({
+          title: 'Exceptional Net Revenue Retention',
+          description: `NRR of ${(nrr * 100).toFixed(0)}% is exceptional (Snowflake IPO was 164%). Each 1% improvement adds ~${(PMF_THRESHOLDS.NRR_VALUE_INCREASE_PER_PERCENT * 100).toFixed(0)}% company value.`,
+          type: 'strength',
+          severity: 'critical',
+          evidence: [citation],
+          confidence: 9,
+        });
+      } else if (nrr >= PMF_THRESHOLDS.NRR_TOP_QUARTILE) {
+        this.addFinding({
+          title: 'Strong Net Revenue Retention',
+          description: `NRR of ${(nrr * 100).toFixed(0)}% is top quartile (${(PMF_THRESHOLDS.NRR_TOP_QUARTILE * 100).toFixed(0)}%+). Indicates strong expansion revenue.`,
+          type: 'strength',
+          severity: 'major',
+          evidence: [citation],
+          confidence: 8,
+        });
+      } else if (nrr < PMF_THRESHOLDS.NRR_HEALTHY) {
+        this.addFinding({
+          title: 'Below-Target Net Revenue Retention',
+          description: `NRR of ${(nrr * 100).toFixed(0)}% is below ${(PMF_THRESHOLDS.NRR_HEALTHY * 100).toFixed(0)}% healthy threshold. Churn exceeds expansion.`,
+          type: 'weakness',
+          severity: 'major',
+          evidence: [citation],
+          confidence: 8,
+        });
+      }
+    }
+
+    // DAU/MAU ratio
+    if (founderData.dauMau !== undefined) {
+      const dauMau = founderData.dauMau;
+
+      const citation = this.addCitation({
+        claim: `DAU/MAU ratio: ${(dauMau * 100).toFixed(0)}%`,
+        source: 'Engagement Analysis',
+        sourceUrl: 'internal://elena/dau-mau-analysis',
+        confidence: 0.85,
+        dataType: 'primary',
+      });
+
+      if (dauMau >= PMF_THRESHOLDS.DAU_MAU_STICKY) {
+        this.addFinding({
+          title: 'Sticky Product Engagement',
+          description: `DAU/MAU of ${(dauMau * 100).toFixed(0)}% exceeds ${(PMF_THRESHOLDS.DAU_MAU_STICKY * 100).toFixed(0)}% stickiness threshold. Users return frequently.`,
+          type: 'strength',
+          severity: 'major',
+          evidence: [citation],
+          confidence: 8,
+        });
+      } else if (dauMau < PMF_THRESHOLDS.DAU_MAU_SAAS_AVERAGE) {
+        this.addFinding({
+          title: 'Below-Average Engagement',
+          description: `DAU/MAU of ${(dauMau * 100).toFixed(0)}% is below SaaS average of ${(PMF_THRESHOLDS.DAU_MAU_SAAS_AVERAGE * 100).toFixed(0)}%.`,
+          type: 'weakness',
+          severity: 'minor',
+          evidence: [citation],
+          confidence: 7,
+        });
+      }
+    }
+
+    // Activation rate
+    if (founderData.activationRate !== undefined) {
+      const activation = founderData.activationRate;
+
+      if (activation < PMF_THRESHOLDS.ACTIVATION_POOR) {
+        this.addFinding({
+          title: 'Critical Activation Problem',
+          description: `Only ${(activation * 100).toFixed(0)}% of users activate - below ${(PMF_THRESHOLDS.ACTIVATION_POOR * 100).toFixed(0)}% threshold. Fix onboarding immediately.`,
+          type: 'weakness',
+          severity: 'critical',
+          evidence: [],
+          confidence: 8,
+        });
+      }
+    }
+  }
+
+  /**
+   * Check PMF kill signals
+   */
+  private async checkPMFKillSignals(input: AnalysisInput): Promise<void> {
+    const founderData = input.founderData || {};
+    const months = founderData.monthsInMarket || 0;
+
+    this.checkKillSignals([
+      {
+        signal: PMF_KILL_SIGNALS[0], // Below 20% "very disappointed" after 24 months
+        severity: 'critical',
+        condition: months >= 24 &&
+          founderData.seanEllisScore !== undefined &&
+          founderData.seanEllisScore < 0.20,
+        evidence: `After ${months} months, only ${((founderData.seanEllisScore || 0) * 100).toFixed(0)}% would be "very disappointed" - well below PMF threshold.`,
+        recommendation: 'Consider major pivot. Product is not resonating with market.',
+      },
+      {
+        signal: PMF_KILL_SIGNALS[1], // Retention curves declining to zero
+        severity: 'critical',
+        condition: founderData.retentionTrend === 'declining_to_zero',
+        evidence: 'Retention curves show all cohorts trending toward zero usage.',
+        recommendation: 'Users are not finding lasting value. Investigate core value proposition.',
+      },
+      {
+        signal: PMF_KILL_SIGNALS[2], // 0% organic growth
+        severity: 'critical',
+        condition: founderData.organicGrowthRate !== undefined && founderData.organicGrowthRate === 0,
+        evidence: 'Zero organic/viral growth after significant paid acquisition.',
+        recommendation: 'Product lacks natural word-of-mouth. May indicate weak value prop.',
+      },
+      {
+        signal: PMF_KILL_SIGNALS[3], // Activation rate below 10%
+        severity: 'critical',
+        condition: founderData.activationRate !== undefined &&
+          founderData.activationRate < PMF_THRESHOLDS.ACTIVATION_POOR,
+        evidence: `Activation rate of ${((founderData.activationRate || 0) * 100).toFixed(0)}% means 90%+ of signups never experience core value.`,
+        recommendation: 'Fix onboarding before spending more on acquisition.',
+      },
+    ]);
   }
 
   private async analyzeInterviews(input: AnalysisInput): Promise<void> {

@@ -85,6 +85,15 @@ export interface Recommendation {
   impact: 'low' | 'medium' | 'high';
 }
 
+export interface KillSignal {
+  id: string;
+  signal: string;
+  severity: 'critical' | 'major';
+  detected: boolean;
+  evidence: string;
+  recommendation: string;
+}
+
 export interface AnalysisOutput {
   agentId: string;
   agentVersion: string;
@@ -95,6 +104,7 @@ export interface AnalysisOutput {
   citations: Citation[];
   risks: Risk[];
   recommendations: Recommendation[];
+  killSignals: KillSignal[];
   rawAnalysis: string;
   executionTimeMs: number;
   metadata?: Record<string, any>;
@@ -112,6 +122,7 @@ export abstract class BaseAnalysisAgent {
   protected citations: Citation[] = [];
   protected risks: Risk[] = [];
   protected recommendations: Recommendation[] = [];
+  protected killSignals: KillSignal[] = [];
   protected rawAnalysis: string = '';
   protected llmAnalysis: StructuredAnalysis | null = null;
   protected analysisScore: number = 5;
@@ -153,22 +164,26 @@ export abstract class BaseAnalysisAgent {
       const confidence = this.calculateConfidence();
 
       // Build output
+      const criticalKillSignals = this.killSignals.filter(k => k.detected && k.severity === 'critical');
       const output: AnalysisOutput = {
         agentId: this.agentId,
         agentVersion: this.agentVersion,
         validationId: input.validationId,
-        score,
+        score: criticalKillSignals.length > 0 ? Math.min(score, 3) : score, // Cap score if critical kill signals
         confidence,
         findings: this.findings,
         citations: this.citations,
         risks: this.risks,
         recommendations: this.recommendations,
+        killSignals: this.killSignals.filter(k => k.detected),
         rawAnalysis: this.rawAnalysis,
         executionTimeMs: Date.now() - startTime,
         metadata: {
           usedLLM: this.llm?.isAvailable() ?? false,
           agentName: this.agentName,
           scoringWeight: this.scoringWeight,
+          hasKillSignals: this.killSignals.some(k => k.detected),
+          criticalKillSignalCount: criticalKillSignals.length,
         },
       };
 
@@ -357,6 +372,7 @@ export abstract class BaseAnalysisAgent {
     this.citations = [];
     this.risks = [];
     this.recommendations = [];
+    this.killSignals = [];
     this.rawAnalysis = '';
     this.llmAnalysis = null;
     this.analysisScore = 5;
@@ -402,6 +418,59 @@ export abstract class BaseAnalysisAgent {
       ...rec,
       id: this.generateId('rec'),
     });
+  }
+
+  /**
+   * Add a kill signal (critical red flags that should stop investment)
+   */
+  protected addKillSignal(signal: Omit<KillSignal, 'id'>): void {
+    this.killSignals.push({
+      ...signal,
+      id: this.generateId('kill'),
+    });
+
+    // If detected, also add as a critical risk
+    if (signal.detected) {
+      this.addRisk({
+        title: `KILL SIGNAL: ${signal.signal}`,
+        description: signal.evidence,
+        category: 'critical',
+        probability: 'high',
+        impact: 'critical',
+        mitigations: [signal.recommendation],
+        evidence: [],
+      });
+
+      this.addFinding({
+        title: `Critical Red Flag: ${signal.signal}`,
+        description: `${signal.evidence}. Recommendation: ${signal.recommendation}`,
+        type: 'threat',
+        severity: 'critical',
+        evidence: [],
+        confidence: 9,
+      });
+    }
+  }
+
+  /**
+   * Check multiple kill signals against conditions
+   */
+  protected checkKillSignals(signals: Array<{
+    signal: string;
+    severity: 'critical' | 'major';
+    condition: boolean;
+    evidence: string;
+    recommendation: string;
+  }>): void {
+    for (const signal of signals) {
+      this.addKillSignal({
+        signal: signal.signal,
+        severity: signal.severity,
+        detected: signal.condition,
+        evidence: signal.evidence,
+        recommendation: signal.recommendation,
+      });
+    }
   }
 
   /**
@@ -459,6 +528,8 @@ export abstract class BaseAnalysisAgent {
           confidence: output.confidence,
           findingsCount: output.findings.length,
           citationsCount: output.citations.length,
+          killSignalsCount: output.killSignals.length,
+          hasKillSignals: output.killSignals.length > 0,
           executionTimeMs: output.executionTimeMs,
         },
       },
