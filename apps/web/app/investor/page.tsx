@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useUser, useAuth, UserButton } from '@clerk/nextjs';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
@@ -32,11 +32,32 @@ interface Startup {
 }
 
 interface InvestorProfile {
+  id: string;
+  firmName: string;
   checkSizeMin: number;
   checkSizeMax: number;
   stages: string[];
   industries: string[];
   geography: string[];
+}
+
+interface IntroRequest {
+  id: string;
+  validationId: string;
+  status: string;
+  message: string;
+  requestedAt: string;
+  validation?: {
+    id: string;
+    title: string;
+    industry: string;
+    stage: string;
+    overallScore: number;
+    user?: {
+      name: string;
+      avatarUrl: string;
+    };
+  };
 }
 
 const STAGES = ['Pre-Seed', 'Seed', 'Series A', 'Series B', 'Growth'];
@@ -45,104 +66,15 @@ const INDUSTRIES = [
   'CleanTech', 'Marketplace', 'Enterprise', 'Consumer', 'DeepTech', 'Crypto/Web3'
 ];
 
-// Mock data for demo - would come from API
-const MOCK_STARTUPS: Startup[] = [
-  {
-    id: '1',
-    title: 'AIDocuSign',
-    description: 'AI-powered document analysis and contract intelligence platform for legal teams.',
-    industry: 'AI/ML',
-    stage: 'Seed',
-    score: 82,
-    confidence: 78,
-    verdict: 'PROCEED',
-    geography: ['US', 'Europe'],
-    founderName: 'Sarah Chen',
-    founderAvatar: '',
-    matchScore: 95,
-    isShortlisted: false,
-    createdAt: '2024-01-15',
-    highlights: ['Strong PMF signals', '3x MoM growth', 'Repeat founder'],
-    fundingAsk: '$2M',
-  },
-  {
-    id: '2',
-    title: 'HealthSync',
-    description: 'Patient engagement platform with AI-driven health insights and remote monitoring.',
-    industry: 'Healthcare',
-    stage: 'Series A',
-    score: 76,
-    confidence: 82,
-    verdict: 'PROCEED',
-    geography: ['US'],
-    founderName: 'Michael Park',
-    founderAvatar: '',
-    matchScore: 88,
-    isShortlisted: true,
-    createdAt: '2024-01-10',
-    highlights: ['$500K ARR', 'Enterprise contracts', 'FDA pathway'],
-    fundingAsk: '$8M',
-  },
-  {
-    id: '3',
-    title: 'GreenCommute',
-    description: 'Corporate sustainability platform for tracking and reducing commute emissions.',
-    industry: 'CleanTech',
-    stage: 'Pre-Seed',
-    score: 68,
-    confidence: 65,
-    verdict: 'PIVOT',
-    geography: ['Europe'],
-    founderName: 'Emma Wilson',
-    founderAvatar: '',
-    matchScore: 72,
-    isShortlisted: false,
-    createdAt: '2024-01-08',
-    highlights: ['First-time founder', 'Strong domain expertise', 'Early traction'],
-    fundingAsk: '$500K',
-  },
-  {
-    id: '4',
-    title: 'CodeMentor AI',
-    description: 'AI coding assistant and mentorship platform for developer skill development.',
-    industry: 'EdTech',
-    stage: 'Seed',
-    score: 79,
-    confidence: 74,
-    verdict: 'PROCEED',
-    geography: ['US', 'India'],
-    founderName: 'Raj Patel',
-    founderAvatar: '',
-    matchScore: 91,
-    isShortlisted: false,
-    createdAt: '2024-01-05',
-    highlights: ['20K MAU', 'Viral growth', 'Technical team'],
-    fundingAsk: '$3M',
-  },
-  {
-    id: '5',
-    title: 'SupplyChain360',
-    description: 'End-to-end supply chain visibility with predictive analytics and risk management.',
-    industry: 'Enterprise',
-    stage: 'Series A',
-    score: 85,
-    confidence: 88,
-    verdict: 'PROCEED',
-    geography: ['US', 'Asia'],
-    founderName: 'John Martinez',
-    founderAvatar: '',
-    matchScore: 78,
-    isShortlisted: true,
-    createdAt: '2024-01-02',
-    highlights: ['Enterprise pilot', 'Strong moat', 'Experienced team'],
-    fundingAsk: '$12M',
-  },
-];
-
 export default function InvestorDashboard() {
   const { user, isLoaded } = useUser();
   const { getToken } = useAuth();
-  const [startups, setStartups] = useState<Startup[]>(MOCK_STARTUPS);
+  const [startups, setStartups] = useState<Startup[]>([]);
+  const [shortlistedStartups, setShortlistedStartups] = useState<Startup[]>([]);
+  const [introRequests, setIntroRequests] = useState<IntroRequest[]>([]);
+  const [investorProfile, setInvestorProfile] = useState<InvestorProfile | null>(null);
+  const [isLoadingStartups, setIsLoadingStartups] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'discover' | 'shortlist' | 'contacted'>('discover');
   const [filters, setFilters] = useState({
     stage: [] as string[],
@@ -153,19 +85,189 @@ export default function InvestorDashboard() {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedStartup, setSelectedStartup] = useState<Startup | null>(null);
   const [contactModalOpen, setContactModalOpen] = useState(false);
+  const [introMessage, setIntroMessage] = useState('');
+  const [isSendingIntro, setIsSendingIntro] = useState(false);
 
-  const toggleShortlist = (id: string) => {
-    setStartups(prev =>
-      prev.map(s => s.id === id ? { ...s, isShortlisted: !s.isShortlisted } : s)
-    );
+  // Fetch investor profile
+  const fetchProfile = useCallback(async () => {
+    try {
+      const token = await getToken();
+      const res = await fetch(`${API_URL}/investor/profile`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setInvestorProfile(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch investor profile:', err);
+    }
+  }, [getToken]);
+
+  // Fetch startups from API
+  const fetchStartups = useCallback(async () => {
+    setIsLoadingStartups(true);
+    setError(null);
+    try {
+      const token = await getToken();
+      const queryParams = new URLSearchParams();
+      if (filters.stage.length > 0) queryParams.set('stages', filters.stage.join(','));
+      if (filters.industry.length > 0) queryParams.set('industries', filters.industry.join(','));
+      if (filters.minScore > 0) queryParams.set('minScore', String(filters.minScore));
+      queryParams.set('sortBy', filters.sortBy);
+
+      const res = await fetch(`${API_URL}/investor/discover?${queryParams}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to fetch startups');
+      }
+
+      const data = await res.json();
+      setStartups(data.data || []);
+    } catch (err: any) {
+      console.error('Failed to fetch startups:', err);
+      setError(err.message || 'Failed to load startups');
+    } finally {
+      setIsLoadingStartups(false);
+    }
+  }, [getToken, filters]);
+
+  // Fetch shortlisted startups
+  const fetchShortlist = useCallback(async () => {
+    try {
+      const token = await getToken();
+      const res = await fetch(`${API_URL}/investor/shortlist`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setShortlistedStartups(data || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch shortlist:', err);
+    }
+  }, [getToken]);
+
+  // Fetch intro requests
+  const fetchIntroRequests = useCallback(async () => {
+    try {
+      const token = await getToken();
+      const res = await fetch(`${API_URL}/investor/intros`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setIntroRequests(data || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch intro requests:', err);
+    }
+  }, [getToken]);
+
+  // Toggle shortlist
+  const toggleShortlist = async (id: string) => {
+    const startup = startups.find(s => s.id === id) || shortlistedStartups.find(s => s.id === id);
+    if (!startup) return;
+
+    const isCurrentlyShortlisted = startup.isShortlisted || shortlistedStartups.some(s => s.id === id);
+
+    try {
+      const token = await getToken();
+      const method = isCurrentlyShortlisted ? 'DELETE' : 'POST';
+      const res = await fetch(`${API_URL}/investor/shortlist/${id}`, {
+        method,
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (res.ok) {
+        // Update local state
+        setStartups(prev =>
+          prev.map(s => s.id === id ? { ...s, isShortlisted: !isCurrentlyShortlisted } : s)
+        );
+
+        if (isCurrentlyShortlisted) {
+          setShortlistedStartups(prev => prev.filter(s => s.id !== id));
+        } else {
+          setShortlistedStartups(prev => [...prev, { ...startup, isShortlisted: true }]);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to toggle shortlist:', err);
+    }
   };
 
-  const filteredStartups = startups
+  // Send intro request
+  const sendIntroRequest = async () => {
+    if (!selectedStartup || !introMessage.trim()) return;
+
+    setIsSendingIntro(true);
+    try {
+      const token = await getToken();
+      const res = await fetch(`${API_URL}/investor/intros/${selectedStartup.id}`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ message: introMessage }),
+      });
+
+      if (res.ok) {
+        setContactModalOpen(false);
+        setSelectedStartup(null);
+        setIntroMessage('');
+        // Refresh intro requests
+        fetchIntroRequests();
+        alert('Intro request sent! The founder will be notified.');
+      } else {
+        throw new Error('Failed to send intro request');
+      }
+    } catch (err) {
+      console.error('Failed to send intro request:', err);
+      alert('Failed to send intro request. Please try again.');
+    } finally {
+      setIsSendingIntro(false);
+    }
+  };
+
+  // Load data on mount
+  useEffect(() => {
+    if (isLoaded && user) {
+      fetchProfile();
+      fetchStartups();
+      fetchShortlist();
+      fetchIntroRequests();
+    }
+  }, [isLoaded, user, fetchProfile, fetchStartups, fetchShortlist, fetchIntroRequests]);
+
+  // Reload startups when filters change
+  useEffect(() => {
+    if (isLoaded && user) {
+      fetchStartups();
+    }
+  }, [filters, isLoaded, user, fetchStartups]);
+
+  // Set default intro message when selecting a startup
+  useEffect(() => {
+    if (selectedStartup) {
+      setIntroMessage(`Hi ${selectedStartup.founderName},
+
+I'm an investor interested in ${selectedStartup.industry} startups. Your validation score of ${selectedStartup.score} caught my attention, and I'd love to learn more about ${selectedStartup.title}.
+
+Would you be open to a brief call?`);
+    }
+  }, [selectedStartup]);
+
+  const displayedStartups = activeTab === 'shortlist' ? shortlistedStartups : startups;
+  const filteredStartups = displayedStartups
     .filter(s => {
-      if (activeTab === 'shortlist') return s.isShortlisted;
-      if (filters.stage.length && !filters.stage.includes(s.stage)) return false;
-      if (filters.industry.length && !filters.industry.includes(s.industry)) return false;
-      if (s.score < filters.minScore) return false;
+      if (activeTab === 'discover') {
+        if (filters.stage.length && !filters.stage.includes(s.stage)) return false;
+        if (filters.industry.length && !filters.industry.includes(s.industry)) return false;
+        if (s.score < filters.minScore) return false;
+      }
       return true;
     })
     .sort((a, b) => {
@@ -174,7 +276,7 @@ export default function InvestorDashboard() {
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
 
-  const shortlistedCount = startups.filter(s => s.isShortlisted).length;
+  const shortlistedCount = shortlistedStartups.length;
 
   const getVerdictStyle = (verdict: string) => {
     const styles: Record<string, { bg: string; text: string }> = {
@@ -184,6 +286,16 @@ export default function InvestorDashboard() {
       STOP: { bg: 'bg-red-500/20', text: 'text-red-400' },
     };
     return styles[verdict] || styles.PROCEED;
+  };
+
+  const getStatusStyle = (status: string) => {
+    const styles: Record<string, { bg: string; text: string }> = {
+      pending: { bg: 'bg-amber-500/20', text: 'text-amber-400' },
+      accepted: { bg: 'bg-emerald-500/20', text: 'text-emerald-400' },
+      declined: { bg: 'bg-red-500/20', text: 'text-red-400' },
+      expired: { bg: 'bg-slate-500/20', text: 'text-slate-400' },
+    };
+    return styles[status] || styles.pending;
   };
 
   if (!isLoaded) {
@@ -233,6 +345,11 @@ export default function InvestorDashboard() {
             <p className="text-slate-400">
               Discover AI-validated startups matching your investment thesis.
             </p>
+            {investorProfile?.firmName && (
+              <p className="text-sm text-purple-400 mt-1">
+                {investorProfile.firmName}
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-4">
             <div className="bg-slate-800/50 rounded-xl px-4 py-3 border border-slate-700">
@@ -243,8 +360,25 @@ export default function InvestorDashboard() {
               <div className="text-2xl font-bold text-amber-400">{shortlistedCount}</div>
               <div className="text-xs text-slate-400">Shortlisted</div>
             </div>
+            <div className="bg-slate-800/50 rounded-xl px-4 py-3 border border-slate-700">
+              <div className="text-2xl font-bold text-blue-400">{introRequests.length}</div>
+              <div className="text-xs text-slate-400">Intro Requests</div>
+            </div>
           </div>
         </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl p-4 mb-6">
+            <p>{error}</p>
+            <button
+              onClick={fetchStartups}
+              className="text-sm underline mt-2 hover:text-red-300"
+            >
+              Try again
+            </button>
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="flex items-center gap-4 mb-6">
@@ -268,22 +402,29 @@ export default function InvestorDashboard() {
                     {shortlistedCount}
                   </span>
                 )}
+                {tab === 'contacted' && introRequests.length > 0 && (
+                  <span className="bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded-full">
+                    {introRequests.length}
+                  </span>
+                )}
               </button>
             ))}
           </div>
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
-              showFilters ? 'bg-slate-700 text-white' : 'bg-slate-800/50 text-slate-400 hover:text-white'
-            }`}
-          >
-            <span>⚡</span>
-            Filters
-          </button>
+          {activeTab === 'discover' && (
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
+                showFilters ? 'bg-slate-700 text-white' : 'bg-slate-800/50 text-slate-400 hover:text-white'
+              }`}
+            >
+              <span>⚡</span>
+              Filters
+            </button>
+          )}
         </div>
 
         {/* Filters Panel */}
-        {showFilters && (
+        {showFilters && activeTab === 'discover' && (
           <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-6 mb-6">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               {/* Stage Filter */}
@@ -353,96 +494,177 @@ export default function InvestorDashboard() {
           </div>
         )}
 
-        {/* Startup Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredStartups.map((startup) => {
-            const verdictStyle = getVerdictStyle(startup.verdict);
-            return (
-              <div
-                key={startup.id}
-                className="bg-slate-800/50 rounded-xl border border-slate-700 hover:border-purple-500/50 transition-all group cursor-pointer"
-                onClick={() => setSelectedStartup(startup)}
-              >
-                {/* Match Score Banner */}
-                <div className="bg-gradient-to-r from-purple-600/20 to-indigo-600/20 px-4 py-2 rounded-t-xl border-b border-slate-700/50 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm">🎯</span>
-                    <span className="text-sm font-medium text-purple-300">{startup.matchScore}% match</span>
-                  </div>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); toggleShortlist(startup.id); }}
-                    className={`text-lg transition-all ${
-                      startup.isShortlisted ? 'text-amber-400' : 'text-slate-500 hover:text-amber-400'
-                    }`}
-                  >
-                    {startup.isShortlisted ? '⭐' : '☆'}
-                  </button>
-                </div>
-
-                <div className="p-5">
-                  {/* Header */}
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <h3 className="font-semibold text-lg group-hover:text-purple-400 transition-colors">
-                        {startup.title}
-                      </h3>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xs bg-slate-700 px-2 py-0.5 rounded text-slate-300">
-                          {startup.industry}
-                        </span>
-                        <span className="text-xs bg-slate-700 px-2 py-0.5 rounded text-slate-300">
-                          {startup.stage}
-                        </span>
-                      </div>
-                    </div>
-                    <ScoreBadge score={startup.score} size="md" />
-                  </div>
-
-                  {/* Description */}
-                  <p className="text-sm text-slate-400 line-clamp-2 mb-4">
-                    {startup.description}
-                  </p>
-
-                  {/* Highlights */}
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {startup.highlights.slice(0, 2).map((h, i) => (
-                      <span key={i} className="text-xs bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded">
-                        ✓ {h}
-                      </span>
-                    ))}
-                  </div>
-
-                  {/* Footer */}
-                  <div className="flex items-center justify-between pt-3 border-t border-slate-700/50">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-xs font-bold">
-                        {startup.founderName.charAt(0)}
-                      </div>
-                      <span className="text-sm text-slate-400">{startup.founderName}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`text-xs px-2 py-1 rounded ${verdictStyle.bg} ${verdictStyle.text}`}>
-                        {startup.verdict}
-                      </span>
-                      {startup.fundingAsk && (
-                        <span className="text-xs text-slate-500">
-                          Raising {startup.fundingAsk}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
+        {/* Contacted Tab - Show Intro Requests */}
+        {activeTab === 'contacted' && (
+          <div className="space-y-4">
+            {introRequests.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="text-6xl mb-4">📧</div>
+                <h3 className="text-xl font-semibold mb-2">No intro requests yet</h3>
+                <p className="text-slate-400">Browse startups and request introductions to founders.</p>
               </div>
-            );
-          })}
-        </div>
-
-        {filteredStartups.length === 0 && (
-          <div className="text-center py-12">
-            <div className="text-6xl mb-4">🔍</div>
-            <h3 className="text-xl font-semibold mb-2">No startups match your criteria</h3>
-            <p className="text-slate-400">Try adjusting your filters to see more deals.</p>
+            ) : (
+              introRequests.map((request) => {
+                const statusStyle = getStatusStyle(request.status);
+                return (
+                  <div
+                    key={request.id}
+                    className="bg-slate-800/50 rounded-xl border border-slate-700 p-5"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h3 className="font-semibold text-lg mb-1">
+                          {request.validation?.title || 'Unknown Startup'}
+                        </h3>
+                        <div className="flex items-center gap-2 mb-3">
+                          {request.validation?.industry && (
+                            <span className="text-xs bg-slate-700 px-2 py-0.5 rounded text-slate-300">
+                              {request.validation.industry}
+                            </span>
+                          )}
+                          {request.validation?.stage && (
+                            <span className="text-xs bg-slate-700 px-2 py-0.5 rounded text-slate-300">
+                              {request.validation.stage}
+                            </span>
+                          )}
+                          <span className={`text-xs px-2 py-0.5 rounded capitalize ${statusStyle.bg} ${statusStyle.text}`}>
+                            {request.status}
+                          </span>
+                        </div>
+                        <p className="text-sm text-slate-400 line-clamp-2">
+                          {request.message}
+                        </p>
+                        <p className="text-xs text-slate-500 mt-2">
+                          Sent: {new Date(request.requestedAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {request.validation?.user && (
+                          <div className="flex items-center gap-2">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-sm font-bold">
+                              {request.validation.user.name?.charAt(0) || '?'}
+                            </div>
+                            <span className="text-sm text-slate-400">
+                              {request.validation.user.name}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
+        )}
+
+        {/* Startup Grid */}
+        {activeTab !== 'contacted' && (
+          <>
+            {isLoadingStartups ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredStartups.map((startup) => {
+                  const verdictStyle = getVerdictStyle(startup.verdict);
+                  const isShortlisted = startup.isShortlisted || shortlistedStartups.some(s => s.id === startup.id);
+                  return (
+                    <div
+                      key={startup.id}
+                      className="bg-slate-800/50 rounded-xl border border-slate-700 hover:border-purple-500/50 transition-all group cursor-pointer"
+                      onClick={() => setSelectedStartup(startup)}
+                    >
+                      {/* Match Score Banner */}
+                      <div className="bg-gradient-to-r from-purple-600/20 to-indigo-600/20 px-4 py-2 rounded-t-xl border-b border-slate-700/50 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm">🎯</span>
+                          <span className="text-sm font-medium text-purple-300">{startup.matchScore}% match</span>
+                        </div>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); toggleShortlist(startup.id); }}
+                          className={`text-lg transition-all ${
+                            isShortlisted ? 'text-amber-400' : 'text-slate-500 hover:text-amber-400'
+                          }`}
+                        >
+                          {isShortlisted ? '⭐' : '☆'}
+                        </button>
+                      </div>
+
+                      <div className="p-5">
+                        {/* Header */}
+                        <div className="flex items-start justify-between mb-3">
+                          <div>
+                            <h3 className="font-semibold text-lg group-hover:text-purple-400 transition-colors">
+                              {startup.title}
+                            </h3>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-xs bg-slate-700 px-2 py-0.5 rounded text-slate-300">
+                                {startup.industry}
+                              </span>
+                              <span className="text-xs bg-slate-700 px-2 py-0.5 rounded text-slate-300">
+                                {startup.stage}
+                              </span>
+                            </div>
+                          </div>
+                          <ScoreBadge score={startup.score} size="md" />
+                        </div>
+
+                        {/* Description */}
+                        <p className="text-sm text-slate-400 line-clamp-2 mb-4">
+                          {startup.description}
+                        </p>
+
+                        {/* Highlights */}
+                        <div className="flex flex-wrap gap-2 mb-4">
+                          {startup.highlights.slice(0, 2).map((h, i) => (
+                            <span key={i} className="text-xs bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded">
+                              ✓ {h}
+                            </span>
+                          ))}
+                        </div>
+
+                        {/* Footer */}
+                        <div className="flex items-center justify-between pt-3 border-t border-slate-700/50">
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-xs font-bold">
+                              {startup.founderName.charAt(0)}
+                            </div>
+                            <span className="text-sm text-slate-400">{startup.founderName}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-xs px-2 py-1 rounded ${verdictStyle.bg} ${verdictStyle.text}`}>
+                              {startup.verdict}
+                            </span>
+                            {startup.fundingAsk && (
+                              <span className="text-xs text-slate-500">
+                                Raising {startup.fundingAsk}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {!isLoadingStartups && filteredStartups.length === 0 && (
+              <div className="text-center py-12">
+                <div className="text-6xl mb-4">🔍</div>
+                <h3 className="text-xl font-semibold mb-2">
+                  {activeTab === 'shortlist' ? 'No shortlisted startups yet' : 'No startups match your criteria'}
+                </h3>
+                <p className="text-slate-400">
+                  {activeTab === 'shortlist'
+                    ? 'Browse the discover tab and add startups to your shortlist.'
+                    : 'Try adjusting your filters to see more deals.'}
+                </p>
+              </div>
+            )}
+          </>
         )}
 
         {/* Startup Detail Modal */}
@@ -517,6 +739,14 @@ export default function InvestorDashboard() {
                     </div>
                   </div>
                 </div>
+
+                {/* View Full Validation */}
+                <Link
+                  href={`/validate/${selectedStartup.id}`}
+                  className="block w-full text-center bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-xl font-medium transition-all"
+                >
+                  View Full Validation Report
+                </Link>
               </div>
 
               {/* Modal Actions */}
@@ -524,12 +754,13 @@ export default function InvestorDashboard() {
                 <button
                   onClick={() => toggleShortlist(selectedStartup.id)}
                   className={`flex-1 py-3 rounded-xl font-semibold transition-all ${
-                    selectedStartup.isShortlisted
+                    selectedStartup.isShortlisted || shortlistedStartups.some(s => s.id === selectedStartup.id)
                       ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
                       : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                   }`}
                 >
-                  {selectedStartup.isShortlisted ? '⭐ Shortlisted' : '☆ Add to Shortlist'}
+                  {selectedStartup.isShortlisted || shortlistedStartups.some(s => s.id === selectedStartup.id)
+                    ? '⭐ Shortlisted' : '☆ Add to Shortlist'}
                 </button>
                 <button
                   onClick={() => setContactModalOpen(true)}
@@ -558,10 +789,11 @@ export default function InvestorDashboard() {
                     Message to Founder
                   </label>
                   <textarea
-                    rows={4}
+                    rows={6}
+                    value={introMessage}
+                    onChange={(e) => setIntroMessage(e.target.value)}
                     className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none"
                     placeholder="Introduce yourself and explain why you're interested in their startup..."
-                    defaultValue={`Hi ${selectedStartup.founderName},\n\nI'm an investor interested in ${selectedStartup.industry} startups. Your validation score of ${selectedStartup.score} caught my attention, and I'd love to learn more about ${selectedStartup.title}.\n\nWould you be open to a brief call?`}
                   />
                 </div>
               </div>
@@ -573,15 +805,11 @@ export default function InvestorDashboard() {
                   Cancel
                 </button>
                 <button
-                  onClick={() => {
-                    setContactModalOpen(false);
-                    setSelectedStartup(null);
-                    // Would trigger API call here
-                    alert('Intro request sent! The founder will be notified.');
-                  }}
-                  className="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white py-3 rounded-xl font-semibold transition-all"
+                  onClick={sendIntroRequest}
+                  disabled={isSendingIntro || !introMessage.trim()}
+                  className="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white py-3 rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Send Request
+                  {isSendingIntro ? 'Sending...' : 'Send Request'}
                 </button>
               </div>
             </div>

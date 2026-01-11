@@ -252,9 +252,14 @@ export class InvestorService {
    * Get IDs of startups shortlisted by investor
    */
   private async getShortlistedIds(investorId: string): Promise<Set<string>> {
-    // This would query a shortlist table - for now, return empty
-    // TODO: Create shortlist table and query it
-    return new Set();
+    const profile = await this.prisma.investorProfile.findUnique({
+      where: { userId: investorId },
+      include: { shortlist: true },
+    });
+
+    if (!profile) return new Set();
+
+    return new Set(profile.shortlist.map(s => s.validationId));
   }
 
   /**
@@ -262,7 +267,11 @@ export class InvestorService {
    */
   async addToShortlist(investorId: string, validationId: string): Promise<void> {
     // Verify investor
-    await this.getInvestorProfile(investorId);
+    const investorProfile = await this.getInvestorProfile(investorId);
+
+    if (!investorProfile) {
+      throw new ForbiddenException('Investor profile not found');
+    }
 
     // Verify validation exists and is public
     const validation = await this.prisma.validation.findUnique({
@@ -282,7 +291,21 @@ export class InvestorService {
       throw new ForbiddenException('Cannot shortlist incomplete validation');
     }
 
-    // TODO: Save to shortlist table
+    // Save to shortlist table (upsert to avoid duplicates)
+    await this.prisma.investorShortlist.upsert({
+      where: {
+        investorProfileId_validationId: {
+          investorProfileId: investorProfile.id,
+          validationId,
+        },
+      },
+      create: {
+        investorProfileId: investorProfile.id,
+        validationId,
+      },
+      update: {}, // No update needed, just ensure it exists
+    });
+
     this.logger.log(`Investor ${investorId} shortlisted validation ${validationId}`);
 
     this.eventEmitter.emit('investor.shortlisted', {
@@ -296,7 +319,19 @@ export class InvestorService {
    * Remove startup from investor's shortlist
    */
   async removeFromShortlist(investorId: string, validationId: string): Promise<void> {
-    // TODO: Remove from shortlist table
+    const investorProfile = await this.getInvestorProfile(investorId);
+
+    if (!investorProfile) {
+      throw new ForbiddenException('Investor profile not found');
+    }
+
+    await this.prisma.investorShortlist.deleteMany({
+      where: {
+        investorProfileId: investorProfile.id,
+        validationId,
+      },
+    });
+
     this.logger.log(`Investor ${investorId} removed ${validationId} from shortlist`);
   }
 
@@ -304,9 +339,72 @@ export class InvestorService {
    * Get investor's shortlisted startups
    */
   async getShortlist(investorId: string): Promise<StartupForInvestor[]> {
-    await this.getInvestorProfile(investorId);
-    // TODO: Query shortlist table and return full startup data
-    return [];
+    const investorProfile = await this.getInvestorProfile(investorId);
+
+    if (!investorProfile) {
+      return [];
+    }
+
+    // Get shortlisted validation IDs
+    const shortlistEntries = await this.prisma.investorShortlist.findMany({
+      where: { investorProfileId: investorProfile.id },
+      orderBy: { addedAt: 'desc' },
+    });
+
+    if (shortlistEntries.length === 0) {
+      return [];
+    }
+
+    // Get full validation data
+    const validations = await this.prisma.validation.findMany({
+      where: {
+        id: { in: shortlistEntries.map(s => s.validationId) },
+        status: 'COMPLETE',
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            avatarUrl: true,
+            company: true,
+            founderProfile: true,
+          },
+        },
+        agentReports: {
+          select: {
+            agentId: true,
+            score: true,
+            findings: true,
+          },
+        },
+      },
+    });
+
+    // Transform to investor-facing format
+    return validations.map((v: any) => {
+      const matchScore = this.calculateMatchScore(v, investorProfile);
+      const highlights = this.extractHighlights(v);
+
+      return {
+        id: v.id,
+        title: v.title,
+        description: v.description,
+        industry: v.industry || 'Technology',
+        stage: v.stage || 'Seed',
+        score: v.overallScore || 0,
+        confidence: v.overallConfidence || 0,
+        verdict: v.verdict || 'PROCEED',
+        geography: v.geography || [],
+        founderName: v.user?.name || 'Anonymous Founder',
+        founderAvatar: v.user?.avatarUrl || '',
+        matchScore,
+        isShortlisted: true,
+        createdAt: v.createdAt,
+        highlights,
+        fundingAsk: (v.founderData as any)?.fundingAsk,
+      };
+    });
   }
 
   /**
