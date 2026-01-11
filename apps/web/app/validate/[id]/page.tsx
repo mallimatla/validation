@@ -5,23 +5,36 @@ import { useParams } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
 import Link from 'next/link';
 import jsPDF from 'jspdf';
+import dynamic from 'next/dynamic';
+
+// Dynamic imports for chart components
+const ScoreGauge = dynamic(() => import('../../../components/charts/ScoreGauge').then(m => m.ScoreGauge), { ssr: false });
+const ScoreBadge = dynamic(() => import('../../../components/charts/ScoreGauge').then(m => m.ScoreBadge), { ssr: false });
+const AgentRadarChart = dynamic(() => import('../../../components/charts/AgentRadarChart').then(m => m.AgentRadarChart), { ssr: false });
+const HorizontalAgentChart = dynamic(() => import('../../../components/charts/BarCharts').then(m => m.HorizontalAgentChart), { ssr: false });
+const FindingsBreakdown = dynamic(() => import('../../../components/charts/DonutChart').then(m => m.FindingsBreakdown), { ssr: false });
+const RiskSeverityChart = dynamic(() => import('../../../components/charts/DonutChart').then(m => m.RiskSeverityChart), { ssr: false });
+const RiskHeatmap = dynamic(() => import('../../../components/charts/RiskHeatmap').then(m => m.RiskHeatmap), { ssr: false });
+const ProgressRing = dynamic(() => import('../../../components/charts/MetricCards').then(m => m.ProgressRing), { ssr: false });
+const ProgressBar = dynamic(() => import('../../../components/charts/MetricCards').then(m => m.ProgressBar), { ssr: false });
+const MetricCard = dynamic(() => import('../../../components/charts/MetricCards').then(m => m.MetricCard), { ssr: false });
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://validation-production.up.railway.app';
 
 // The 12 AI agents
 const AGENTS = [
   { id: 'marcus', name: 'Marcus', role: 'Market Intel', icon: '📊', description: 'Validates market size, timing, and opportunity' },
-  { id: 'sophia', name: 'Sophia', role: 'Competition', icon: '🎯', description: 'Maps competitive landscape and differentiation' },
-  { id: 'david', name: 'David', role: 'Financial', icon: '💰', description: 'Validates unit economics and financial viability' },
-  { id: 'elena', name: 'Elena', role: 'Customer', icon: '👥', description: 'Analyzes customer data for product-market fit' },
-  { id: 'james', name: 'James', role: 'Team', icon: '👔', description: 'Evaluates team capability and execution risk' },
-  { id: 'rachel', name: 'Rachel', role: 'Legal/Risk', icon: '⚖️', description: 'Identifies legal and compliance risks' },
+  { id: 'sophia', name: 'Sophia', role: 'Innovation', icon: '💡', description: 'Analyzes disruption potential and innovation' },
+  { id: 'david', name: 'David', role: 'Competition', icon: '🏆', description: 'Maps competitive landscape and differentiation' },
+  { id: 'elena', name: 'Elena', role: 'Customer/PMF', icon: '🎯', description: 'Analyzes customer data for product-market fit' },
+  { id: 'james', name: 'James', role: 'Team', icon: '👥', description: 'Evaluates team capability and execution risk' },
+  { id: 'rachel', name: 'Rachel', role: 'Financial', icon: '💰', description: 'Validates unit economics and financial viability' },
   { id: 'omar', name: 'Omar', role: 'Technology', icon: '⚙️', description: 'Assesses technical feasibility and timelines' },
-  { id: 'nora', name: 'Nora', role: 'Funding', icon: '🏦', description: 'Maps funding landscape and comparable companies' },
-  { id: 'victor', name: 'Victor', role: 'Valuation', icon: '💎', description: 'Provides data-driven valuation analysis' },
-  { id: 'victoria', name: 'Victoria', role: 'Synthesis', icon: '🔮', description: 'Synthesizes all reports into final verdict' },
-  { id: 'sentinel', name: 'Sentinel', role: 'Trust/Audit', icon: '🛡️', description: 'Ensures platform integrity and accuracy' },
-  { id: 'aria', name: 'ARIA', role: 'Orchestrator', icon: '🎭', description: 'Manages validation workflow and coordination' },
+  { id: 'nora', name: 'Nora', role: 'GTM Strategy', icon: '📢', description: 'Evaluates go-to-market strategy' },
+  { id: 'victor', name: 'Victor', role: 'Valuation', icon: '💵', description: 'Provides data-driven valuation analysis' },
+  { id: 'victoria', name: 'Victoria', role: 'Contrarian', icon: '🔮', description: 'Provides contrarian perspective' },
+  { id: 'sentinel', name: 'Sentinel', role: 'Risk/Audit', icon: '🛡️', description: 'Identifies kill signals and risks' },
+  { id: 'aria', name: 'ARIA', role: 'Orchestrator', icon: '🤖', description: 'AI orchestration and synthesis' },
 ];
 
 interface Finding {
@@ -72,7 +85,7 @@ interface ValidationData {
   completedAt: string | null;
 }
 
-export default function ValidationProgressPage() {
+export default function ValidationResultsPage() {
   const params = useParams();
   const validationId = params.id as string;
   const { getToken, isSignedIn } = useAuth();
@@ -81,12 +94,10 @@ export default function ValidationProgressPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedAgent, setExpandedAgent] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'overview' | 'agents' | 'risks' | 'recommendations'>('overview');
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
-  const [pptxDownloadCount, setPptxDownloadCount] = useState(0);
-  const [userTier, setUserTier] = useState<'free' | 'pro'>('free'); // TODO: Get from user subscription
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
@@ -104,16 +115,10 @@ export default function ValidationProgressPage() {
         const headers: Record<string, string> = {};
         if (isSignedIn) {
           const token = await getToken();
-          if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-          }
+          if (token) headers['Authorization'] = `Bearer ${token}`;
         }
-
         const response = await fetch(`${API_URL}/api/v1/validations/${validationId}`, { headers });
-        if (!response.ok) {
-          throw new Error('Failed to fetch validation');
-        }
-
+        if (!response.ok) throw new Error('Failed to fetch validation');
         const data = await response.json();
         setValidation(data);
         setIsLoading(false);
@@ -122,7 +127,6 @@ export default function ValidationProgressPage() {
         setIsLoading(false);
       }
     };
-
     fetchValidation();
   }, [validationId, isSignedIn, getToken]);
 
@@ -130,467 +134,67 @@ export default function ValidationProgressPage() {
   const getAgentReport = (id: string) => validation?.agentReports?.find(r => r.agentId === id);
   const getScoreColor = (s: number) => s >= 70 ? 'text-emerald-400' : s >= 50 ? 'text-yellow-400' : 'text-red-400';
   const getScoreBg = (s: number) => s >= 70 ? 'bg-emerald-500/20 border-emerald-500/50' : s >= 50 ? 'bg-yellow-500/20 border-yellow-500/50' : 'bg-red-500/20 border-red-500/50';
-  const getFindingColor = (t: string) => ({ strength: 'border-emerald-500/30 bg-emerald-500/10', weakness: 'border-red-500/30 bg-red-500/10', opportunity: 'border-blue-500/30 bg-blue-500/10', threat: 'border-orange-500/30 bg-orange-500/10', neutral: 'border-slate-500/30 bg-slate-500/10' }[t] || 'border-slate-500/30 bg-slate-500/10');
 
-  // Download limits: Free = 2, Pro = unlimited
-  const maxFreeDownloads = 2;
-  const canDownloadPPTX = userTier === 'pro' || pptxDownloadCount < maxFreeDownloads;
-  const remainingDownloads = userTier === 'pro' ? 'Unlimited' : Math.max(0, maxFreeDownloads - pptxDownloadCount);
+  // Aggregate data for charts
+  const allFindings = validation?.agentReports?.flatMap(r => r.findings || []) || [];
+  const rawRisks = validation?.agentReports?.flatMap(r => r.risks || []) || [];
 
-  const downloadPPTX = async (template: string = 'professional') => {
-    if (!validation) return;
+  // Transform risks to have proper types for RiskHeatmap
+  const allRisks = rawRisks.map(risk => ({
+    ...risk,
+    probability: (['low', 'medium', 'high'].includes(risk.probability?.toLowerCase())
+      ? risk.probability.toLowerCase()
+      : 'medium') as 'low' | 'medium' | 'high',
+    impact: (['minor', 'moderate', 'major', 'critical'].includes(risk.impact?.toLowerCase())
+      ? risk.impact.toLowerCase()
+      : 'moderate') as 'minor' | 'moderate' | 'major' | 'critical',
+  }));
 
-    if (!canDownloadPPTX) {
-      alert('You have reached your free download limit. Upgrade to Pro for unlimited downloads!');
-      return;
-    }
+  const allRecommendations = validation?.agentReports?.flatMap(r => r.recommendations || []) || [];
 
-    setIsDownloading(true);
-    setShowDownloadMenu(false);
+  const agentScores = validation?.agentReports?.map(r => {
+    const agent = getAgent(r.agentId);
+    return {
+      agentId: r.agentId,
+      agentName: agent?.name || r.agentId,
+      score: r.score,
+      confidence: r.confidence,
+      role: agent?.role || '',
+    };
+  }) || [];
 
-    try {
-      const response = await fetch(`${API_URL}/api/v1/pptx/validation/${validationId}?template=${template}`);
-      if (!response.ok) {
-        throw new Error('Failed to generate PPTX');
-      }
+  const strengths = allFindings.filter(f => f.type === 'strength').length;
+  const weaknesses = allFindings.filter(f => f.type === 'weakness').length;
 
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `validation-report-${validationId}-${template}.pptx`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
-      // Increment download count
-      setPptxDownloadCount(prev => prev + 1);
-    } catch (err) {
-      console.error('PPTX download error:', err);
-      alert('Failed to download PPTX. Please try again.');
-    } finally {
-      setIsDownloading(false);
-    }
-  };
-
-  // Download Validation Report PDF
-  const downloadValidationPDF = () => {
+  // Download PDF function (simplified)
+  const downloadPDF = () => {
     if (!validation) return;
     setIsDownloading(true);
     setShowDownloadMenu(false);
 
-    try {
-      const doc = new jsPDF();
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const margin = 20;
-      const contentWidth = pageWidth - (margin * 2);
-      let y = 20;
-
-      // Helper function to add text with word wrap
-      const addWrappedText = (text: string, x: number, startY: number, maxWidth: number, lineHeight: number = 6): number => {
-        const lines = doc.splitTextToSize(text, maxWidth);
-        lines.forEach((line: string) => {
-          if (startY > 270) {
-            doc.addPage();
-            startY = 20;
-          }
-          doc.text(line, x, startY);
-          startY += lineHeight;
-        });
-        return startY;
-      };
-
-      // Header
-      doc.setFillColor(15, 23, 42); // Dark slate
-      doc.rect(0, 0, pageWidth, 45, 'F');
-
-      doc.setTextColor(74, 222, 128); // Emerald
-      doc.setFontSize(24);
-      doc.setFont('helvetica', 'bold');
-      doc.text('THE VALIDATION COUNCIL', pageWidth / 2, 20, { align: 'center' });
-
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(14);
-      doc.text('OFFICIAL VALIDATION REPORT', pageWidth / 2, 32, { align: 'center' });
-
-      y = 55;
-
-      // Report Info Box
-      doc.setFillColor(30, 41, 59); // Slate 800
-      doc.rect(margin, y, contentWidth, 35, 'F');
-
-      doc.setTextColor(148, 163, 184); // Slate 400
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      doc.text('STARTUP', margin + 5, y + 10);
-      doc.text('DATE', margin + 5, y + 22);
-      doc.text('REPORT ID', pageWidth / 2, y + 10);
-      doc.text('STATUS', pageWidth / 2, y + 22);
-
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'bold');
-      doc.text(validation.title || 'N/A', margin + 35, y + 10);
-      doc.text(new Date(validation.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }), margin + 25, y + 22);
-      doc.text(validationId.substring(0, 20) + '...', pageWidth / 2 + 35, y + 10);
-      doc.text(validation.status?.toUpperCase() || 'N/A', pageWidth / 2 + 30, y + 22);
-
-      y += 45;
-
-      // Score Box
-      const scoreColor = (validation.overallScore || 0) >= 70 ? [74, 222, 128] : (validation.overallScore || 0) >= 50 ? [250, 204, 21] : [248, 113, 113];
-      doc.setFillColor(scoreColor[0], scoreColor[1], scoreColor[2]);
-      doc.rect(margin, y, 50, 30, 'F');
-      doc.setTextColor(0, 0, 0);
-      doc.setFontSize(28);
-      doc.setFont('helvetica', 'bold');
-      doc.text(`${validation.overallScore || 0}`, margin + 25, y + 20, { align: 'center' });
-      doc.setFontSize(10);
-      doc.text('/100', margin + 40, y + 20);
-
-      // Verdict and Confidence
-      doc.setTextColor(100, 116, 139);
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      doc.text('VERDICT', margin + 60, y + 8);
-      doc.text('CONFIDENCE', margin + 60, y + 20);
-      doc.text('RECOMMENDATION', margin + 120, y + 8);
-
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.text(validation.verdict?.replace(/_/g, ' ') || 'N/A', margin + 60, y + 15);
-      doc.text(`${validation.overallConfidence || 0}%`, margin + 60, y + 27);
-      doc.text(validation.recommendation || 'N/A', margin + 120, y + 15);
-
-      y += 40;
-
-      // Executive Summary
-      doc.setFillColor(30, 41, 59);
-      doc.rect(margin, y, contentWidth, 8, 'F');
-      doc.setTextColor(74, 222, 128);
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.text('EXECUTIVE SUMMARY', margin + 5, y + 6);
-      y += 12;
-
-      doc.setTextColor(71, 85, 105);
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      y = addWrappedText(validation.executiveSummary || 'No executive summary available.', margin, y, contentWidth, 5);
-      y += 10;
-
-      // Agent Reports
-      doc.setFillColor(30, 41, 59);
-      doc.rect(margin, y, contentWidth, 8, 'F');
-      doc.setTextColor(74, 222, 128);
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.text('AI AGENT ANALYSIS', margin + 5, y + 6);
-      y += 15;
-
-      validation.agentReports?.forEach(report => {
-        if (y > 250) {
-          doc.addPage();
-          y = 20;
-        }
-
-        const agent = getAgent(report.agentId);
-        const agentScoreColor = report.score >= 70 ? [74, 222, 128] : report.score >= 50 ? [250, 204, 21] : [248, 113, 113];
-
-        // Agent header
-        doc.setFillColor(51, 65, 85);
-        doc.rect(margin, y, contentWidth, 12, 'F');
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(11);
-        doc.setFont('helvetica', 'bold');
-        doc.text(`${agent?.name?.toUpperCase() || 'AGENT'} - ${agent?.role?.toUpperCase() || 'ROLE'}`, margin + 5, y + 8);
-
-        doc.setFillColor(agentScoreColor[0], agentScoreColor[1], agentScoreColor[2]);
-        doc.rect(pageWidth - margin - 30, y + 2, 25, 8, 'F');
-        doc.setTextColor(0, 0, 0);
-        doc.setFontSize(9);
-        doc.text(`${report.score}/100`, pageWidth - margin - 17.5, y + 8, { align: 'center' });
-
-        y += 16;
-
-        // Findings
-        if (report.findings?.length) {
-          doc.setTextColor(100, 116, 139);
-          doc.setFontSize(9);
-          doc.setFont('helvetica', 'bold');
-          doc.text('Key Findings:', margin + 5, y);
-          y += 5;
-          doc.setFont('helvetica', 'normal');
-          doc.setTextColor(71, 85, 105);
-          report.findings.slice(0, 3).forEach((f) => {
-            y = addWrappedText(`• [${f.type?.toUpperCase()}] ${f.title}: ${f.description}`, margin + 8, y, contentWidth - 10, 4);
-          });
-          y += 3;
-        }
-
-        // Risks
-        if (report.risks?.length) {
-          doc.setTextColor(251, 146, 60);
-          doc.setFontSize(9);
-          doc.setFont('helvetica', 'bold');
-          doc.text('Risks:', margin + 5, y);
-          y += 5;
-          doc.setFont('helvetica', 'normal');
-          doc.setTextColor(71, 85, 105);
-          report.risks.slice(0, 2).forEach((r) => {
-            y = addWrappedText(`• ${r.title} (${r.probability}/${r.impact})`, margin + 8, y, contentWidth - 10, 4);
-          });
-          y += 3;
-        }
-
-        y += 5;
-      });
-
-      // Footer
-      doc.setFillColor(15, 23, 42);
-      doc.rect(0, 280, pageWidth, 17, 'F');
-      doc.setTextColor(100, 116, 139);
-      doc.setFontSize(8);
-      doc.text('Generated by The Validation Council AI Platform | www.startupverdict.com', pageWidth / 2, 288, { align: 'center' });
-      doc.text(`Report Generated: ${new Date().toISOString()}`, pageWidth / 2, 293, { align: 'center' });
-
-      // Save PDF
-      doc.save(`Validation-Report-${validation.title?.replace(/[^a-zA-Z0-9]/g, '-')}.pdf`);
-    } catch (err) {
-      console.error('Validation PDF download error:', err);
-      alert('Failed to download report. Please try again.');
-    } finally {
-      setIsDownloading(false);
+    const doc = new jsPDF();
+    doc.setFontSize(20);
+    doc.text('Validation Report', 20, 20);
+    doc.setFontSize(14);
+    doc.text(validation.title || 'Untitled', 20, 35);
+    doc.setFontSize(12);
+    doc.text(`Score: ${validation.overallScore}/100`, 20, 50);
+    doc.text(`Verdict: ${validation.verdict}`, 20, 60);
+    doc.text(`Confidence: ${validation.overallConfidence}%`, 20, 70);
+    if (validation.executiveSummary) {
+      const lines = doc.splitTextToSize(validation.executiveSummary, 170);
+      doc.text(lines, 20, 85);
     }
-  };
-
-  // Download Valuation Report PDF (Victor's analysis)
-  const downloadValuationPDF = () => {
-    if (!validation) return;
-    setIsDownloading(true);
-    setShowDownloadMenu(false);
-
-    try {
-      const victorReport = validation.agentReports?.find(r => r.agentId === 'victor');
-      const doc = new jsPDF();
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const margin = 20;
-      const contentWidth = pageWidth - (margin * 2);
-      let y = 20;
-
-      // Helper function to add text with word wrap
-      const addWrappedText = (text: string, x: number, startY: number, maxWidth: number, lineHeight: number = 6): number => {
-        const lines = doc.splitTextToSize(text, maxWidth);
-        lines.forEach((line: string) => {
-          if (startY > 270) {
-            doc.addPage();
-            startY = 20;
-          }
-          doc.text(line, x, startY);
-          startY += lineHeight;
-        });
-        return startY;
-      };
-
-      // Header
-      doc.setFillColor(15, 23, 42);
-      doc.rect(0, 0, pageWidth, 45, 'F');
-
-      doc.setTextColor(168, 85, 247); // Purple
-      doc.setFontSize(24);
-      doc.setFont('helvetica', 'bold');
-      doc.text('THE VALIDATION COUNCIL', pageWidth / 2, 20, { align: 'center' });
-
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(14);
-      doc.text('VALUATION ANALYSIS REPORT', pageWidth / 2, 32, { align: 'center' });
-
-      y = 55;
-
-      // Report Info
-      doc.setFillColor(30, 41, 59);
-      doc.rect(margin, y, contentWidth, 25, 'F');
-
-      doc.setTextColor(148, 163, 184);
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      doc.text('STARTUP', margin + 5, y + 10);
-      doc.text('DATE', margin + 5, y + 18);
-      doc.text('ANALYZED BY', pageWidth / 2, y + 10);
-
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'bold');
-      doc.text(validation.title || 'N/A', margin + 35, y + 10);
-      doc.text(new Date(validation.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }), margin + 25, y + 18);
-      doc.text('Victor AI - Valuation Agent', pageWidth / 2 + 40, y + 10);
-
-      y += 35;
-
-      if (victorReport) {
-        // Valuation Score
-        const scoreColor = victorReport.score >= 70 ? [74, 222, 128] : victorReport.score >= 50 ? [250, 204, 21] : [248, 113, 113];
-        doc.setFillColor(scoreColor[0], scoreColor[1], scoreColor[2]);
-        doc.rect(margin, y, 60, 35, 'F');
-        doc.setTextColor(0, 0, 0);
-        doc.setFontSize(32);
-        doc.setFont('helvetica', 'bold');
-        doc.text(`${victorReport.score}`, margin + 30, y + 22, { align: 'center' });
-        doc.setFontSize(12);
-        doc.text('/100', margin + 50, y + 22);
-        doc.setFontSize(9);
-        doc.text('VALUATION SCORE', margin + 30, y + 30, { align: 'center' });
-
-        // Confidence
-        doc.setTextColor(100, 116, 139);
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'normal');
-        doc.text('CONFIDENCE LEVEL', margin + 75, y + 10);
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(24);
-        doc.setFont('helvetica', 'bold');
-        doc.text(`${victorReport.confidence}%`, margin + 75, y + 25);
-
-        y += 45;
-
-        // Findings Section
-        if (victorReport.findings?.length) {
-          doc.setFillColor(30, 41, 59);
-          doc.rect(margin, y, contentWidth, 8, 'F');
-          doc.setTextColor(168, 85, 247);
-          doc.setFontSize(12);
-          doc.setFont('helvetica', 'bold');
-          doc.text('VALUATION FINDINGS', margin + 5, y + 6);
-          y += 15;
-
-          doc.setTextColor(71, 85, 105);
-          doc.setFontSize(10);
-          doc.setFont('helvetica', 'normal');
-          victorReport.findings.forEach((f, i) => {
-            if (y > 250) {
-              doc.addPage();
-              y = 20;
-            }
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor(255, 255, 255);
-            y = addWrappedText(`${i + 1}. ${f.title}`, margin, y, contentWidth, 5);
-            doc.setFont('helvetica', 'normal');
-            doc.setTextColor(100, 116, 139);
-            doc.text(`Type: ${f.type} | Severity: ${f.severity}`, margin + 5, y);
-            y += 5;
-            doc.setTextColor(71, 85, 105);
-            y = addWrappedText(f.description, margin + 5, y, contentWidth - 10, 4);
-            if (f.evidence?.length) {
-              doc.setTextColor(148, 163, 184);
-              y = addWrappedText(`Evidence: ${f.evidence.join(', ')}`, margin + 5, y, contentWidth - 10, 4);
-            }
-            y += 5;
-          });
-        }
-
-        // Risks Section
-        if (victorReport.risks?.length) {
-          if (y > 220) {
-            doc.addPage();
-            y = 20;
-          }
-          doc.setFillColor(30, 41, 59);
-          doc.rect(margin, y, contentWidth, 8, 'F');
-          doc.setTextColor(251, 146, 60);
-          doc.setFontSize(12);
-          doc.setFont('helvetica', 'bold');
-          doc.text('VALUATION RISKS', margin + 5, y + 6);
-          y += 15;
-
-          victorReport.risks.forEach((r, i) => {
-            if (y > 250) {
-              doc.addPage();
-              y = 20;
-            }
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor(255, 255, 255);
-            y = addWrappedText(`${i + 1}. ${r.title}`, margin, y, contentWidth, 5);
-            doc.setFont('helvetica', 'normal');
-            doc.setTextColor(251, 146, 60);
-            doc.text(`Probability: ${r.probability} | Impact: ${r.impact}`, margin + 5, y);
-            y += 5;
-            doc.setTextColor(71, 85, 105);
-            y = addWrappedText(r.description, margin + 5, y, contentWidth - 10, 4);
-            if (r.mitigations?.length) {
-              doc.setTextColor(74, 222, 128);
-              y = addWrappedText(`Mitigations: ${r.mitigations.join('; ')}`, margin + 5, y, contentWidth - 10, 4);
-            }
-            y += 5;
-          });
-        }
-
-        // Recommendations Section
-        if (victorReport.recommendations?.length) {
-          if (y > 220) {
-            doc.addPage();
-            y = 20;
-          }
-          doc.setFillColor(30, 41, 59);
-          doc.rect(margin, y, contentWidth, 8, 'F');
-          doc.setTextColor(96, 165, 250);
-          doc.setFontSize(12);
-          doc.setFont('helvetica', 'bold');
-          doc.text('VALUATION RECOMMENDATIONS', margin + 5, y + 6);
-          y += 15;
-
-          victorReport.recommendations.forEach((rec, i) => {
-            if (y > 250) {
-              doc.addPage();
-              y = 20;
-            }
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor(255, 255, 255);
-            y = addWrappedText(`${i + 1}. ${rec.title}`, margin, y, contentWidth, 5);
-            doc.setFont('helvetica', 'normal');
-            doc.setTextColor(96, 165, 250);
-            doc.text(`Priority: ${rec.priority} | Timeframe: ${rec.timeframe}`, margin + 5, y);
-            y += 5;
-            doc.setTextColor(71, 85, 105);
-            y = addWrappedText(rec.description, margin + 5, y, contentWidth - 10, 4);
-            y += 5;
-          });
-        }
-      } else {
-        doc.setTextColor(148, 163, 184);
-        doc.setFontSize(14);
-        doc.text('Valuation analysis not yet completed.', pageWidth / 2, y + 20, { align: 'center' });
-      }
-
-      // Footer
-      const pageCount = doc.getNumberOfPages();
-      for (let i = 1; i <= pageCount; i++) {
-        doc.setPage(i);
-        doc.setFillColor(15, 23, 42);
-        doc.rect(0, 280, pageWidth, 17, 'F');
-        doc.setTextColor(100, 116, 139);
-        doc.setFontSize(8);
-        doc.text('Generated by The Validation Council - Victor AI | www.startupverdict.com', pageWidth / 2, 288, { align: 'center' });
-        doc.text(`Page ${i} of ${pageCount}`, pageWidth / 2, 293, { align: 'center' });
-      }
-
-      // Save PDF
-      doc.save(`Valuation-Report-${validation.title?.replace(/[^a-zA-Z0-9]/g, '-')}.pdf`);
-    } catch (err) {
-      console.error('Valuation PDF download error:', err);
-      alert('Failed to download valuation report. Please try again.');
-    } finally {
-      setIsDownloading(false);
-    }
+    doc.save(`validation-${validationId}.pdf`);
+    setIsDownloading(false);
   };
 
   if (isLoading) {
     return (
       <main className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-500 mx-auto mb-4"></div>
-          <p className="text-slate-400">Loading validation results...</p>
+          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-emerald-500 mx-auto mb-6"></div>
+          <p className="text-slate-400 text-lg">Loading validation results...</p>
         </div>
       </main>
     );
@@ -600,8 +204,8 @@ export default function ValidationProgressPage() {
     return (
       <main className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-400 mb-4">{error || 'Validation not found'}</p>
-          <Link href="/dashboard" className="text-emerald-400 hover:underline">Back to Dashboard</Link>
+          <p className="text-red-400 text-xl mb-4">{error || 'Validation not found'}</p>
+          <Link href="/dashboard" className="text-emerald-400 hover:underline">Return to Dashboard</Link>
         </div>
       </main>
     );
@@ -611,329 +215,454 @@ export default function ValidationProgressPage() {
   const selectedAgent = expandedAgent ? getAgent(expandedAgent) : null;
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white">
+    <main className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-900 to-slate-800 text-white">
       <div className="container mx-auto px-4 py-8">
-        <div className="max-w-6xl mx-auto">
-          {/* Navigation */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-4">
-              <Link href="/dashboard" className="text-slate-400 hover:text-white">&larr; Dashboard</Link>
-              <span className="text-slate-600">|</span>
-              <Link href="/validate" className="text-slate-400 hover:text-white">+ New Validation</Link>
-            </div>
-            <div className="relative download-menu-container">
-              <button
-                onClick={() => setShowDownloadMenu(!showDownloadMenu)}
-                disabled={isDownloading}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 disabled:opacity-50"
-              >
-                {isDownloading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
-                    <span>Generating...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Download Report</span>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </>
-                )}
-              </button>
-
-              {showDownloadMenu && (
-                <div className="absolute right-0 mt-2 w-80 bg-slate-800 rounded-lg shadow-xl border border-slate-700 z-50 overflow-hidden">
-                  {/* Official Reports Section - Always Available */}
-                  <div className="p-2 border-b border-slate-700 bg-emerald-900/20">
-                    <p className="text-xs text-emerald-400 uppercase px-2 font-semibold">Official Reports</p>
-                  </div>
-                  <button
-                    onClick={downloadValidationPDF}
-                    className="w-full text-left px-4 py-3 hover:bg-slate-700 transition-colors border-b border-slate-700/50"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-xl">📋</span>
-                      <div className="flex-1">
-                        <p className="font-medium text-white">Validation Report</p>
-                        <p className="text-xs text-slate-400">Complete 12-agent analysis</p>
-                      </div>
-                      <span className="text-xs bg-emerald-600 text-white px-2 py-0.5 rounded">FREE</span>
-                    </div>
-                  </button>
-                  <button
-                    onClick={downloadValuationPDF}
-                    className="w-full text-left px-4 py-3 hover:bg-slate-700 transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-xl">💎</span>
-                      <div className="flex-1">
-                        <p className="font-medium text-white">Valuation Report</p>
-                        <p className="text-xs text-slate-400">Victor AI valuation analysis</p>
-                      </div>
-                      <span className="text-xs bg-emerald-600 text-white px-2 py-0.5 rounded">FREE</span>
-                    </div>
-                  </button>
-
-                  {/* Presentation Templates Section */}
-                  <div className="p-2 border-t border-slate-700">
-                    <div className="flex items-center justify-between px-2">
-                      <p className="text-xs text-slate-400 uppercase">Presentation Templates</p>
-                      <span className="text-xs text-amber-400">
-                        {userTier === 'pro' ? 'Unlimited' : `${remainingDownloads} left`}
-                      </span>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => downloadPPTX('professional')}
-                    disabled={!canDownloadPPTX}
-                    className={`w-full text-left px-4 py-3 transition-colors ${canDownloadPPTX ? 'hover:bg-slate-700' : 'opacity-50 cursor-not-allowed'}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-xl">📊</span>
-                      <div>
-                        <p className="font-medium text-white">Professional</p>
-                        <p className="text-xs text-slate-400">Corporate dark blue theme</p>
-                      </div>
-                    </div>
-                  </button>
-                  <button
-                    onClick={() => downloadPPTX('modern')}
-                    disabled={!canDownloadPPTX}
-                    className={`w-full text-left px-4 py-3 transition-colors ${canDownloadPPTX ? 'hover:bg-slate-700' : 'opacity-50 cursor-not-allowed'}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-xl">✨</span>
-                      <div>
-                        <p className="font-medium text-white">Modern</p>
-                        <p className="text-xs text-slate-400">Vibrant gradient style</p>
-                      </div>
-                    </div>
-                  </button>
-                  <button
-                    onClick={() => downloadPPTX('minimal')}
-                    disabled={!canDownloadPPTX}
-                    className={`w-full text-left px-4 py-3 transition-colors ${canDownloadPPTX ? 'hover:bg-slate-700' : 'opacity-50 cursor-not-allowed'}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-xl">📄</span>
-                      <div>
-                        <p className="font-medium text-white">Minimal</p>
-                        <p className="text-xs text-slate-400">Clean, simple design</p>
-                      </div>
-                    </div>
-                  </button>
-                  <button
-                    onClick={() => downloadPPTX('investor')}
-                    disabled={!canDownloadPPTX}
-                    className={`w-full text-left px-4 py-3 transition-colors ${canDownloadPPTX ? 'hover:bg-slate-700' : 'opacity-50 cursor-not-allowed'}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-xl">💼</span>
-                      <div>
-                        <p className="font-medium text-white">Investor Pitch</p>
-                        <p className="text-xs text-slate-400">Pitch deck format</p>
-                      </div>
-                    </div>
-                  </button>
-
-                  {/* Upgrade prompt for free users */}
-                  {userTier === 'free' && pptxDownloadCount >= maxFreeDownloads && (
-                    <div className="p-3 bg-gradient-to-r from-amber-900/30 to-orange-900/30 border-t border-amber-700/50">
-                      <p className="text-xs text-amber-300 text-center">
-                        Upgrade to Pro for unlimited downloads
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <Link href="/dashboard" className="text-slate-400 hover:text-white transition-colors">← Dashboard</Link>
+            <span className="text-slate-600">|</span>
+            <Link href="/validate" className="text-slate-400 hover:text-white transition-colors">+ New Validation</Link>
           </div>
-
-          {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold mb-2">{validation.title}</h1>
-            <p className="text-slate-400 font-mono text-sm">ID: {validationId}</p>
-            <p className="text-slate-500 text-sm mt-1">Created: {new Date(validation.createdAt).toLocaleDateString()}</p>
-          </div>
-
-          {/* Overall Score Card */}
-          <div className="bg-slate-800/50 rounded-lg p-6 mb-8 border border-slate-700">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <h2 className="text-xl font-semibold mb-1">Analysis Complete</h2>
-                <p className="text-slate-400 text-sm">All 12 AI agents have completed their analysis</p>
-              </div>
-              <div className={`text-right px-4 py-2 rounded-lg border ${getScoreBg(validation.overallScore || 0)}`}>
-                <span className={`text-4xl font-bold ${getScoreColor(validation.overallScore || 0)}`}>
-                  {validation.overallScore}
-                </span>
-                <span className="text-slate-400 text-lg">/100</span>
-              </div>
-            </div>
-
-            {/* Verdict */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-              <div className="bg-slate-700/50 rounded-lg p-4">
-                <p className="text-slate-400 text-xs uppercase mb-1">Verdict</p>
-                <p className={`text-lg font-semibold ${validation.verdict === 'PROCEED' ? 'text-emerald-400' : validation.verdict === 'PROCEED_WITH_CAUTION' ? 'text-yellow-400' : 'text-red-400'}`}>
-                  {validation.verdict?.replace(/_/g, ' ')}
-                </p>
-              </div>
-              <div className="bg-slate-700/50 rounded-lg p-4">
-                <p className="text-slate-400 text-xs uppercase mb-1">Confidence</p>
-                <p className="text-lg font-semibold text-white">{validation.overallConfidence}%</p>
-              </div>
-              <div className="bg-slate-700/50 rounded-lg p-4">
-                <p className="text-slate-400 text-xs uppercase mb-1">Recommendation</p>
-                <p className={`text-lg font-semibold ${validation.recommendation === 'GREEN' ? 'text-emerald-400' : validation.recommendation === 'YELLOW' ? 'text-yellow-400' : 'text-red-400'}`}>
-                  {validation.recommendation}
-                </p>
-              </div>
-            </div>
-
-            {/* Executive Summary */}
-            {validation.executiveSummary && (
-              <div className="bg-slate-700/30 rounded-lg p-4">
-                <p className="text-slate-400 text-xs uppercase mb-2">Executive Summary</p>
-                <p className="text-slate-300">{validation.executiveSummary}</p>
+          <div className="relative download-menu-container">
+            <button
+              onClick={() => setShowDownloadMenu(!showDownloadMenu)}
+              disabled={isDownloading}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+            >
+              {isDownloading ? 'Generating...' : 'Download Report ▼'}
+            </button>
+            {showDownloadMenu && (
+              <div className="absolute right-0 mt-2 w-56 bg-slate-800 rounded-lg shadow-xl border border-slate-700 z-50">
+                <button onClick={downloadPDF} className="w-full text-left px-4 py-3 hover:bg-slate-700 rounded-t-lg">
+                  <span className="font-medium">📄 PDF Report</span>
+                </button>
               </div>
             )}
           </div>
+        </div>
 
-          {/* Agent Grid */}
-          <div className="mb-8">
-            <h2 className="text-xl font-semibold mb-4">AI Agent Council (12 Agents)</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {AGENTS.map((agent) => {
+        {/* Title Section */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold mb-2">{validation.title}</h1>
+          <p className="text-slate-400 text-sm">{validation.description}</p>
+          <p className="text-slate-500 text-xs mt-2">Created: {new Date(validation.createdAt).toLocaleDateString()}</p>
+        </div>
+
+        {/* Main Score Section with Gauge */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+          {/* Large Score Gauge */}
+          <div className="lg:col-span-1 bg-slate-800/50 rounded-xl p-6 border border-slate-700 flex flex-col items-center justify-center">
+            <ScoreGauge
+              score={validation.overallScore || 0}
+              label="Overall Score"
+              size="lg"
+              verdict={validation.verdict as any}
+              showVerdict={true}
+            />
+          </div>
+
+          {/* Key Metrics */}
+          <div className="lg:col-span-3 grid grid-cols-2 md:grid-cols-4 gap-4">
+            <MetricCard
+              label="Confidence"
+              value={validation.overallConfidence || 0}
+              suffix="%"
+              icon="🎯"
+              color="blue"
+              size="md"
+            />
+            <MetricCard
+              label="Strengths"
+              value={strengths}
+              icon="✓"
+              color="emerald"
+              size="md"
+            />
+            <MetricCard
+              label="Concerns"
+              value={weaknesses}
+              icon="⚠"
+              color="amber"
+              size="md"
+            />
+            <MetricCard
+              label="Risks"
+              value={allRisks.length}
+              icon="🔥"
+              color={allRisks.length > 5 ? 'red' : 'slate'}
+              size="md"
+            />
+
+            {/* Executive Summary */}
+            <div className="col-span-2 md:col-span-4 bg-slate-800/50 rounded-xl p-4 border border-slate-700">
+              <h3 className="text-sm font-medium text-slate-400 mb-2">Executive Summary</h3>
+              <p className="text-slate-200 text-sm leading-relaxed">
+                {validation.executiveSummary || 'Analysis complete. Review detailed findings below.'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Navigation Tabs */}
+        <div className="flex items-center gap-2 mb-6 bg-slate-800/30 p-1 rounded-lg w-fit">
+          {(['overview', 'agents', 'risks', 'recommendations'] as const).map(tab => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all capitalize ${
+                activeTab === tab ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab Content */}
+        {activeTab === 'overview' && (
+          <div className="space-y-6">
+            {/* Charts Row */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Radar Chart */}
+              {agentScores.length > 0 && (
+                <AgentRadarChart agents={agentScores} showConfidence={true} />
+              )}
+
+              {/* Agent Bar Comparison */}
+              {agentScores.length > 0 && (
+                <HorizontalAgentChart data={agentScores} title="Agent Score Ranking" height={400} />
+              )}
+            </div>
+
+            {/* Second Row - Donut Charts */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {allFindings.length > 0 && <FindingsBreakdown findings={allFindings} />}
+              {allRisks.length > 0 && <RiskSeverityChart risks={allRisks} />}
+
+              {/* Agent Confidence Breakdown */}
+              <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
+                <h3 className="text-lg font-semibold text-white mb-4">Agent Confidence Levels</h3>
+                <div className="space-y-3">
+                  {agentScores.slice(0, 6).map(agent => (
+                    <ProgressBar
+                      key={agent.agentId}
+                      progress={agent.confidence}
+                      label={`${AGENTS.find(a => a.id === agent.agentId)?.icon || '🔷'} ${agent.agentName}`}
+                      color={agent.confidence >= 70 ? '#10b981' : agent.confidence >= 50 ? '#eab308' : '#ef4444'}
+                      height={6}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Risk Heatmap */}
+            {allRisks.length > 0 && (
+              <RiskHeatmap risks={allRisks} />
+            )}
+          </div>
+        )}
+
+        {activeTab === 'agents' && (
+          <div className="space-y-6">
+            {/* Agent Grid with Progress Rings */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+              {AGENTS.map(agent => {
                 const report = getAgentReport(agent.id);
-
                 return (
                   <div
                     key={agent.id}
-                    onClick={() => report && setExpandedAgent(expandedAgent === agent.id ? null : agent.id)}
-                    className={`rounded-lg p-4 border transition-all cursor-pointer hover:border-emerald-500/60 ${
-                      expandedAgent === agent.id ? 'border-emerald-500 ring-2 ring-emerald-500/30 bg-slate-800' :
-                      report ? `${getScoreBg(report.score)} border` : 'bg-slate-800/50 border-slate-700'
+                    onClick={() => report && setExpandedAgent(agent.id)}
+                    className={`bg-slate-800/50 rounded-xl p-4 border transition-all cursor-pointer hover:border-emerald-500/50 ${
+                      report ? 'border-slate-700' : 'border-slate-700/50 opacity-50'
                     }`}
                   >
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-2xl">{agent.icon}</span>
-                        <div>
-                          <h3 className="font-semibold">{agent.name}</h3>
-                          <p className="text-xs text-slate-400">{agent.role}</p>
-                        </div>
+                    <div className="flex flex-col items-center text-center">
+                      <div className="mb-2">
+                        {report ? (
+                          <ProgressRing
+                            progress={report.score}
+                            size={80}
+                            strokeWidth={6}
+                            color={report.score >= 70 ? '#10b981' : report.score >= 50 ? '#eab308' : '#ef4444'}
+                          />
+                        ) : (
+                          <div className="w-20 h-20 rounded-full bg-slate-700/50 flex items-center justify-center text-3xl">
+                            {agent.icon}
+                          </div>
+                        )}
                       </div>
+                      <h4 className="font-semibold text-sm">{agent.name}</h4>
+                      <p className="text-xs text-slate-400">{agent.role}</p>
                       {report && (
-                        <div className="text-right">
-                          <span className={`text-xl font-bold ${getScoreColor(report.score)}`}>{report.score}</span>
-                          <p className="text-xs text-slate-500">{report.confidence}% conf</p>
-                        </div>
+                        <p className="text-xs text-slate-500 mt-1">{report.confidence}% conf</p>
                       )}
                     </div>
-                    <p className="text-xs text-slate-500">{agent.description}</p>
-                    {report && <p className="text-xs text-emerald-400 mt-2">Click to view details</p>}
                   </div>
                 );
               })}
             </div>
-          </div>
 
-          {/* Expanded Agent Detail Modal */}
-          {expandedAgent && selectedReport && selectedAgent && (
-            <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={() => setExpandedAgent(null)}>
-              <div className="bg-slate-800 rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-slate-700" onClick={(e) => e.stopPropagation()}>
-                <div className="sticky top-0 bg-slate-800 border-b border-slate-700 p-6 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="text-3xl">{selectedAgent.icon}</span>
-                    <div>
-                      <h3 className="text-xl font-bold">{selectedAgent.name}</h3>
-                      <p className="text-slate-400">{selectedAgent.role}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className={`px-4 py-2 rounded-lg border ${getScoreBg(selectedReport.score)}`}>
-                      <span className={`text-2xl font-bold ${getScoreColor(selectedReport.score)}`}>{selectedReport.score}</span>
-                      <span className="text-slate-400">/100</span>
-                    </div>
-                    <button onClick={() => setExpandedAgent(null)} className="text-slate-400 hover:text-white text-2xl">&times;</button>
-                  </div>
-                </div>
-
-                <div className="p-6 space-y-6">
-                  {/* Findings */}
-                  {selectedReport.findings?.length > 0 && (
-                    <div>
-                      <h4 className="text-lg font-semibold mb-3 text-emerald-400">Key Findings</h4>
-                      <div className="space-y-3">
-                        {selectedReport.findings.map((finding, idx) => (
-                          <div key={idx} className={`p-4 rounded-lg border ${getFindingColor(finding.type)}`}>
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="text-xs uppercase px-2 py-0.5 rounded bg-slate-700 text-slate-300">{finding.type}</span>
-                              <span className="text-xs uppercase px-2 py-0.5 rounded bg-slate-700 text-slate-400">{finding.severity}</span>
-                            </div>
-                            <h5 className="font-semibold">{finding.title}</h5>
-                            <p className="text-slate-300 text-sm mt-1">{finding.description}</p>
-                            {finding.evidence && finding.evidence.length > 0 && (
-                              <p className="text-xs text-slate-500 mt-2">Evidence: {finding.evidence.join(', ')}</p>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Risks */}
-                  {selectedReport.risks?.length > 0 && (
-                    <div>
-                      <h4 className="text-lg font-semibold mb-3 text-orange-400">Risks Identified</h4>
-                      <div className="space-y-3">
-                        {selectedReport.risks.map((risk, idx) => (
-                          <div key={idx} className="p-4 rounded-lg border border-orange-500/30 bg-orange-500/10">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="text-xs uppercase px-2 py-0.5 rounded bg-orange-600/30 text-orange-300">{risk.probability} prob</span>
-                              <span className="text-xs uppercase px-2 py-0.5 rounded bg-orange-600/30 text-orange-300">{risk.impact} impact</span>
-                            </div>
-                            <h5 className="font-semibold">{risk.title}</h5>
-                            <p className="text-slate-300 text-sm mt-1">{risk.description}</p>
-                            {risk.mitigations && risk.mitigations.length > 0 && (
-                              <div className="mt-2">
-                                <p className="text-xs text-slate-400">Mitigations:</p>
-                                <ul className="text-xs text-slate-300 list-disc list-inside">
-                                  {risk.mitigations.map((m, i) => <li key={i}>{m}</li>)}
-                                </ul>
+            {/* Agent Details Table */}
+            <div className="bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
+              <div className="p-4 border-b border-slate-700">
+                <h3 className="text-lg font-semibold">Agent Analysis Details</h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-slate-900/50">
+                    <tr>
+                      <th className="text-left p-4 text-sm text-slate-400">Agent</th>
+                      <th className="text-center p-4 text-sm text-slate-400">Score</th>
+                      <th className="text-center p-4 text-sm text-slate-400">Confidence</th>
+                      <th className="text-center p-4 text-sm text-slate-400">Findings</th>
+                      <th className="text-center p-4 text-sm text-slate-400">Risks</th>
+                      <th className="text-center p-4 text-sm text-slate-400">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-700/50">
+                    {AGENTS.map(agent => {
+                      const report = getAgentReport(agent.id);
+                      if (!report) return null;
+                      return (
+                        <tr key={agent.id} className="hover:bg-slate-700/30">
+                          <td className="p-4">
+                            <div className="flex items-center gap-3">
+                              <span className="text-xl">{agent.icon}</span>
+                              <div>
+                                <p className="font-medium">{agent.name}</p>
+                                <p className="text-xs text-slate-400">{agent.role}</p>
                               </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Recommendations */}
-                  {selectedReport.recommendations?.length > 0 && (
-                    <div>
-                      <h4 className="text-lg font-semibold mb-3 text-blue-400">Recommendations</h4>
-                      <div className="space-y-3">
-                        {selectedReport.recommendations.map((rec, idx) => (
-                          <div key={idx} className="p-4 rounded-lg border border-blue-500/30 bg-blue-500/10">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="text-xs uppercase px-2 py-0.5 rounded bg-blue-600/30 text-blue-300">{rec.priority}</span>
-                              <span className="text-xs uppercase px-2 py-0.5 rounded bg-blue-600/30 text-blue-300">{rec.timeframe}</span>
                             </div>
-                            <h5 className="font-semibold">{rec.title}</h5>
-                            <p className="text-slate-300 text-sm mt-1">{rec.description}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
+                          </td>
+                          <td className="p-4 text-center">
+                            <ScoreBadge score={report.score} size="sm" />
+                          </td>
+                          <td className="p-4 text-center">
+                            <span className="text-slate-300">{report.confidence}%</span>
+                          </td>
+                          <td className="p-4 text-center">
+                            <span className="text-emerald-400">{report.findings?.filter(f => f.type === 'strength').length || 0}</span>
+                            <span className="text-slate-500 mx-1">/</span>
+                            <span className="text-amber-400">{report.findings?.filter(f => f.type === 'weakness').length || 0}</span>
+                          </td>
+                          <td className="p-4 text-center">
+                            <span className={report.risks?.length > 2 ? 'text-red-400' : 'text-slate-400'}>
+                              {report.risks?.length || 0}
+                            </span>
+                          </td>
+                          <td className="p-4 text-center">
+                            <button
+                              onClick={() => setExpandedAgent(agent.id)}
+                              className="text-emerald-400 hover:text-emerald-300 text-sm"
+                            >
+                              View Details
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
+
+        {activeTab === 'risks' && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {allRisks.length > 0 && <RiskSeverityChart risks={allRisks} />}
+              <div className="lg:col-span-2">
+                {allRisks.length > 0 && <RiskHeatmap risks={allRisks} />}
+              </div>
+            </div>
+
+            {/* Risk Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {allRisks.map((risk, i) => (
+                <div key={i} className="bg-slate-800/50 rounded-xl p-5 border border-slate-700">
+                  <div className="flex items-start justify-between mb-3">
+                    <h4 className="font-semibold text-white">{risk.title}</h4>
+                    <div className="flex gap-2">
+                      <span className={`text-xs px-2 py-1 rounded ${
+                        risk.probability === 'high' ? 'bg-red-500/20 text-red-400' :
+                        risk.probability === 'medium' ? 'bg-amber-500/20 text-amber-400' :
+                        'bg-slate-500/20 text-slate-400'
+                      }`}>
+                        {risk.probability}
+                      </span>
+                      <span className={`text-xs px-2 py-1 rounded ${
+                        risk.impact === 'critical' ? 'bg-red-500/20 text-red-400' :
+                        risk.impact === 'major' ? 'bg-orange-500/20 text-orange-400' :
+                        'bg-slate-500/20 text-slate-400'
+                      }`}>
+                        {risk.impact}
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-sm text-slate-300 mb-3">{risk.description}</p>
+                  {risk.mitigations?.length > 0 && (
+                    <div>
+                      <p className="text-xs text-slate-400 mb-1">Mitigations:</p>
+                      <ul className="text-xs text-slate-300 space-y-1">
+                        {risk.mitigations.map((m, j) => (
+                          <li key={j} className="flex items-start gap-2">
+                            <span className="text-emerald-400">→</span> {m}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'recommendations' && (
+          <div className="space-y-4">
+            {/* Priority sections */}
+            {['high', 'medium', 'low'].map(priority => {
+              const recs = allRecommendations.filter(r => r.priority === priority);
+              if (recs.length === 0) return null;
+              return (
+                <div key={priority}>
+                  <h3 className={`text-lg font-semibold mb-4 flex items-center gap-2 ${
+                    priority === 'high' ? 'text-red-400' :
+                    priority === 'medium' ? 'text-amber-400' : 'text-slate-400'
+                  }`}>
+                    <span>{priority === 'high' ? '🔴' : priority === 'medium' ? '🟡' : '🟢'}</span>
+                    {priority.charAt(0).toUpperCase() + priority.slice(1)} Priority
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {recs.map((rec, i) => (
+                      <div key={i} className="bg-slate-800/50 rounded-xl p-5 border border-slate-700">
+                        <div className="flex items-start justify-between mb-2">
+                          <h4 className="font-semibold text-white">{rec.title}</h4>
+                          <span className="text-xs text-slate-400">{rec.timeframe}</span>
+                        </div>
+                        <p className="text-sm text-slate-300">{rec.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Agent Detail Modal */}
+        {expandedAgent && selectedReport && selectedAgent && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={() => setExpandedAgent(null)}>
+            <div className="bg-slate-800 rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-slate-700" onClick={e => e.stopPropagation()}>
+              <div className="sticky top-0 bg-slate-800 border-b border-slate-700 p-6 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center text-3xl">
+                    {selectedAgent.icon}
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold">{selectedAgent.name}</h3>
+                    <p className="text-slate-400">{selectedAgent.role} • {selectedAgent.description}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <ScoreBadge score={selectedReport.score} size="lg" />
+                  <button onClick={() => setExpandedAgent(null)} className="text-slate-400 hover:text-white text-3xl">×</button>
+                </div>
+              </div>
+
+              <div className="p-6 space-y-6">
+                {/* Score & Confidence */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-slate-900/50 rounded-xl p-4 text-center">
+                    <ProgressRing progress={selectedReport.score} size={100} strokeWidth={8} />
+                    <p className="text-sm text-slate-400 mt-2">Analysis Score</p>
+                  </div>
+                  <div className="bg-slate-900/50 rounded-xl p-4 text-center">
+                    <ProgressRing progress={selectedReport.confidence} size={100} strokeWidth={8} color="#6366f1" />
+                    <p className="text-sm text-slate-400 mt-2">Confidence Level</p>
+                  </div>
+                </div>
+
+                {/* Findings */}
+                {selectedReport.findings?.length > 0 && (
+                  <div>
+                    <h4 className="text-lg font-semibold mb-4 text-emerald-400">Key Findings ({selectedReport.findings.length})</h4>
+                    <div className="space-y-3">
+                      {selectedReport.findings.map((finding, idx) => (
+                        <div key={idx} className={`p-4 rounded-xl border ${
+                          finding.type === 'strength' ? 'border-emerald-500/30 bg-emerald-500/10' :
+                          finding.type === 'weakness' ? 'border-amber-500/30 bg-amber-500/10' :
+                          'border-slate-700 bg-slate-900/30'
+                        }`}>
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className={`text-xs px-2 py-1 rounded capitalize ${
+                              finding.type === 'strength' ? 'bg-emerald-600/30 text-emerald-300' :
+                              finding.type === 'weakness' ? 'bg-amber-600/30 text-amber-300' :
+                              'bg-slate-600/30 text-slate-300'
+                            }`}>{finding.type}</span>
+                            <span className="text-xs px-2 py-1 rounded bg-slate-600/30 text-slate-300">{finding.severity}</span>
+                          </div>
+                          <h5 className="font-semibold mb-1">{finding.title}</h5>
+                          <p className="text-sm text-slate-300">{finding.description}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Risks */}
+                {selectedReport.risks?.length > 0 && (
+                  <div>
+                    <h4 className="text-lg font-semibold mb-4 text-orange-400">Risks Identified ({selectedReport.risks.length})</h4>
+                    <div className="space-y-3">
+                      {selectedReport.risks.map((risk, idx) => (
+                        <div key={idx} className="p-4 rounded-xl border border-orange-500/30 bg-orange-500/10">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-xs px-2 py-1 rounded bg-orange-600/30 text-orange-300">{risk.probability} prob</span>
+                            <span className="text-xs px-2 py-1 rounded bg-orange-600/30 text-orange-300">{risk.impact} impact</span>
+                          </div>
+                          <h5 className="font-semibold mb-1">{risk.title}</h5>
+                          <p className="text-sm text-slate-300 mb-2">{risk.description}</p>
+                          {risk.mitigations?.length > 0 && (
+                            <div className="text-xs text-emerald-300">
+                              <strong>Mitigations:</strong> {risk.mitigations.join(' • ')}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Recommendations */}
+                {selectedReport.recommendations?.length > 0 && (
+                  <div>
+                    <h4 className="text-lg font-semibold mb-4 text-blue-400">Recommendations ({selectedReport.recommendations.length})</h4>
+                    <div className="space-y-3">
+                      {selectedReport.recommendations.map((rec, idx) => (
+                        <div key={idx} className="p-4 rounded-xl border border-blue-500/30 bg-blue-500/10">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className={`text-xs px-2 py-1 rounded ${
+                              rec.priority === 'high' ? 'bg-red-600/30 text-red-300' :
+                              rec.priority === 'medium' ? 'bg-amber-600/30 text-amber-300' :
+                              'bg-slate-600/30 text-slate-300'
+                            }`}>{rec.priority} priority</span>
+                            <span className="text-xs text-slate-400">{rec.timeframe}</span>
+                          </div>
+                          <h5 className="font-semibold mb-1">{rec.title}</h5>
+                          <p className="text-sm text-slate-300">{rec.description}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </main>
   );
