@@ -1022,7 +1022,9 @@ ${this.citations.map(c => `- ${c.source}: "${c.claim}" (Confidence: ${(c.confide
     if (this.llmAnalysis) {
       const llmScore = this.llmAnalysis.score;
       const rulesScore = this.calculateRulesBasedScore();
-      return Math.round((llmScore * 0.6 + rulesScore * 0.4) * 10) / 10;
+      const weightedScore = llmScore * 0.6 + rulesScore * 0.4;
+      // Ensure score is bounded to 1-10 and properly rounded
+      return Math.round(Math.max(1, Math.min(10, weightedScore)) * 10) / 10;
     }
     return this.calculateRulesBasedScore();
   }

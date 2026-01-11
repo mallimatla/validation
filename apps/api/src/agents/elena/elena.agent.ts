@@ -692,7 +692,24 @@ ${this.recommendations.map(r => `- **${r.title}**: ${r.description}`).join('\n')
   }
 
   protected calculateScore(): number {
-    return this.pmfMetrics?.pmfScore || 5;
+    // Get the raw PMF score, default to 5 (neutral) if no data
+    let score = this.pmfMetrics?.pmfScore ?? 5;
+
+    // If pmfScore is very low due to lack of data (not actual negative signals),
+    // use a more neutral baseline. A score below 3 with minimal data is too harsh.
+    const hasCustomerData = this.pmfMetrics && (
+      this.pmfMetrics.interviewCount > 0 ||
+      this.pmfMetrics.preorderCount > 0 ||
+      this.pmfMetrics.waitlistSize > 0
+    );
+
+    // If we have no real customer data, default to neutral (5) rather than penalizing
+    if (!hasCustomerData && score < 3) {
+      score = 5;
+    }
+
+    // Ensure score is bounded to 1-10 and properly rounded to avoid floating point issues
+    return Math.round(Math.max(1, Math.min(10, score)) * 10) / 10;
   }
 
   private estimateInterestRate(input: AnalysisInput): number {
