@@ -384,8 +384,14 @@ export class InvestorService {
 
     const requests = await this.prisma.investorIntroRequest.findMany({
       where: { investorProfileId: investorProfile.id },
-      include: {
-        validation: {
+      orderBy: { requestedAt: 'desc' },
+    });
+
+    // Fetch validation details for each request
+    const enrichedRequests = await Promise.all(
+      requests.map(async (req: any) => {
+        const validation = await this.prisma.validation.findUnique({
+          where: { id: req.validationId },
           select: {
             id: true,
             title: true,
@@ -399,12 +405,12 @@ export class InvestorService {
               },
             },
           },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+        });
+        return { ...req, validation };
+      })
+    );
 
-    return requests;
+    return enrichedRequests;
   }
 
   /**
