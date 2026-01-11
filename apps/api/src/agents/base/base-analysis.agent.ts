@@ -339,29 +339,52 @@ export abstract class BaseAnalysisAgent {
 
   /**
    * Calculate the final score (1-10)
+   * Subclasses can override but should always return a value between 1-10
    */
   protected calculateScore(): number {
+    let score: number;
+
     // Prefer LLM score if available, otherwise use agent's calculation
     if (this.llmAnalysis) {
-      return this.llmAnalysis.score;
+      score = this.llmAnalysis.score;
+    } else {
+      score = this.analysisScore;
     }
-    return this.analysisScore;
+
+    // Ensure score is always a valid number between 1-10
+    // Minimum of 3 (not 1) to avoid overly harsh scores with limited data
+    if (!Number.isFinite(score) || score < 1) {
+      score = 5; // Default neutral score
+    }
+    return Math.round(Math.max(1, Math.min(10, score)) * 10) / 10;
   }
 
   /**
    * Calculate confidence level (1-10)
+   * Higher confidence when more data is available
    */
   protected calculateConfidence(): number {
-    // Base confidence on citation count and data quality
-    const citationScore = Math.min(10, this.citations.length * 1.2);
-    const findingScore = Math.min(10, this.findings.length * 1.5);
+    // Base confidence starts at 3 (minimum) - we're always somewhat uncertain without data
+    let baseConfidence = 3;
+
+    // Citation-based confidence boost (up to +3)
+    const citationBonus = Math.min(3, this.citations.length * 0.3);
+
+    // Finding-based confidence boost (up to +2)
+    const findingBonus = Math.min(2, this.findings.length * 0.25);
+
+    // LLM analysis bonus (+2 if AI was used)
     const llmBonus = this.llmAnalysis ? 2 : 0;
 
+    // Average citation confidence contribution (up to +1)
     const avgCitationConfidence = this.citations.length > 0
-      ? this.citations.reduce((sum, c) => sum + c.confidence, 0) / this.citations.length * 10
+      ? Math.min(1, this.citations.reduce((sum, c) => sum + c.confidence, 0) / this.citations.length)
       : 0;
 
-    return Math.min(10, Math.round((citationScore + findingScore + avgCitationConfidence + llmBonus) / 4));
+    const totalConfidence = baseConfidence + citationBonus + findingBonus + llmBonus + avgCitationConfidence;
+
+    // Ensure confidence is always a valid number between 1-10
+    return Math.round(Math.max(1, Math.min(10, totalConfidence)) * 10) / 10;
   }
 
   /**

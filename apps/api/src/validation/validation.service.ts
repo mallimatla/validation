@@ -262,9 +262,16 @@ export class ValidationService {
             totalKillSignals += detectedKillSignals.length;
             criticalKillSignals += detectedKillSignals.filter((k: any) => k.severity === 'critical').length;
 
+            // Ensure scores are proper integers (1-100 scale)
+            // Agent scores are 1-10, multiply by 10 for percentage
+            const rawScore = Number(agentOutput.score) || 5;
+            const rawConfidence = Number(agentOutput.confidence) || 5;
+            const normalizedScore = Math.round(Math.max(1, Math.min(10, rawScore)) * 10);
+            const normalizedConfidence = Math.round(Math.max(1, Math.min(10, rawConfidence)) * 10);
+
             reportData = {
-              score: Math.round(agentOutput.score * 10), // Convert 1-10 to percentage
-              confidence: Math.round(agentOutput.confidence * 10),
+              score: normalizedScore,
+              confidence: normalizedConfidence,
               findings: agentOutput.findings.map(f => ({
                 title: f.title,
                 description: f.description,
