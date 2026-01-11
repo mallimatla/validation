@@ -1,0 +1,447 @@
+import { Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { PrismaService } from '../common/prisma/prisma.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+
+export interface DiscoveryFilters {
+  stages?: string[];
+  industries?: string[];
+  minScore?: number;
+  maxScore?: number;
+  geography?: string[];
+  sortBy?: 'matchScore' | 'score' | 'createdAt';
+  page?: number;
+  limit?: number;
+}
+
+export interface StartupForInvestor {
+  id: string;
+  title: string;
+  description: string;
+  industry: string;
+  stage: string;
+  score: number;
+  confidence: number;
+  verdict: string;
+  geography: string[];
+  founderName: string;
+  founderAvatar: string;
+  matchScore: number;
+  isShortlisted: boolean;
+  createdAt: Date;
+  highlights: string[];
+  fundingAsk?: string;
+}
+
+@Injectable()
+export class InvestorService {
+  private readonly logger = new Logger(InvestorService.name);
+
+  constructor(
+    private prisma: PrismaService,
+    private eventEmitter: EventEmitter2,
+  ) {}
+
+  /**
+   * Get investor profile with thesis matching criteria
+   */
+  async getInvestorProfile(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { investorProfile: true },
+    });
+
+    if (!user || user.userType !== 'INVESTOR') {
+      throw new ForbiddenException('User is not an investor');
+    }
+
+    return user.investorProfile;
+  }
+
+  /**
+   * Discover validated startups matching investor criteria
+   */
+  async discoverStartups(
+    investorId: string,
+    filters: DiscoveryFilters,
+  ): Promise<{ data: StartupForInvestor[]; total: number; page: number; limit: number }> {
+    const { page = 1, limit = 20, sortBy = 'matchScore', minScore = 0 } = filters;
+    const skip = (page - 1) * limit;
+
+    // Get investor profile for thesis matching
+    const investorProfile = await this.getInvestorProfile(investorId);
+
+    // Get investor's shortlisted validations
+    const shortlistedIds = await this.getShortlistedIds(investorId);
+
+    // Build where clause for public/completed validations
+    const where: any = {
+      status: 'COMPLETE',
+      overallScore: { gte: minScore },
+      // Only show validations where founder opted in for investor visibility
+      user: {
+        founderProfile: {
+          openToInvestors: true,
+        },
+      },
+    };
+
+    // Apply industry filter
+    if (filters.industries && filters.industries.length > 0) {
+      where.industry = { in: filters.industries };
+    }
+
+    // Apply stage filter
+    if (filters.stages && filters.stages.length > 0) {
+      where.stage = { in: filters.stages };
+    }
+
+    // Get total count
+    const total = await this.prisma.validation.count({ where });
+
+    // Get validations with related data
+    const validations = await this.prisma.validation.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: sortBy === 'createdAt'
+        ? { createdAt: 'desc' }
+        : { overallScore: 'desc' },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            avatarUrl: true,
+            company: true,
+            founderProfile: true,
+          },
+        },
+        agentReports: {
+          select: {
+            agentId: true,
+            score: true,
+            findings: true,
+          },
+        },
+      },
+    });
+
+    // Transform to investor-facing format with match scores
+    const startups: StartupForInvestor[] = validations.map((v: any) => {
+      const matchScore = this.calculateMatchScore(v, investorProfile);
+      const highlights = this.extractHighlights(v);
+
+      return {
+        id: v.id,
+        title: v.title,
+        description: v.description,
+        industry: v.industry || 'Technology',
+        stage: v.stage || 'Seed',
+        score: v.overallScore || 0,
+        confidence: v.overallConfidence || 0,
+        verdict: v.verdict || 'PROCEED',
+        geography: v.geography || [],
+        founderName: v.user?.name || 'Anonymous Founder',
+        founderAvatar: v.user?.avatarUrl || '',
+        matchScore,
+        isShortlisted: shortlistedIds.has(v.id),
+        createdAt: v.createdAt,
+        highlights,
+        fundingAsk: (v.founderData as any)?.fundingAsk,
+      };
+    });
+
+    // Sort by match score if requested
+    if (sortBy === 'matchScore') {
+      startups.sort((a, b) => b.matchScore - a.matchScore);
+    }
+
+    return { data: startups, total, page, limit };
+  }
+
+  /**
+   * Calculate match score between startup and investor thesis
+   */
+  private calculateMatchScore(validation: any, investorProfile: any): number {
+    if (!investorProfile) return 50; // Default match for investors without profile
+
+    let score = 0;
+    let factors = 0;
+
+    // Industry match (40 points)
+    if (investorProfile.industries && investorProfile.industries.length > 0) {
+      factors++;
+      if (investorProfile.industries.includes(validation.industry)) {
+        score += 40;
+      } else {
+        score += 10; // Partial credit
+      }
+    }
+
+    // Stage match (30 points)
+    if (investorProfile.stages && investorProfile.stages.length > 0) {
+      factors++;
+      if (investorProfile.stages.includes(validation.stage)) {
+        score += 30;
+      } else {
+        score += 5;
+      }
+    }
+
+    // Geography match (20 points)
+    if (investorProfile.geography && investorProfile.geography.length > 0 && validation.geography) {
+      factors++;
+      const hasMatch = validation.geography.some((g: string) =>
+        investorProfile.geography.includes(g)
+      );
+      if (hasMatch) {
+        score += 20;
+      } else {
+        score += 5;
+      }
+    }
+
+    // Validation score bonus (10 points)
+    factors++;
+    if (validation.overallScore >= 80) score += 10;
+    else if (validation.overallScore >= 70) score += 7;
+    else if (validation.overallScore >= 60) score += 5;
+    else score += 2;
+
+    // Normalize to 100 if we have factors
+    return factors > 0 ? Math.round(score / factors * (100 / 25)) : 50;
+  }
+
+  /**
+   * Extract key highlights from validation
+   */
+  private extractHighlights(validation: any): string[] {
+    const highlights: string[] = [];
+
+    // Add score-based highlights
+    if (validation.overallScore >= 80) {
+      highlights.push('Top 10% score');
+    } else if (validation.overallScore >= 70) {
+      highlights.push('Strong validation');
+    }
+
+    // Extract from agent findings
+    const agentReports = validation.agentReports || [];
+    for (const report of agentReports) {
+      const findings = report.findings || [];
+      for (const finding of findings) {
+        if (finding.type === 'strength' && finding.severity === 'critical') {
+          highlights.push(finding.title);
+          if (highlights.length >= 3) break;
+        }
+      }
+      if (highlights.length >= 3) break;
+    }
+
+    // Add default highlights if needed
+    if (highlights.length < 2) {
+      if (validation.verdict === 'PROCEED') highlights.push('Recommended to proceed');
+      if ((validation.founderData as any)?.hasRevenue) highlights.push('Has revenue');
+      if ((validation.founderData as any)?.hasPriorExit) highlights.push('Repeat founder');
+    }
+
+    return highlights.slice(0, 3);
+  }
+
+  /**
+   * Get IDs of startups shortlisted by investor
+   */
+  private async getShortlistedIds(investorId: string): Promise<Set<string>> {
+    // This would query a shortlist table - for now, return empty
+    // TODO: Create shortlist table and query it
+    return new Set();
+  }
+
+  /**
+   * Add startup to investor's shortlist
+   */
+  async addToShortlist(investorId: string, validationId: string): Promise<void> {
+    // Verify investor
+    await this.getInvestorProfile(investorId);
+
+    // Verify validation exists and is public
+    const validation = await this.prisma.validation.findUnique({
+      where: { id: validationId },
+      include: {
+        user: {
+          include: { founderProfile: true },
+        },
+      },
+    });
+
+    if (!validation) {
+      throw new NotFoundException('Validation not found');
+    }
+
+    if (validation.status !== 'COMPLETE') {
+      throw new ForbiddenException('Cannot shortlist incomplete validation');
+    }
+
+    // TODO: Save to shortlist table
+    this.logger.log(`Investor ${investorId} shortlisted validation ${validationId}`);
+
+    this.eventEmitter.emit('investor.shortlisted', {
+      investorId,
+      validationId,
+      founderId: validation.userId,
+    });
+  }
+
+  /**
+   * Remove startup from investor's shortlist
+   */
+  async removeFromShortlist(investorId: string, validationId: string): Promise<void> {
+    // TODO: Remove from shortlist table
+    this.logger.log(`Investor ${investorId} removed ${validationId} from shortlist`);
+  }
+
+  /**
+   * Get investor's shortlisted startups
+   */
+  async getShortlist(investorId: string): Promise<StartupForInvestor[]> {
+    await this.getInvestorProfile(investorId);
+    // TODO: Query shortlist table and return full startup data
+    return [];
+  }
+
+  /**
+   * Request introduction to founder
+   */
+  async requestIntro(
+    investorId: string,
+    validationId: string,
+    message: string,
+  ): Promise<{ id: string; status: string }> {
+    // Verify investor
+    const investorProfile = await this.getInvestorProfile(investorId);
+
+    // Get investor user details
+    const investor = await this.prisma.user.findUnique({
+      where: { id: investorId },
+      include: { investorProfile: true },
+    });
+
+    // Verify validation and get founder
+    const validation = await this.prisma.validation.findUnique({
+      where: { id: validationId },
+      include: {
+        user: {
+          include: { founderProfile: true },
+        },
+      },
+    });
+
+    if (!validation) {
+      throw new NotFoundException('Validation not found');
+    }
+
+    if (!validation.userId) {
+      throw new ForbiddenException('Cannot contact anonymous validation');
+    }
+
+    // Create intro request
+    const introRequest = await this.prisma.investorIntroRequest.create({
+      data: {
+        investorProfileId: investorProfile!.id,
+        validationId,
+        message,
+        status: 'pending',
+      },
+    });
+
+    this.eventEmitter.emit('investor.intro_requested', {
+      investorId,
+      investorName: investor?.name,
+      investorFirm: investorProfile?.firmName,
+      founderId: validation.userId,
+      validationId,
+      validationTitle: validation.title,
+      message,
+    });
+
+    this.logger.log(`Intro request created: ${introRequest.id}`);
+
+    return {
+      id: introRequest.id,
+      status: 'pending',
+    };
+  }
+
+  /**
+   * Get investor's intro requests
+   */
+  async getIntroRequests(investorId: string): Promise<any[]> {
+    const investorProfile = await this.getInvestorProfile(investorId);
+
+    if (!investorProfile) {
+      return [];
+    }
+
+    const requests = await this.prisma.investorIntroRequest.findMany({
+      where: { investorProfileId: investorProfile.id },
+      include: {
+        validation: {
+          select: {
+            id: true,
+            title: true,
+            industry: true,
+            stage: true,
+            overallScore: true,
+            user: {
+              select: {
+                name: true,
+                avatarUrl: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return requests;
+  }
+
+  /**
+   * Get full validation details for investor (if they have access)
+   */
+  async getValidationDetails(investorId: string, validationId: string): Promise<any> {
+    await this.getInvestorProfile(investorId);
+
+    const validation = await this.prisma.validation.findUnique({
+      where: { id: validationId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            avatarUrl: true,
+            company: true,
+            linkedInUrl: true,
+            founderProfile: true,
+          },
+        },
+        agentReports: true,
+      },
+    });
+
+    if (!validation) {
+      throw new NotFoundException('Validation not found');
+    }
+
+    // Check if validation is public
+    if (
+      validation.status !== 'COMPLETE' ||
+      !validation.user?.founderProfile?.openToInvestors
+    ) {
+      throw new ForbiddenException('This validation is not available for investors');
+    }
+
+    return validation;
+  }
+}
