@@ -37,6 +37,7 @@ interface AgentReport {
   agentName: string;
   version: string;
   score: number;
+  weight: number;
   citations: Citation[];
   findings: any[];
   rawAnalysis: string;

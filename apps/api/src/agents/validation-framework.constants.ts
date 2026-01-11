@@ -379,29 +379,47 @@ export const PREMATURE_SCALING_FAILURE_RATE = 0.74; // 74% fail due to this
 
 // Theranos/FTX/WeWork Red Flags
 export const FALSE_POSITIVE_PATTERNS = {
-  theranos: [
-    'Charismatic founder with unverifiable claims',
-    'No audited financials',
-    'No independent technology verification',
-    'Prestige backers substituting for due diligence',
-    'Deal pressure emphasizing speed over scrutiny',
-    '"Exclusive" positioning discouraging questions',
-  ],
-  ftx: [
-    'No formal board of directors',
-    'No in-house accounting department',
-    'Unaudited financial statements',
-    'Large assets in self-created tokens',
-    'CEO distracted during pitch (gaming)',
-    'Complete failure of corporate controls',
-  ],
-  wework: [
-    'Vanity metrics focus (community, vibes)',
-    'Unit economics masked by growth',
-    'Related party transactions',
-    'Governance failures',
-    'Founder overreach',
-  ],
+  theranos: {
+    pattern: 'Charismatic storytelling masking technical weakness',
+    indicators: [
+      'Charismatic founder with unverifiable claims',
+      'No audited financials',
+      'No independent technology verification',
+      'Prestige backers substituting for due diligence',
+      'Deal pressure emphasizing speed over scrutiny',
+      '"Exclusive" positioning discouraging questions',
+    ],
+  },
+  ftx: {
+    pattern: 'Complexity masking fundamental issues',
+    indicators: [
+      'No formal board of directors',
+      'No in-house accounting department',
+      'Unaudited financial statements',
+      'Large assets in self-created tokens',
+      'CEO distracted during pitch (gaming)',
+      'Complete failure of corporate controls',
+    ],
+  },
+  wework: {
+    pattern: 'Vanity metrics masking broken unit economics',
+    indicators: [
+      'Vanity metrics focus (community, vibes)',
+      'Unit economics masked by growth',
+      'Related party transactions',
+      'Governance failures',
+      'Founder overreach',
+    ],
+  },
+  fyre: {
+    pattern: 'Marketing promises exceeding product reality',
+    indicators: [
+      'Heavy marketing spend with unproven product',
+      'Influencer-driven hype without substance',
+      'Promises of luxury without operational capability',
+      'No contingency planning',
+    ],
+  },
 };
 
 export const VANITY_METRICS_WARNING = [
@@ -417,21 +435,25 @@ export const VANITY_METRICS_WARNING = [
 // =============================================================================
 
 // Companies VCs typically reject that actually succeed
-export const CONTRARIAN_SUCCESS_PATTERNS = [
-  'Market timing appears too early but inflection points approaching',
-  'Founders outside "pattern" (older, non-traditional) with domain expertise',
-  'Negative initial unit economics with clear path to improvement (Instacart)',
-  'Regulatory complexity creating barriers to entry (Uber, PayPal)',
-  'High judge disagreement correlates with success (Strategy Science 2024)',
-];
+export const CONTRARIAN_SUCCESS_PATTERNS = {
+  market_timing_contrarian: 'Market timing appears too early but inflection points approaching',
+  founder_pattern_break: 'Founders outside "pattern" (older, non-traditional) with domain expertise',
+  negative_unit_economics: 'Negative initial unit economics with clear path to improvement (Instacart)',
+  regulatory_moat: 'Regulatory complexity creating barriers to entry (Uber, PayPal)',
+  expert_dismissal: 'High expert disagreement often correlates with category-creating success',
+  judge_disagreement: 'High judge disagreement correlates with success (Strategy Science 2024)',
+};
 
 // Famous VC Misses
 export const FAMOUS_REJECTIONS = {
   airbnb: {
+    company: 'Airbnb',
     rejected_by: 7,
     ask: 150_000,
     for_percentage: 0.10,
     current_value: 10_500_000_000, // That stake worth $10.5B
+    rejection_reason: 'Strangers won\'t want to stay in each other\'s homes',
+    current_outcome: '$80B+ market cap',
     rejection_reasons: [
       'Not in our area of focus',
       'Market opportunity not large enough',
@@ -439,11 +461,39 @@ export const FAMOUS_REJECTIONS = {
       'Struggled with travel category',
     ],
   },
+  uber: {
+    company: 'Uber',
+    rejection_reason: 'Regulatory issues make this business illegal in most markets',
+    current_outcome: '$150B+ market cap at IPO',
+    rejected_by: 'Multiple VCs',
+    concerns: [
+      'Legal/regulatory concerns',
+      'Car services market too small',
+      'Safety concerns',
+    ],
+  },
+  stripe: {
+    company: 'Stripe',
+    rejection_reason: 'Developer payments is too niche, PayPal already dominates',
+    current_outcome: '$95B valuation',
+    rejected_by: 'Multiple VCs',
+    concerns: [
+      'Market too small',
+      'PayPal dominance',
+      'Developer-focused = limited market',
+    ],
+  },
   google: {
+    company: 'Google',
     bessemer_reaction: 'How can I get out of this house without going near your garage?',
+    rejection_reason: 'Already too many search engines',
+    current_outcome: '$2T+ market cap',
   },
   facebook: {
+    company: 'Facebook',
     bessemer_reaction: 'Kid, haven\'t you heard of Friendster? Move on.',
+    rejection_reason: 'Social networks are a fad',
+    current_outcome: '$1T+ market cap',
   },
 };
 
