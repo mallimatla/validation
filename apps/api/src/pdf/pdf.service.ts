@@ -1,35 +1,25 @@
 /**
  * PDF Generation Service
- * Generates professional, marketing-quality PDF reports using pdfmake
+ * Generates professional, marketing-quality PDF reports using PDFKit
  * with charts, tables, and beautiful layouts
  */
 
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import PdfPrinter from 'pdfmake';
+import PDFDocument from 'pdfkit';
 import { PrismaService } from '../common/prisma/prisma.service';
 
-// Font definitions for pdfmake
-const fonts = {
-  Roboto: {
-    normal: 'Helvetica',
-    bold: 'Helvetica-Bold',
-    italics: 'Helvetica-Oblique',
-    bolditalics: 'Helvetica-BoldOblique',
-  },
-};
-
-// Brand colors
+// Brand colors (hex without #)
 const COLORS = {
-  primary: '#1E3A5F',
-  secondary: '#10B981',
-  accent: '#F59E0B',
-  danger: '#EF4444',
-  warning: '#F59E0B',
-  neutral: '#64748B',
-  light: '#F1F5F9',
-  white: '#FFFFFF',
-  black: '#1E293B',
-  lightGray: '#E2E8F0',
+  primary: '1E3A5F',
+  secondary: '10B981',
+  accent: 'F59E0B',
+  danger: 'EF4444',
+  warning: 'F59E0B',
+  neutral: '64748B',
+  light: 'F1F5F9',
+  white: 'FFFFFF',
+  black: '1E293B',
+  lightGray: 'E2E8F0',
 };
 
 const getScoreColor = (score: number): string => {
@@ -45,19 +35,19 @@ const getVerdictColor = (verdict: string): string => {
 };
 
 // Agent display names - functional roles (not internal names)
-const AGENT_INFO: Record<string, { name: string; role: string; icon: string }> = {
-  aria: { name: 'AI Orchestration', role: 'Coordination & Synthesis', icon: '🎯' },
-  marcus: { name: 'Market Analysis', role: 'TAM/SAM/SOM Study', icon: '📊' },
-  sophia: { name: 'Competitor Analysis', role: 'Competitive Landscape', icon: '🔍' },
-  david: { name: 'Financial Analysis', role: 'Unit Economics', icon: '💰' },
-  elena: { name: 'Customer Analysis', role: 'Product-Market Fit', icon: '👥' },
-  james: { name: 'Team Assessment', role: 'Founder Evaluation', icon: '👔' },
-  rachel: { name: 'Legal & Risk', role: 'Regulatory Analysis', icon: '⚖️' },
-  omar: { name: 'Technical Analysis', role: 'Tech Feasibility', icon: '💻' },
-  nora: { name: 'Funding Analysis', role: 'Investment Landscape', icon: '🚀' },
-  victor: { name: 'Valuation', role: 'Company Valuation', icon: '📈' },
-  victoria: { name: 'Final Synthesis', role: 'Recommendations', icon: '🏆' },
-  sentinel: { name: 'Trust & Audit', role: 'Data Verification', icon: '🛡️' },
+const AGENT_INFO: Record<string, { name: string; role: string }> = {
+  aria: { name: 'AI Orchestration', role: 'Coordination & Synthesis' },
+  marcus: { name: 'Market Analysis', role: 'TAM/SAM/SOM Study' },
+  sophia: { name: 'Competitor Analysis', role: 'Competitive Landscape' },
+  david: { name: 'Financial Analysis', role: 'Unit Economics' },
+  elena: { name: 'Customer Analysis', role: 'Product-Market Fit' },
+  james: { name: 'Team Assessment', role: 'Founder Evaluation' },
+  rachel: { name: 'Legal & Risk', role: 'Regulatory Analysis' },
+  omar: { name: 'Technical Analysis', role: 'Tech Feasibility' },
+  nora: { name: 'Funding Analysis', role: 'Investment Landscape' },
+  victor: { name: 'Valuation', role: 'Company Valuation' },
+  victoria: { name: 'Final Synthesis', role: 'Recommendations' },
+  sentinel: { name: 'Trust & Audit', role: 'Data Verification' },
 };
 
 export interface PdfTemplate {
@@ -66,29 +56,11 @@ export interface PdfTemplate {
   style: 'executive' | 'detailed' | 'summary';
 }
 
-// Styles for the PDF
-const styles: any = {
-  header: { fontSize: 24, bold: true, color: COLORS.primary, margin: [0, 0, 0, 10] },
-  subheader: { fontSize: 16, bold: true, color: COLORS.primary, margin: [0, 15, 0, 8] },
-  sectionTitle: { fontSize: 14, bold: true, color: COLORS.primary, margin: [0, 10, 0, 5] },
-  bodyText: { fontSize: 10, color: COLORS.black, lineHeight: 1.4 },
-  smallText: { fontSize: 9, color: COLORS.neutral },
-  boldText: { fontSize: 10, bold: true, color: COLORS.black },
-  whiteText: { fontSize: 10, color: COLORS.white },
-  whiteBoldText: { fontSize: 12, bold: true, color: COLORS.white },
-  metricValue: { fontSize: 36, bold: true, color: COLORS.white, alignment: 'center' },
-  metricLabel: { fontSize: 10, color: COLORS.white, alignment: 'center' },
-  tableHeader: { fontSize: 10, bold: true, color: COLORS.white, fillColor: COLORS.primary },
-};
-
 @Injectable()
 export class PdfService {
   private readonly logger = new Logger(PdfService.name);
-  private readonly printer: any;
 
-  constructor(private readonly prisma: PrismaService) {
-    this.printer = new PdfPrinter(fonts);
-  }
+  constructor(private readonly prisma: PrismaService) {}
 
   getTemplates(): PdfTemplate[] {
     return [
@@ -99,7 +71,7 @@ export class PdfService {
   }
 
   async generatePdf(validationId: string, userId: string, template: string = 'executive'): Promise<Buffer> {
-    this.logger.log(`Generating PDF for validation ${validationId} with template ${template}`);
+    this.logger.log(`Generating PDF for validation ${validationId}`);
 
     const validation = await this.prisma.validation.findUnique({
       where: { id: validationId },
@@ -115,707 +87,490 @@ export class PdfService {
       throw new NotFoundException('Validation not found');
     }
 
-    let docDefinition: any;
+    const doc = new PDFDocument({
+      size: 'A4',
+      margins: { top: 50, bottom: 50, left: 50, right: 50 },
+      bufferPages: true,
+    });
+
+    const chunks: Buffer[] = [];
+    doc.on('data', (chunk: Buffer) => chunks.push(chunk));
 
     switch (template) {
       case 'detailed':
-        docDefinition = this.createDetailedDocument(validation);
+        this.generateDetailedPdf(doc, validation);
         break;
       case 'summary':
-        docDefinition = this.createSummaryDocument(validation);
+        this.generateSummaryPdf(doc, validation);
         break;
       default:
-        docDefinition = this.createExecutiveDocument(validation);
+        this.generateExecutivePdf(doc, validation);
     }
 
-    return new Promise((resolve, reject) => {
-      try {
-        const pdfDoc = this.printer.createPdfKitDocument(docDefinition);
+    doc.end();
 
-        const chunks: Buffer[] = [];
-        pdfDoc.on('data', (chunk: Buffer) => chunks.push(chunk));
-        pdfDoc.on('end', () => resolve(Buffer.concat(chunks)));
-        pdfDoc.on('error', reject);
-        pdfDoc.end();
-      } catch (error) {
-        reject(error);
-      }
+    return new Promise((resolve) => {
+      doc.on('end', () => {
+        resolve(Buffer.concat(chunks));
+      });
     });
   }
 
   /**
-   * Create Executive PDF - Professional multi-page report
+   * Executive PDF - Clean, professional 5-page report
    */
-  private createExecutiveDocument(validation: any): any {
-    const content: any[] = [];
+  private generateExecutivePdf(doc: PDFKit.PDFDocument, validation: any) {
+    const pageWidth = 495;
+    const margin = 50;
 
-    // ===== PAGE 1: Cover Page =====
-    content.push(...this.createCoverPage(validation));
+    // ========== PAGE 1: Cover ==========
+    doc.rect(0, 0, 595, 200).fill(`#${COLORS.primary}`);
 
-    // ===== PAGE 2: Metrics Dashboard =====
-    content.push({ text: '', pageBreak: 'after' });
-    content.push(...this.createMetricsDashboard(validation));
+    doc.font('Helvetica-Bold').fontSize(11).fillColor('#FFFFFF')
+       .text('VALIDATION COUNCIL', margin, 40);
 
-    // ===== PAGE 3: Agent Analysis =====
-    content.push({ text: '', pageBreak: 'after' });
-    content.push(...this.createAgentAnalysis(validation));
+    doc.font('Helvetica-Bold').fontSize(28).fillColor('#FFFFFF')
+       .text(validation.title || 'Startup Validation Report', margin, 80, { width: pageWidth });
 
-    // ===== PAGE 4: SWOT Analysis =====
-    content.push({ text: '', pageBreak: 'after' });
-    content.push(...this.createSWOTAnalysis(validation));
+    doc.font('Helvetica').fontSize(12).fillColor('#CCCCCC')
+       .text('AI-Powered Startup Validation Report', margin, 140);
 
-    // ===== PAGE 5: Recommendations =====
-    content.push({ text: '', pageBreak: 'after' });
-    content.push(...this.createRecommendationsPage(validation));
+    doc.fontSize(10).fillColor('#999999')
+       .text(`Generated: ${new Date().toLocaleDateString()}`, margin, 160);
 
-    return {
-      pageSize: 'A4',
-      pageMargins: [40, 60, 40, 60],
-      styles,
-      content,
-      footer: (currentPage: number, pageCount: number) => ({
-        columns: [
-          { text: 'Validation Council | www.startupverdict.com', style: 'smallText', margin: [40, 0, 0, 0] },
-          { text: `Page ${currentPage} of ${pageCount}`, style: 'smallText', alignment: 'right', margin: [0, 0, 40, 0] },
-        ],
-      }),
-      header: (currentPage: number) => currentPage > 1 ? {
-        text: 'VALIDATION COUNCIL',
-        style: 'smallText',
-        margin: [40, 20, 40, 0],
-        color: COLORS.neutral,
-      } : null,
-    };
-  }
+    let y = 230;
 
-  /**
-   * Cover Page with branding
-   */
-  private createCoverPage(validation: any): any[] {
+    // Score box
     const scoreColor = getScoreColor(validation.overallScore || 0);
+    doc.roundedRect(margin, y, 120, 90, 5).fill(`#${scoreColor}`);
+    doc.font('Helvetica-Bold').fontSize(42).fillColor('#FFFFFF')
+       .text(String(validation.overallScore || 0), margin, y + 15, { width: 120, align: 'center' });
+    doc.font('Helvetica').fontSize(10)
+       .text('Overall Score', margin, y + 65, { width: 120, align: 'center' });
+
+    // Confidence box
+    doc.roundedRect(margin + 140, y, 120, 90, 5).fill(`#${COLORS.primary}`);
+    doc.font('Helvetica-Bold').fontSize(32).fillColor('#FFFFFF')
+       .text(`${validation.overallConfidence || 0}%`, margin + 140, y + 20, { width: 120, align: 'center' });
+    doc.font('Helvetica').fontSize(10)
+       .text('Confidence', margin + 140, y + 65, { width: 120, align: 'center' });
+
+    // Verdict box
     const verdictColor = getVerdictColor(validation.verdict || '');
+    doc.roundedRect(margin + 280, y, 165, 90, 5).fill(`#${verdictColor}`);
+    doc.font('Helvetica-Bold').fontSize(14).fillColor('#FFFFFF')
+       .text((validation.verdict || 'PENDING').replace(/_/g, ' '), margin + 280, y + 35, { width: 165, align: 'center' });
+    doc.font('Helvetica').fontSize(10)
+       .text('Verdict', margin + 280, y + 65, { width: 165, align: 'center' });
 
-    return [
-      // Header bar
-      {
-        canvas: [
-          { type: 'rect', x: -40, y: -60, w: 595, h: 180, color: COLORS.primary },
-        ],
-      },
-      // Brand name
-      { text: 'VALIDATION COUNCIL', fontSize: 12, bold: true, color: COLORS.white, margin: [0, -130, 0, 0] },
-      // Title
-      { text: validation.title || 'Startup Validation Report', fontSize: 28, bold: true, color: COLORS.white, margin: [0, 15, 0, 10] },
-      // Subtitle
-      { text: 'AI-Powered Startup Validation Report', fontSize: 12, color: '#CCCCCC', margin: [0, 0, 0, 5] },
-      // Date
-      { text: `Generated: ${new Date().toLocaleDateString()}`, fontSize: 10, color: '#999999', margin: [0, 0, 0, 40] },
+    // Executive Summary section
+    y = 350;
+    doc.font('Helvetica-Bold').fontSize(16).fillColor(`#${COLORS.primary}`)
+       .text('Executive Summary', margin, y);
+    doc.rect(margin, y + 22, 40, 3).fill(`#${COLORS.secondary}`);
 
-      // Metrics cards
-      {
-        columns: [
-          // Score card
-          {
-            width: 140,
-            stack: [
-              {
-                canvas: [
-                  { type: 'rect', x: 0, y: 0, w: 130, h: 90, r: 4, color: scoreColor },
-                ],
-              },
-              { text: String(validation.overallScore || 0), fontSize: 42, bold: true, color: COLORS.white, alignment: 'center', margin: [0, -75, 0, 0] },
-              { text: 'Overall Score', fontSize: 10, color: COLORS.white, alignment: 'center', margin: [0, 5, 0, 0] },
-            ],
-          },
-          // Confidence card
-          {
-            width: 140,
-            stack: [
-              {
-                canvas: [
-                  { type: 'rect', x: 0, y: 0, w: 130, h: 90, r: 4, color: COLORS.primary },
-                ],
-              },
-              { text: `${validation.overallConfidence || 0}%`, fontSize: 32, bold: true, color: COLORS.white, alignment: 'center', margin: [0, -70, 0, 0] },
-              { text: 'Confidence', fontSize: 10, color: COLORS.white, alignment: 'center', margin: [0, 5, 0, 0] },
-            ],
-          },
-          // Verdict card
-          {
-            width: '*',
-            stack: [
-              {
-                canvas: [
-                  { type: 'rect', x: 0, y: 0, w: 180, h: 90, r: 4, color: verdictColor },
-                ],
-              },
-              { text: (validation.verdict || 'PENDING').replace(/_/g, ' '), fontSize: 16, bold: true, color: COLORS.white, alignment: 'center', margin: [0, -60, 0, 0] },
-              { text: 'Verdict', fontSize: 10, color: COLORS.white, alignment: 'center', margin: [0, 10, 0, 0] },
-            ],
-          },
-        ],
-        columnGap: 15,
-        margin: [0, 0, 0, 30],
-      },
+    y += 40;
+    const summary = validation.executiveSummary || 'Analysis in progress...';
+    doc.font('Helvetica').fontSize(11).fillColor(`#${COLORS.black}`)
+       .text(summary.substring(0, 800), margin, y, { width: pageWidth, lineGap: 4 });
 
-      // Executive Summary
-      { text: 'Executive Summary', style: 'subheader' },
-      this.createUnderline(COLORS.secondary, 40),
-      { text: (validation.executiveSummary || 'Analysis in progress...').substring(0, 1000), style: 'bodyText', margin: [0, 10, 0, 0] },
-    ];
-  }
+    this.addFooter(doc, 1);
 
-  /**
-   * Metrics Dashboard with charts
-   */
-  private createMetricsDashboard(validation: any): any[] {
+    // ========== PAGE 2: Performance Dashboard ==========
+    doc.addPage();
+    y = 50;
+
+    doc.font('Helvetica-Bold').fontSize(18).fillColor(`#${COLORS.primary}`)
+       .text('Performance Dashboard', margin, y);
+    doc.rect(margin, y + 24, 50, 3).fill(`#${COLORS.secondary}`);
+
+    y = 100;
+
+    // Large score circle
+    const circleX = margin + 80;
+    const circleY = y + 80;
+    doc.circle(circleX, circleY, 60).fill(`#${scoreColor}`);
+    doc.font('Helvetica-Bold').fontSize(36).fillColor('#FFFFFF')
+       .text(String(validation.overallScore || 0), circleX - 30, circleY - 18, { width: 60, align: 'center' });
+    doc.font('Helvetica').fontSize(10)
+       .text('/100', circleX - 15, circleY + 18, { width: 30, align: 'center' });
+
+    // Score distribution
     const agents = validation.agentReports || [];
-    const scoreColor = getScoreColor(validation.overallScore || 0);
-
-    // Create score distribution chart data
     const highScores = agents.filter((a: any) => a.score >= 70).length;
     const medScores = agents.filter((a: any) => a.score >= 50 && a.score < 70).length;
     const lowScores = agents.filter((a: any) => a.score < 50).length;
 
-    return [
-      { text: 'Performance Dashboard', style: 'header' },
-      this.createUnderline(COLORS.secondary, 50),
+    const barX = margin + 200;
+    doc.font('Helvetica-Bold').fontSize(12).fillColor(`#${COLORS.black}`)
+       .text('Score Distribution', barX, y);
 
-      // Main score display
-      {
-        columns: [
-          {
-            width: 200,
-            stack: [
-              { text: 'Overall Score', style: 'sectionTitle' },
-              {
-                canvas: [
-                  { type: 'ellipse', x: 80, y: 80, r1: 70, r2: 70, color: scoreColor },
-                ],
-              },
-              { text: String(validation.overallScore || 0), fontSize: 48, bold: true, color: COLORS.white, alignment: 'center', margin: [0, -105, 0, 0] },
-              { text: '/100', fontSize: 14, color: COLORS.white, alignment: 'center', margin: [30, 0, 0, 0] },
-            ],
-          },
-          {
-            width: '*',
-            stack: [
-              { text: 'Score Distribution', style: 'sectionTitle' },
-              // Score distribution bars
-              this.createHorizontalBar('High (70+)', highScores, agents.length, COLORS.secondary),
-              this.createHorizontalBar('Medium (50-69)', medScores, agents.length, COLORS.warning),
-              this.createHorizontalBar('Low (<50)', lowScores, agents.length, COLORS.danger),
-            ],
-            margin: [20, 0, 0, 0],
-          },
-        ],
-        margin: [0, 20, 0, 30],
-      },
+    y = 120;
+    this.drawBar(doc, barX, y, 'High (70+)', highScores, agents.length, COLORS.secondary);
+    this.drawBar(doc, barX, y + 30, 'Medium (50-69)', medScores, agents.length, COLORS.warning);
+    this.drawBar(doc, barX, y + 60, 'Low (<50)', lowScores, agents.length, COLORS.danger);
 
-      // Agent score table
-      { text: 'Agent Performance', style: 'sectionTitle', margin: [0, 20, 0, 10] },
-      this.createAgentScoreTable(agents),
-    ];
-  }
+    // Agent performance table
+    y = 230;
+    doc.font('Helvetica-Bold').fontSize(14).fillColor(`#${COLORS.primary}`)
+       .text('Agent Performance', margin, y);
 
-  /**
-   * Agent Analysis Grid
-   */
-  private createAgentAnalysis(validation: any): any[] {
-    const agents = validation.agentReports || [];
+    y += 25;
+    // Table header
+    doc.rect(margin, y, pageWidth, 25).fill(`#${COLORS.primary}`);
+    doc.font('Helvetica-Bold').fontSize(10).fillColor('#FFFFFF')
+       .text('Agent', margin + 10, y + 7)
+       .text('Role', margin + 150, y + 7)
+       .text('Score', margin + 350, y + 7)
+       .text('Confidence', margin + 410, y + 7);
 
-    return [
-      { text: 'AI Agent Analysis', style: 'header' },
-      this.createUnderline(COLORS.secondary, 50),
-      { text: 'Each AI agent specializes in a different aspect of startup validation', style: 'smallText', margin: [0, 5, 0, 20] },
+    y += 25;
+    const sortedAgents = [...agents].sort((a: any, b: any) => b.score - a.score);
+    sortedAgents.slice(0, 12).forEach((agent: any, i: number) => {
+      const info = AGENT_INFO[agent.agentId] || { name: agent.agentId, role: '' };
+      const rowY = y + i * 22;
+      const agentScoreColor = getScoreColor(agent.score);
 
-      // Agent grid
-      this.createAgentGrid(agents),
-    ];
-  }
+      if (i % 2 === 0) {
+        doc.rect(margin, rowY, pageWidth, 22).fill(`#${COLORS.light}`);
+      }
 
-  /**
-   * SWOT Analysis
-   */
-  private createSWOTAnalysis(validation: any): any[] {
+      doc.font('Helvetica').fontSize(9).fillColor(`#${COLORS.black}`)
+         .text(info.name, margin + 10, rowY + 6)
+         .text(info.role, margin + 150, rowY + 6);
+      doc.font('Helvetica-Bold').fillColor(`#${agentScoreColor}`)
+         .text(String(agent.score), margin + 350, rowY + 6);
+      doc.font('Helvetica').fillColor(`#${COLORS.neutral}`)
+         .text(`${agent.confidence}%`, margin + 410, rowY + 6);
+    });
+
+    this.addFooter(doc, 2);
+
+    // ========== PAGE 3: Agent Grid ==========
+    doc.addPage();
+    y = 50;
+
+    doc.font('Helvetica-Bold').fontSize(18).fillColor(`#${COLORS.primary}`)
+       .text('AI Agent Analysis', margin, y);
+    doc.rect(margin, y + 24, 50, 3).fill(`#${COLORS.secondary}`);
+    doc.font('Helvetica').fontSize(10).fillColor(`#${COLORS.neutral}`)
+       .text('Each AI agent specializes in a different aspect of startup validation', margin, y + 35);
+
+    y = 100;
+    const cardWidth = 150;
+    const cardHeight = 60;
+    const cols = 3;
+
+    agents.slice(0, 12).forEach((report: any, i: number) => {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const cardX = margin + col * (cardWidth + 15);
+      const cardY = y + row * (cardHeight + 12);
+
+      const info = AGENT_INFO[report.agentId] || { name: report.agentId, role: '' };
+      const agentColor = getScoreColor(report.score);
+
+      doc.roundedRect(cardX, cardY, cardWidth, cardHeight, 4)
+         .lineWidth(1).stroke(`#${COLORS.lightGray}`);
+
+      // Score badge
+      doc.roundedRect(cardX + cardWidth - 40, cardY + 8, 32, 20, 3).fill(`#${agentColor}`);
+      doc.font('Helvetica-Bold').fontSize(11).fillColor('#FFFFFF')
+         .text(String(report.score), cardX + cardWidth - 40, cardY + 13, { width: 32, align: 'center' });
+
+      doc.font('Helvetica-Bold').fontSize(10).fillColor(`#${COLORS.black}`)
+         .text(info.name, cardX + 8, cardY + 10, { width: cardWidth - 50 });
+      doc.font('Helvetica').fontSize(8).fillColor(`#${COLORS.neutral}`)
+         .text(info.role, cardX + 8, cardY + 24, { width: cardWidth - 50 });
+
+      // Confidence bar
+      const confWidth = (report.confidence / 100) * 80;
+      doc.rect(cardX + 8, cardY + 42, 80, 5).fill(`#${COLORS.lightGray}`);
+      doc.rect(cardX + 8, cardY + 42, confWidth, 5).fill(`#${COLORS.primary}`);
+    });
+
+    this.addFooter(doc, 3);
+
+    // ========== PAGE 4: SWOT ==========
+    doc.addPage();
+    y = 50;
+
+    doc.font('Helvetica-Bold').fontSize(18).fillColor(`#${COLORS.primary}`)
+       .text('SWOT Analysis', margin, y);
+    doc.rect(margin, y + 24, 50, 3).fill(`#${COLORS.secondary}`);
+
     const allFindings = validation.agentReports?.flatMap((r: any) => r.findings || []) || [];
     const strengths = allFindings.filter((f: any) => f.type === 'strength').slice(0, 4);
     const weaknesses = allFindings.filter((f: any) => f.type === 'weakness').slice(0, 4);
     const opportunities = allFindings.filter((f: any) => f.type === 'opportunity').slice(0, 4);
     const threats = allFindings.filter((f: any) => f.type === 'threat').slice(0, 4);
 
-    return [
-      { text: 'SWOT Analysis', style: 'header' },
-      this.createUnderline(COLORS.secondary, 50),
+    const boxWidth = 230;
+    const boxHeight = 160;
+    y = 90;
 
-      // SWOT Grid
-      {
-        columns: [
-          {
-            width: '50%',
-            stack: [
-              this.createSWOTBox('Strengths', strengths, COLORS.secondary),
-              this.createSWOTBox('Opportunities', opportunities, COLORS.accent),
-            ],
-          },
-          {
-            width: '50%',
-            stack: [
-              this.createSWOTBox('Weaknesses', weaknesses, COLORS.danger),
-              this.createSWOTBox('Threats', threats, COLORS.warning),
-            ],
-          },
-        ],
-        columnGap: 15,
-        margin: [0, 20, 0, 0],
-      },
-    ];
-  }
+    // Strengths (top-left)
+    this.drawSwotBox(doc, margin, y, boxWidth, boxHeight, 'Strengths', strengths, COLORS.secondary);
+    // Weaknesses (top-right)
+    this.drawSwotBox(doc, margin + boxWidth + 15, y, boxWidth, boxHeight, 'Weaknesses', weaknesses, COLORS.danger);
+    // Opportunities (bottom-left)
+    this.drawSwotBox(doc, margin, y + boxHeight + 15, boxWidth, boxHeight, 'Opportunities', opportunities, COLORS.accent);
+    // Threats (bottom-right)
+    this.drawSwotBox(doc, margin + boxWidth + 15, y + boxHeight + 15, boxWidth, boxHeight, 'Threats', threats, COLORS.warning);
 
-  /**
-   * Recommendations Page
-   */
-  private createRecommendationsPage(validation: any): any[] {
-    const recommendations = validation.agentReports?.flatMap((r: any) => r.recommendations || []).slice(0, 8) || [];
-    const risks = validation.agentReports?.flatMap((r: any) => r.risks || []).slice(0, 5) || [];
+    this.addFooter(doc, 4);
 
-    return [
-      { text: 'Recommendations & Risks', style: 'header' },
-      this.createUnderline(COLORS.secondary, 50),
+    // ========== PAGE 5: Recommendations ==========
+    doc.addPage();
+    y = 50;
 
-      {
-        columns: [
-          {
-            width: '55%',
-            stack: [
-              { text: 'Top Recommendations', style: 'sectionTitle', color: COLORS.secondary },
-              ...recommendations.map((rec: any, i: number) => this.createRecommendationItem(rec, i + 1)),
-            ],
-          },
-          {
-            width: '45%',
-            stack: [
-              { text: 'Key Risks', style: 'sectionTitle', color: COLORS.danger },
-              ...risks.map((risk: any) => this.createRiskItem(risk)),
-            ],
-          },
-        ],
-        columnGap: 20,
-        margin: [0, 15, 0, 0],
-      },
+    doc.font('Helvetica-Bold').fontSize(18).fillColor(`#${COLORS.primary}`)
+       .text('Recommendations & Risks', margin, y);
+    doc.rect(margin, y + 24, 50, 3).fill(`#${COLORS.secondary}`);
 
-      // Call to Action
-      { text: '', margin: [0, 30, 0, 0] },
-      {
-        canvas: [
-          { type: 'rect', x: -40, y: 0, w: 595, h: 100, color: COLORS.primary },
-        ],
-      },
-      { text: 'Ready to Move Forward?', fontSize: 20, bold: true, color: COLORS.white, alignment: 'center', margin: [0, -80, 0, 0] },
-      { text: this.getCtaText(validation.verdict), fontSize: 11, color: '#CCCCCC', alignment: 'center', margin: [0, 10, 0, 0] },
-    ];
-  }
+    const colWidth = (pageWidth - 20) / 2;
 
-  // ============ Helper Methods ============
+    // Recommendations (left)
+    y = 90;
+    doc.font('Helvetica-Bold').fontSize(14).fillColor(`#${COLORS.secondary}`)
+       .text('Top Recommendations', margin, y);
 
-  private createUnderline(color: string, width: number): any {
-    return {
-      canvas: [
-        { type: 'rect', x: 0, y: 0, w: width, h: 3, color },
-      ],
-      margin: [0, 0, 0, 5],
-    };
-  }
+    let recY = y + 25;
+    const recs = validation.agentReports?.flatMap((r: any) => r.recommendations || []).slice(0, 6) || [];
+    recs.forEach((rec: any, i: number) => {
+      doc.circle(margin + 10, recY + 8, 10).fill(`#${COLORS.secondary}`);
+      doc.font('Helvetica-Bold').fontSize(10).fillColor('#FFFFFF')
+         .text(String(i + 1), margin + 5, recY + 4, { width: 10, align: 'center' });
 
-  private createHorizontalBar(label: string, value: number, total: number, color: string): any {
-    const percentage = total > 0 ? (value / total) * 100 : 0;
-    const barWidth = Math.max(percentage * 2, 5);
+      doc.font('Helvetica-Bold').fontSize(9).fillColor(`#${COLORS.black}`)
+         .text((rec.title || 'Action').substring(0, 35), margin + 28, recY + 2, { width: colWidth - 35 });
+      doc.font('Helvetica').fontSize(8).fillColor(`#${COLORS.neutral}`)
+         .text(`${(rec.description || '').substring(0, 60)} | ${rec.timeframe || 'TBD'}`, margin + 28, recY + 14, { width: colWidth - 35 });
+      recY += 35;
+    });
 
-    return {
-      columns: [
-        { width: 100, text: label, style: 'smallText' },
-        {
-          width: '*',
-          stack: [
-            {
-              canvas: [
-                { type: 'rect', x: 0, y: 0, w: 200, h: 16, r: 2, color: COLORS.lightGray },
-                { type: 'rect', x: 0, y: 0, w: barWidth, h: 16, r: 2, color },
-              ],
-            },
-          ],
-        },
-        { width: 40, text: `${value}`, style: 'boldText', alignment: 'right' },
-      ],
-      margin: [0, 5, 0, 5],
-    };
-  }
+    // Risks (right)
+    doc.font('Helvetica-Bold').fontSize(14).fillColor(`#${COLORS.danger}`)
+       .text('Key Risks', margin + colWidth + 20, 90);
 
-  private createAgentScoreTable(agents: any[]): any {
-    const sortedAgents = [...agents].sort((a, b) => b.score - a.score);
+    let riskY = 115;
+    const risks = validation.agentReports?.flatMap((r: any) => r.risks || []).slice(0, 6) || [];
+    risks.forEach((risk: any) => {
+      const probColor = risk.probability === 'high' ? COLORS.danger :
+                        risk.probability === 'medium' ? COLORS.warning : COLORS.secondary;
+      doc.rect(margin + colWidth + 20, riskY, 4, 30).fill(`#${probColor}`);
+      doc.font('Helvetica-Bold').fontSize(9).fillColor(`#${COLORS.black}`)
+         .text((risk.title || 'Risk').substring(0, 35), margin + colWidth + 30, riskY + 2, { width: colWidth - 35 });
+      doc.font('Helvetica').fontSize(8).fillColor(`#${COLORS.neutral}`)
+         .text((risk.description || '').substring(0, 70), margin + colWidth + 30, riskY + 14, { width: colWidth - 35 });
+      riskY += 35;
+    });
 
-    const tableBody = [
-      [
-        { text: 'Agent', style: 'tableHeader', fillColor: COLORS.primary },
-        { text: 'Role', style: 'tableHeader', fillColor: COLORS.primary },
-        { text: 'Score', style: 'tableHeader', fillColor: COLORS.primary, alignment: 'center' },
-        { text: 'Confidence', style: 'tableHeader', fillColor: COLORS.primary, alignment: 'center' },
-      ],
-      ...sortedAgents.slice(0, 12).map((agent: any) => {
-        const info = AGENT_INFO[agent.agentId] || { name: agent.agentId, role: '', icon: '' };
-        const scoreColor = getScoreColor(agent.score);
-        return [
-          { text: info.name, style: 'bodyText' },
-          { text: info.role, style: 'smallText' },
-          { text: String(agent.score), style: 'boldText', alignment: 'center', color: scoreColor },
-          { text: `${agent.confidence}%`, style: 'smallText', alignment: 'center' },
-        ];
-      }),
-    ];
+    // CTA section
+    y = 500;
+    doc.rect(0, y, 595, 120).fill(`#${COLORS.primary}`);
 
-    return {
-      table: {
-        headerRows: 1,
-        widths: ['30%', '35%', '15%', '20%'],
-        body: tableBody,
-      },
-      layout: {
-        hLineWidth: () => 0.5,
-        vLineWidth: () => 0,
-        hLineColor: () => COLORS.lightGray,
-        paddingTop: () => 6,
-        paddingBottom: () => 6,
-        paddingLeft: () => 8,
-        paddingRight: () => 8,
-      },
-    };
-  }
+    doc.font('Helvetica-Bold').fontSize(20).fillColor('#FFFFFF')
+       .text('Ready to Move Forward?', margin, y + 25, { width: pageWidth, align: 'center' });
 
-  private createAgentGrid(agents: any[]): any {
-    const rows: any[][] = [];
-    const agentsList = agents.slice(0, 12);
+    const ctaText = validation.verdict === 'PROCEED'
+      ? 'Your startup idea shows strong potential. Move forward with confidence!'
+      : validation.verdict === 'PROCEED_WITH_CAUTION'
+      ? 'Your idea has promise but needs refinement. Address identified risks before proceeding.'
+      : 'Consider pivoting or addressing fundamental concerns before investing further resources.';
 
-    for (let i = 0; i < agentsList.length; i += 3) {
-      const row = agentsList.slice(i, i + 3).map((agent: any) => {
-        const info = AGENT_INFO[agent.agentId] || { name: agent.agentId, role: '', icon: '📊' };
-        const scoreColor = getScoreColor(agent.score);
+    doc.font('Helvetica').fontSize(11).fillColor('#CCCCCC')
+       .text(ctaText, margin, y + 55, { width: pageWidth, align: 'center' });
 
-        return {
-          stack: [
-            {
-              canvas: [
-                { type: 'rect', x: 0, y: 0, w: 155, h: 80, r: 4, lineColor: COLORS.lightGray, lineWidth: 1 },
-              ],
-            },
-            // Score badge
-            {
-              canvas: [
-                { type: 'rect', x: 110, y: -70, w: 35, h: 22, r: 2, color: scoreColor },
-              ],
-            },
-            { text: String(agent.score), fontSize: 12, bold: true, color: COLORS.white, margin: [115, -22, 0, 0] },
-            // Agent info
-            { text: info.name, fontSize: 10, bold: true, color: COLORS.black, margin: [8, -50, 0, 0] },
-            { text: info.role, fontSize: 8, color: COLORS.neutral, margin: [8, 3, 0, 0] },
-            // Confidence bar
-            {
-              canvas: [
-                { type: 'rect', x: 8, y: 0, w: 100, h: 6, r: 2, color: COLORS.lightGray },
-                { type: 'rect', x: 8, y: 0, w: (agent.confidence || 0), h: 6, r: 2, color: COLORS.primary },
-              ],
-              margin: [0, 8, 0, 15],
-            },
-          ],
-          width: 165,
-        };
-      });
+    doc.fontSize(9).fillColor('#888888')
+       .text('www.startupverdict.com', margin, y + 90, { width: pageWidth, align: 'center' });
 
-      // Fill empty slots
-      while (row.length < 3) {
-        row.push({ stack: [], width: 165 } as any);
-      }
-
-      rows.push(row);
-    }
-
-    return {
-      stack: rows.map((row) => ({
-        columns: row,
-        columnGap: 10,
-        margin: [0, 0, 0, 12],
-      })),
-    };
-  }
-
-  private createSWOTBox(title: string, items: any[], color: string): any {
-    return {
-      stack: [
-        {
-          canvas: [
-            { type: 'rect', x: 0, y: 0, w: 240, h: 150, r: 4, lineColor: color, lineWidth: 2 },
-            { type: 'rect', x: 0, y: 0, w: 240, h: 28, r: 4, color },
-          ],
-        },
-        { text: `${title} (${items.length})`, fontSize: 11, bold: true, color: COLORS.white, margin: [10, -145, 0, 0] },
-        {
-          stack: items.slice(0, 3).map((item: any) => ({
-            text: `• ${(item.title || '').substring(0, 35)}`,
-            fontSize: 9,
-            color: COLORS.black,
-            margin: [10, 8, 10, 0],
-          })),
-          margin: [0, 15, 0, 0],
-        },
-      ],
-      margin: [0, 0, 0, 15],
-    };
-  }
-
-  private createRecommendationItem(rec: any, index: number): any {
-    return {
-      columns: [
-        {
-          width: 24,
-          stack: [
-            {
-              canvas: [
-                { type: 'ellipse', x: 10, y: 10, r1: 10, r2: 10, color: COLORS.secondary },
-              ],
-            },
-            { text: String(index), fontSize: 10, bold: true, color: COLORS.white, alignment: 'center', margin: [0, -17, 0, 0] },
-          ],
-        },
-        {
-          width: '*',
-          stack: [
-            { text: (rec.title || 'Action').substring(0, 45), fontSize: 10, bold: true, color: COLORS.black },
-            { text: `${(rec.description || '').substring(0, 80)} | ${rec.timeframe || 'TBD'}`, fontSize: 8, color: COLORS.neutral, margin: [0, 2, 0, 0] },
-          ],
-          margin: [5, 0, 0, 0],
-        },
-      ],
-      margin: [0, 8, 0, 0],
-    };
-  }
-
-  private createRiskItem(risk: any): any {
-    const probColor = risk.probability === 'high' ? COLORS.danger :
-                      risk.probability === 'medium' ? COLORS.warning : COLORS.secondary;
-
-    return {
-      stack: [
-        {
-          canvas: [
-            { type: 'rect', x: 0, y: 0, w: 4, h: 35, color: probColor },
-          ],
-        },
-        { text: (risk.title || 'Risk').substring(0, 40), fontSize: 9, bold: true, color: COLORS.black, margin: [10, -32, 0, 0] },
-        { text: (risk.description || '').substring(0, 70), fontSize: 8, color: COLORS.neutral, margin: [10, 2, 0, 0] },
-      ],
-      margin: [0, 8, 0, 0],
-    };
-  }
-
-  private getCtaText(verdict: string): string {
-    if (verdict === 'PROCEED') return 'Your startup idea shows strong potential. Move forward with confidence!';
-    if (verdict === 'PROCEED_WITH_CAUTION') return 'Your idea has promise but needs refinement. Address identified risks before proceeding.';
-    return 'Consider pivoting or addressing fundamental concerns before investing further resources.';
+    this.addFooter(doc, 5);
   }
 
   /**
    * Summary PDF - Single page overview
    */
-  private createSummaryDocument(validation: any): any {
-    const agents = validation.agentReports || [];
+  private generateSummaryPdf(doc: PDFKit.PDFDocument, validation: any) {
+    const pageWidth = 495;
+    const margin = 50;
+    let y = 50;
+
+    doc.font('Helvetica-Bold').fontSize(20).fillColor(`#${COLORS.primary}`)
+       .text(validation.title || 'Validation Report', margin, y, { width: pageWidth });
+    doc.rect(margin, y + 28, 50, 3).fill(`#${COLORS.secondary}`);
+    y += 50;
+
+    // Metrics row
+    const metricWidth = 150;
     const scoreColor = getScoreColor(validation.overallScore || 0);
+    doc.roundedRect(margin, y, metricWidth, 60, 4).fill(`#${scoreColor}`);
+    doc.font('Helvetica-Bold').fontSize(32).fillColor('#FFFFFF')
+       .text(String(validation.overallScore || 0), margin, y + 8, { width: metricWidth, align: 'center' });
+    doc.font('Helvetica').fontSize(10)
+       .text('Overall Score', margin, y + 42, { width: metricWidth, align: 'center' });
+
+    doc.roundedRect(margin + metricWidth + 15, y, metricWidth, 60, 4).fill(`#${COLORS.primary}`);
+    doc.font('Helvetica-Bold').fontSize(26).fillColor('#FFFFFF')
+       .text(`${validation.overallConfidence || 0}%`, margin + metricWidth + 15, y + 12, { width: metricWidth, align: 'center' });
+    doc.font('Helvetica').fontSize(10)
+       .text('Confidence', margin + metricWidth + 15, y + 42, { width: metricWidth, align: 'center' });
+
     const verdictColor = getVerdictColor(validation.verdict || '');
+    doc.roundedRect(margin + (metricWidth + 15) * 2, y, metricWidth, 60, 4).fill(`#${verdictColor}`);
+    doc.font('Helvetica-Bold').fontSize(12).fillColor('#FFFFFF')
+       .text((validation.verdict || 'PENDING').replace(/_/g, ' '), margin + (metricWidth + 15) * 2, y + 22, { width: metricWidth, align: 'center' });
+    doc.font('Helvetica').fontSize(10)
+       .text('Verdict', margin + (metricWidth + 15) * 2, y + 42, { width: metricWidth, align: 'center' });
 
-    const content: any[] = [
-      // Title
-      { text: validation.title || 'Validation Report', style: 'header' },
-      this.createUnderline(COLORS.secondary, 50),
+    y += 80;
 
-      // Metrics row
-      {
-        columns: [
-          {
-            width: 150,
-            stack: [
-              { canvas: [{ type: 'rect', x: 0, y: 0, w: 140, h: 70, r: 4, color: scoreColor }] },
-              { text: String(validation.overallScore || 0), fontSize: 36, bold: true, color: COLORS.white, alignment: 'center', margin: [0, -55, 0, 0] },
-              { text: 'Score', fontSize: 10, color: COLORS.white, alignment: 'center' },
-            ],
-          },
-          {
-            width: 150,
-            stack: [
-              { canvas: [{ type: 'rect', x: 0, y: 0, w: 140, h: 70, r: 4, color: COLORS.primary }] },
-              { text: `${validation.overallConfidence || 0}%`, fontSize: 28, bold: true, color: COLORS.white, alignment: 'center', margin: [0, -52, 0, 0] },
-              { text: 'Confidence', fontSize: 10, color: COLORS.white, alignment: 'center' },
-            ],
-          },
-          {
-            width: '*',
-            stack: [
-              { canvas: [{ type: 'rect', x: 0, y: 0, w: 180, h: 70, r: 4, color: verdictColor }] },
-              { text: (validation.verdict || 'PENDING').replace(/_/g, ' '), fontSize: 14, bold: true, color: COLORS.white, alignment: 'center', margin: [0, -48, 0, 0] },
-              { text: 'Verdict', fontSize: 10, color: COLORS.white, alignment: 'center' },
-            ],
-          },
-        ],
-        columnGap: 10,
-        margin: [0, 15, 0, 25],
-      },
+    doc.font('Helvetica-Bold').fontSize(12).fillColor(`#${COLORS.primary}`)
+       .text('Summary', margin, y);
+    y += 18;
+    doc.font('Helvetica').fontSize(10).fillColor(`#${COLORS.black}`)
+       .text((validation.executiveSummary || 'Analysis pending...').substring(0, 500), margin, y, { width: pageWidth, lineGap: 3 });
 
-      // Summary
-      { text: 'Summary', style: 'sectionTitle' },
-      { text: (validation.executiveSummary || 'Analysis pending...').substring(0, 500), style: 'bodyText', margin: [0, 5, 0, 20] },
+    y += 120;
 
-      // Agent scores
-      { text: 'Agent Scores', style: 'sectionTitle' },
-      ...agents.slice(0, 12).map((agent: any) => {
-        const info = AGENT_INFO[agent.agentId] || { name: agent.agentId, role: '' };
-        const barColor = getScoreColor(agent.score);
-        const barWidth = (agent.score / 100) * 280;
+    doc.font('Helvetica-Bold').fontSize(12).fillColor(`#${COLORS.primary}`)
+       .text('Agent Scores', margin, y);
+    y += 20;
 
-        return {
-          columns: [
-            { width: 100, text: info.name, fontSize: 9, color: COLORS.black },
-            {
-              width: '*',
-              canvas: [
-                { type: 'rect', x: 0, y: 0, w: 280, h: 12, r: 2, color: COLORS.lightGray },
-                { type: 'rect', x: 0, y: 0, w: barWidth, h: 12, r: 2, color: barColor },
-              ],
-            },
-            { width: 35, text: String(agent.score), fontSize: 9, bold: true, color: COLORS.black, alignment: 'right' },
-          ],
-          margin: [0, 4, 0, 0],
-        };
-      }),
-    ];
+    const agents = validation.agentReports || [];
+    agents.forEach((report: any, i: number) => {
+      const info = AGENT_INFO[report.agentId] || { name: report.agentId, role: '' };
+      const barY = y + i * 22;
+      const barColor = getScoreColor(report.score);
+      const barWidth = (report.score / 100) * 300;
 
-    return {
-      pageSize: 'A4',
-      pageMargins: [40, 40, 40, 40],
-      styles,
-      content,
-      footer: {
-        text: 'Validation Council | www.startupverdict.com',
-        style: 'smallText',
-        alignment: 'center',
-        margin: [0, 10, 0, 0],
-      },
-    };
+      doc.font('Helvetica').fontSize(9).fillColor(`#${COLORS.black}`)
+         .text(info.name, margin, barY, { width: 70 });
+
+      doc.rect(margin + 75, barY + 2, 300, 10).fill(`#${COLORS.lightGray}`);
+      doc.rect(margin + 75, barY + 2, barWidth, 10).fill(`#${barColor}`);
+
+      doc.font('Helvetica-Bold').fontSize(9).fillColor(`#${COLORS.black}`)
+         .text(String(report.score), margin + 385, barY);
+    });
+
+    doc.font('Helvetica').fontSize(8).fillColor(`#${COLORS.neutral}`)
+       .text('Generated by Validation Council | www.startupverdict.com', margin, 780, { width: pageWidth, align: 'center' });
   }
 
   /**
    * Detailed PDF - Full report with all agents
    */
-  private createDetailedDocument(validation: any): any {
-    // Start with executive content
-    const execDoc = this.createExecutiveDocument(validation);
-    const content = [...execDoc.content];
+  private generateDetailedPdf(doc: PDFKit.PDFDocument, validation: any) {
+    this.generateExecutivePdf(doc, validation);
 
-    // Add individual agent pages
+    const pageWidth = 495;
+    const margin = 50;
     const agents = validation.agentReports || [];
 
-    agents.forEach((agent: any) => {
-      content.push({ text: '', pageBreak: 'after' });
-      content.push(...this.createAgentDetailPage(agent));
-    });
+    agents.forEach((report: any) => {
+      doc.addPage();
+      let y = 50;
 
-    return {
-      ...execDoc,
-      content,
-    };
-  }
+      const info = AGENT_INFO[report.agentId] || { name: report.agentId, role: '' };
+      const scoreColor = getScoreColor(report.score);
 
-  private createAgentDetailPage(agent: any): any[] {
-    const info = AGENT_INFO[agent.agentId] || { name: agent.agentId, role: '', icon: '📊' };
-    const scoreColor = getScoreColor(agent.score);
-
-    const findings = agent.findings || [];
-    const recommendations = agent.recommendations || [];
-    const risks = agent.risks || [];
-
-    return [
       // Header
-      {
-        columns: [
-          {
-            width: '*',
-            stack: [
-              { text: info.name, style: 'header' },
-              { text: info.role, style: 'smallText', color: COLORS.neutral },
-            ],
-          },
-          {
-            width: 70,
-            stack: [
-              { canvas: [{ type: 'rect', x: 0, y: 0, w: 60, h: 40, r: 4, color: scoreColor }] },
-              { text: String(agent.score), fontSize: 22, bold: true, color: COLORS.white, alignment: 'center', margin: [0, -32, 0, 0] },
-            ],
-          },
-        ],
-      },
+      doc.font('Helvetica-Bold').fontSize(20).fillColor(`#${COLORS.primary}`)
+         .text(`${info.name}`, margin, y);
+      doc.font('Helvetica').fontSize(10).fillColor(`#${COLORS.neutral}`)
+         .text(info.role, margin, y + 26);
+
+      // Score badge
+      doc.roundedRect(pageWidth - 10, y, 55, 35, 4).fill(`#${scoreColor}`);
+      doc.font('Helvetica-Bold').fontSize(20).fillColor('#FFFFFF')
+         .text(String(report.score), pageWidth - 10, y + 8, { width: 55, align: 'center' });
+
+      y += 50;
 
       // Confidence bar
-      {
-        columns: [
-          { width: 80, text: `Confidence: ${agent.confidence}%`, style: 'smallText' },
-          {
-            width: '*',
-            canvas: [
-              { type: 'rect', x: 0, y: 0, w: 200, h: 10, r: 2, color: COLORS.lightGray },
-              { type: 'rect', x: 0, y: 0, w: (agent.confidence || 0) * 2, h: 10, r: 2, color: COLORS.primary },
-            ],
-          },
-        ],
-        margin: [0, 15, 0, 20],
-      },
+      doc.font('Helvetica').fontSize(10).fillColor(`#${COLORS.neutral}`)
+         .text(`Confidence: ${report.confidence}%`, margin, y);
+      doc.rect(margin + 90, y + 2, 150, 8).fill(`#${COLORS.lightGray}`);
+      doc.rect(margin + 90, y + 2, (report.confidence / 100) * 150, 8).fill(`#${COLORS.primary}`);
+
+      y += 30;
 
       // Findings
-      findings.length > 0 ? { text: 'Findings', style: 'sectionTitle' } : { text: '' },
-      ...findings.slice(0, 6).map((f: any) => {
-        const typeColor = f.type === 'strength' ? COLORS.secondary :
-                         f.type === 'weakness' ? COLORS.danger :
-                         f.type === 'opportunity' ? COLORS.accent : COLORS.neutral;
-        return {
-          stack: [
-            { canvas: [{ type: 'rect', x: 0, y: 0, w: 4, h: 30, color: typeColor }] },
-            { text: (f.title || '').substring(0, 60), fontSize: 10, bold: true, color: COLORS.black, margin: [10, -28, 0, 0] },
-            { text: (f.description || '').substring(0, 120), fontSize: 9, color: COLORS.neutral, margin: [10, 2, 0, 0] },
-          ],
-          margin: [0, 5, 0, 5],
-        };
-      }),
+      const findings = report.findings || [];
+      if (findings.length > 0) {
+        doc.font('Helvetica-Bold').fontSize(12).fillColor(`#${COLORS.black}`)
+           .text('Findings', margin, y);
+        y += 18;
+
+        findings.slice(0, 6).forEach((f: any) => {
+          const typeColor = f.type === 'strength' ? COLORS.secondary :
+                           f.type === 'weakness' ? COLORS.danger :
+                           f.type === 'opportunity' ? COLORS.accent : COLORS.neutral;
+
+          doc.rect(margin, y, 3, 28).fill(`#${typeColor}`);
+          doc.font('Helvetica-Bold').fontSize(9).fillColor(`#${COLORS.black}`)
+             .text((f.title || '').substring(0, 60), margin + 10, y + 2, { width: pageWidth - 20 });
+          doc.font('Helvetica').fontSize(8).fillColor(`#${COLORS.neutral}`)
+             .text((f.description || '').substring(0, 120), margin + 10, y + 14, { width: pageWidth - 20 });
+          y += 35;
+        });
+      }
+
+      y += 10;
 
       // Recommendations
-      recommendations.length > 0 ? { text: 'Recommendations', style: 'sectionTitle', margin: [0, 15, 0, 5] } : { text: '' },
-      ...recommendations.slice(0, 4).map((rec: any) => ({
-        stack: [
-          { canvas: [{ type: 'rect', x: 0, y: 0, w: 4, h: 30, color: COLORS.secondary }] },
-          { text: (rec.title || '').substring(0, 60), fontSize: 10, bold: true, color: COLORS.black, margin: [10, -28, 0, 0] },
-          { text: `${(rec.description || '').substring(0, 100)} (${rec.timeframe || ''})`, fontSize: 9, color: COLORS.neutral, margin: [10, 2, 0, 0] },
-        ],
-        margin: [0, 5, 0, 5],
-      })),
+      const recs = report.recommendations || [];
+      if (recs.length > 0 && y < 600) {
+        doc.font('Helvetica-Bold').fontSize(12).fillColor(`#${COLORS.black}`)
+           .text('Recommendations', margin, y);
+        y += 18;
 
-      // Risks
-      risks.length > 0 ? { text: 'Risks', style: 'sectionTitle', margin: [0, 15, 0, 5] } : { text: '' },
-      ...risks.slice(0, 3).map((risk: any) => {
-        const probColor = risk.probability === 'high' ? COLORS.danger :
-                         risk.probability === 'medium' ? COLORS.warning : COLORS.secondary;
-        return {
-          stack: [
-            { canvas: [{ type: 'rect', x: 0, y: 0, w: 4, h: 30, color: probColor }] },
-            { text: (risk.title || '').substring(0, 60), fontSize: 10, bold: true, color: COLORS.black, margin: [10, -28, 0, 0] },
-            { text: (risk.description || '').substring(0, 100), fontSize: 9, color: COLORS.neutral, margin: [10, 2, 0, 0] },
-          ],
-          margin: [0, 5, 0, 5],
-        };
-      }),
-    ];
+        recs.slice(0, 3).forEach((rec: any) => {
+          doc.rect(margin, y, 3, 28).fill(`#${COLORS.secondary}`);
+          doc.font('Helvetica-Bold').fontSize(9).fillColor(`#${COLORS.black}`)
+             .text((rec.title || '').substring(0, 60), margin + 10, y + 2, { width: pageWidth - 20 });
+          doc.font('Helvetica').fontSize(8).fillColor(`#${COLORS.neutral}`)
+             .text(`${(rec.description || '').substring(0, 80)} (${rec.timeframe || ''})`, margin + 10, y + 14, { width: pageWidth - 20 });
+          y += 35;
+        });
+      }
+
+      this.addFooter(doc, doc.bufferedPageRange().count);
+    });
+  }
+
+  // Helper methods
+  private addFooter(doc: PDFKit.PDFDocument, pageNum: number) {
+    doc.font('Helvetica').fontSize(8).fillColor(`#${COLORS.neutral}`)
+       .text('www.startupverdict.com', 50, 780)
+       .text(`Page ${pageNum}`, 495, 780, { width: 50, align: 'right' });
+  }
+
+  private drawBar(doc: PDFKit.PDFDocument, x: number, y: number, label: string, value: number, total: number, color: string) {
+    const percentage = total > 0 ? (value / total) * 100 : 0;
+    const barWidth = Math.max(percentage * 1.5, 3);
+
+    doc.font('Helvetica').fontSize(9).fillColor(`#${COLORS.neutral}`)
+       .text(label, x, y, { width: 90 });
+    doc.rect(x + 95, y + 2, 150, 14).fill(`#${COLORS.lightGray}`);
+    doc.rect(x + 95, y + 2, barWidth, 14).fill(`#${color}`);
+    doc.font('Helvetica-Bold').fontSize(9).fillColor(`#${COLORS.black}`)
+       .text(String(value), x + 255, y);
+  }
+
+  private drawSwotBox(doc: PDFKit.PDFDocument, x: number, y: number, w: number, h: number, title: string, items: any[], color: string) {
+    doc.roundedRect(x, y, w, h, 4).lineWidth(2).stroke(`#${color}`);
+    doc.roundedRect(x, y, w, 28, 4).fill(`#${color}`);
+
+    doc.font('Helvetica-Bold').fontSize(11).fillColor('#FFFFFF')
+       .text(`${title} (${items.length})`, x + 10, y + 8);
+
+    let itemY = y + 38;
+    items.slice(0, 3).forEach((item: any) => {
+      doc.font('Helvetica').fontSize(9).fillColor(`#${COLORS.black}`)
+         .text(`• ${(item.title || '').substring(0, 35)}`, x + 10, itemY, { width: w - 20 });
+      itemY += 35;
+    });
   }
 }
