@@ -19,6 +19,16 @@ const ProgressRing = dynamic(() => import('../../../components/charts/MetricCard
 const ProgressBar = dynamic(() => import('../../../components/charts/MetricCards').then(m => m.ProgressBar), { ssr: false });
 const MetricCard = dynamic(() => import('../../../components/charts/MetricCards').then(m => m.MetricCard), { ssr: false });
 
+// New enhanced chart components
+const SWOTAnalysisChart = dynamic(() => import('../../../components/charts/SWOTChart').then(m => m.SWOTAnalysisChart), { ssr: false });
+const SWOTSummaryBars = dynamic(() => import('../../../components/charts/SWOTChart').then(m => m.SWOTSummaryBars), { ssr: false });
+const ScoreWithConfidence = dynamic(() => import('../../../components/charts/EnhancedStats').then(m => m.ScoreWithConfidence), { ssr: false });
+const ActionsBreakdownCard = dynamic(() => import('../../../components/charts/EnhancedStats').then(m => m.ActionsBreakdownCard), { ssr: false });
+const RisksBreakdownCard = dynamic(() => import('../../../components/charts/EnhancedStats').then(m => m.RisksBreakdownCard), { ssr: false });
+const AgentPerformanceGrid = dynamic(() => import('../../../components/charts/AgentGrid').then(m => m.AgentPerformanceGrid), { ssr: false });
+const EnhancedAgentRadar = dynamic(() => import('../../../components/charts/AgentGrid').then(m => m.EnhancedAgentRadar), { ssr: false });
+const AgentSummaryStrip = dynamic(() => import('../../../components/charts/AgentGrid').then(m => m.AgentSummaryStrip), { ssr: false });
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://validation-production.up.railway.app';
 
 // The 12 AI agents
@@ -322,11 +332,36 @@ export default function ValidationResultsPage() {
         {/* Tab Content */}
         {activeTab === 'overview' && (
           <div className="space-y-6">
-            {/* Charts Row */}
+            {/* Top Row - Score & Key Stats */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Enhanced Score Display */}
+              <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700 flex flex-col items-center justify-center">
+                <ScoreWithConfidence
+                  score={validation.overallScore || 0}
+                  confidence={validation.overallConfidence || 0}
+                  verdict={validation.verdict || undefined}
+                  size="lg"
+                />
+              </div>
+
+              {/* SWOT Summary */}
+              {allFindings.length > 0 && (
+                <SWOTSummaryBars findings={allFindings} />
+              )}
+
+              {/* Actions & Risks Summary */}
+              <div className="space-y-4">
+                {allRecommendations.length > 0 && (
+                  <ActionsBreakdownCard actions={allRecommendations} />
+                )}
+              </div>
+            </div>
+
+            {/* Second Row - Agent Analysis */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Radar Chart */}
-              {agentScores.length > 0 && (
-                <AgentRadarChart agents={agentScores} showConfidence={true} />
+              {/* Enhanced Radar Chart */}
+              {validation?.agentReports && validation.agentReports.length > 0 && (
+                <EnhancedAgentRadar agents={validation.agentReports} />
               )}
 
               {/* Agent Bar Comparison */}
@@ -335,31 +370,29 @@ export default function ValidationResultsPage() {
               )}
             </div>
 
-            {/* Second Row - Donut Charts */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {allFindings.length > 0 && <FindingsBreakdown findings={allFindings} />}
-              {allRisks.length > 0 && <RiskSeverityChart risks={allRisks} />}
+            {/* Third Row - SWOT & Risks */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Full SWOT Analysis */}
+              {allFindings.length > 0 && (
+                <SWOTAnalysisChart findings={allFindings} showDetails={true} />
+              )}
 
-              {/* Agent Confidence Breakdown */}
-              <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
-                <h3 className="text-lg font-semibold text-white mb-4">Agent Confidence Levels</h3>
-                <div className="space-y-3">
-                  {agentScores.slice(0, 6).map(agent => (
-                    <ProgressBar
-                      key={agent.agentId}
-                      progress={agent.confidence}
-                      label={`${AGENTS.find(a => a.id === agent.agentId)?.icon || '🔷'} ${agent.agentName}`}
-                      color={agent.confidence >= 70 ? '#10b981' : agent.confidence >= 50 ? '#eab308' : '#ef4444'}
-                      height={6}
-                    />
-                  ))}
-                </div>
+              {/* Risks Breakdown */}
+              <div className="space-y-6">
+                {allRisks.length > 0 && (
+                  <RisksBreakdownCard risks={allRisks} />
+                )}
+
+                {/* Risk Heatmap */}
+                {allRisks.length > 0 && (
+                  <RiskHeatmap risks={allRisks} />
+                )}
               </div>
             </div>
 
-            {/* Risk Heatmap */}
-            {allRisks.length > 0 && (
-              <RiskHeatmap risks={allRisks} />
+            {/* Agent Summary Strip */}
+            {validation?.agentReports && validation.agentReports.length > 0 && (
+              <AgentSummaryStrip agents={validation.agentReports} />
             )}
           </div>
         )}
