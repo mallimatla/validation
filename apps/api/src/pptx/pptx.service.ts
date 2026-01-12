@@ -583,201 +583,160 @@ export class PptxService {
   }
 
   /**
-   * Add subtle watermark/branding to slide
-   */
-  private addWatermark(slide: any) {
-    // Subtle bottom-right logo/text watermark
-    slide.addText('VALIDATION COUNCIL', {
-      x: 6.5, y: 5.1, w: 3, h: 0.3,
-      fontSize: 8, color: COLORS.neutral, bold: false,
-      align: 'right',
-    });
-  }
-
-  /**
-   * Marketing Template - Perfect for WhatsApp/Social sharing
-   * High visual impact, concise information, branded
+   * Marketing Template - Clean, professional slides for sharing
    */
   private async generateMarketingTemplate(pptx: PptxGenJS, validation: any) {
-    // Marketing master with gradient background effect
+    // Simple master slide
     pptx.defineSlideMaster({
       title: 'MARKETING_MASTER',
       background: { color: COLORS.white },
       objects: [
-        // Subtle brand bar at bottom
-        { rect: { x: 0, y: 5.2, w: '100%', h: 0.3, fill: { color: COLORS.primary } } },
-        { text: { text: 'VALIDATION COUNCIL', options: { x: 7, y: 5.23, w: 2.5, h: 0.25, fontSize: 8, color: COLORS.white, align: 'right' } } },
+        { rect: { x: 0, y: 5.1, w: '100%', h: 0.4, fill: { color: COLORS.primary } } },
+        { text: { text: 'VALIDATION COUNCIL', options: { x: 7.5, y: 5.18, w: 2, h: 0.25, fontSize: 8, color: COLORS.white, align: 'right' } } },
       ],
     });
 
-    // === SLIDE 1: Hero Cover ===
+    // === SLIDE 1: Cover ===
     const coverSlide = pptx.addSlide();
-
-    // Full gradient background
-    coverSlide.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: '100%', h: '100%', fill: { color: COLORS.darkBg } });
-
-    // Accent shapes for visual interest
-    coverSlide.addShape(pptx.ShapeType.rect, { x: -1, y: -0.5, w: 4, h: 6, fill: { color: COLORS.primary }, rotate: -15 });
-    coverSlide.addShape(pptx.ShapeType.ellipse, { x: 7, y: 3, w: 4, h: 4, fill: { color: COLORS.secondary, transparency: 85 } });
+    coverSlide.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: '100%', h: '100%', fill: { color: COLORS.primary } });
 
     // Brand
-    coverSlide.addText('VALIDATION COUNCIL', { x: 0.5, y: 0.4, w: 5, h: 0.4, fontSize: 12, color: COLORS.white, bold: true });
+    coverSlide.addText('VALIDATION COUNCIL', { x: 0.5, y: 0.5, w: 4, h: 0.4, fontSize: 12, color: COLORS.white, bold: true });
 
-    // Main title
-    coverSlide.addText(validation.title || 'Startup Validation', {
-      x: 0.5, y: 1.8, w: 9, h: 1.5, fontSize: 38, color: COLORS.white, bold: true, valign: 'middle'
-    });
+    // Title
+    coverSlide.addText(validation.title || 'Startup Validation', { x: 0.5, y: 1.5, w: 7, h: 1, fontSize: 32, color: COLORS.white, bold: true });
 
-    // Score badge - large and prominent
+    // Score card
     const scoreColor = getScoreColor(validation.overallScore || 0);
-    coverSlide.addShape(pptx.ShapeType.rect, { x: 7, y: 0.3, w: 2.5, h: 1.8, fill: { color: scoreColor }, shadow: { type: 'outer', blur: 8, offset: 4, angle: 45, opacity: 0.4 } });
-    coverSlide.addText(`${validation.overallScore || 0}`, { x: 7, y: 0.5, w: 2.5, h: 1, fontSize: 52, color: COLORS.white, bold: true, align: 'center' });
-    coverSlide.addText('SCORE', { x: 7, y: 1.5, w: 2.5, h: 0.4, fontSize: 11, color: COLORS.white, align: 'center' });
+    coverSlide.addShape(pptx.ShapeType.rect, { x: 7.5, y: 0.5, w: 2, h: 1.5, fill: { color: scoreColor } });
+    coverSlide.addText(`${validation.overallScore || 0}`, { x: 7.5, y: 0.65, w: 2, h: 0.9, fontSize: 44, color: COLORS.white, bold: true, align: 'center' });
+    coverSlide.addText('SCORE', { x: 7.5, y: 1.55, w: 2, h: 0.35, fontSize: 10, color: COLORS.white, align: 'center' });
 
-    // Verdict banner
+    // Verdict
     const verdictColor = validation.verdict === 'PROCEED' ? COLORS.secondary : validation.verdict === 'PROCEED_WITH_CAUTION' ? COLORS.warning : COLORS.danger;
-    coverSlide.addShape(pptx.ShapeType.rect, { x: 0.5, y: 3.5, w: 5, h: 0.9, fill: { color: verdictColor } });
-    coverSlide.addText(`${validation.verdict?.replace(/_/g, ' ') || 'ANALYZING'}`, {
-      x: 0.5, y: 3.65, w: 5, h: 0.6, fontSize: 20, color: COLORS.white, bold: true, align: 'center'
-    });
+    coverSlide.addShape(pptx.ShapeType.rect, { x: 0.5, y: 2.8, w: 4, h: 0.7, fill: { color: verdictColor } });
+    coverSlide.addText((validation.verdict || 'PENDING').replace(/_/g, ' '), { x: 0.5, y: 2.95, w: 4, h: 0.4, fontSize: 16, color: COLORS.white, bold: true, align: 'center' });
 
     // Date
-    coverSlide.addText(`${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}`, {
-      x: 0.5, y: 4.8, w: 9, h: 0.3, fontSize: 10, color: COLORS.neutral
-    });
+    coverSlide.addText(new Date().toLocaleDateString(), { x: 0.5, y: 4.5, w: 4, h: 0.3, fontSize: 10, color: COLORS.neutral });
 
-    // === SLIDE 2: Key Metrics Dashboard ===
+    // === SLIDE 2: Metrics ===
     const metricsSlide = pptx.addSlide({ masterName: 'MARKETING_MASTER' });
+    metricsSlide.addText('Key Metrics', { x: 0.5, y: 0.3, w: 9, h: 0.5, fontSize: 24, color: COLORS.primary, bold: true });
 
-    metricsSlide.addText('Key Metrics', { x: 0.5, y: 0.3, w: 9, h: 0.6, fontSize: 26, color: COLORS.primary, bold: true });
-    metricsSlide.addShape(pptx.ShapeType.rect, { x: 0.5, y: 0.85, w: 1, h: 0.08, fill: { color: COLORS.secondary } });
+    // Three cards
+    const cardW = 2.8;
+    const cardH = 1.8;
+    const startX = 0.5;
+    const cardY = 1;
+    const gap = 0.3;
 
-    // Three metric cards
-    const metrics = [
-      { label: 'Overall Score', value: `${validation.overallScore || 0}/100`, color: getScoreColor(validation.overallScore || 0), icon: '📊' },
-      { label: 'Confidence Level', value: `${validation.overallConfidence || 0}%`, color: COLORS.primary, icon: '🎯' },
-      { label: 'AI Agents', value: '12', color: COLORS.accent, icon: '🤖' },
-    ];
+    // Score card
+    metricsSlide.addShape(pptx.ShapeType.rect, { x: startX, y: cardY, w: cardW, h: cardH, fill: { color: scoreColor } });
+    metricsSlide.addText(`${validation.overallScore || 0}`, { x: startX, y: cardY + 0.3, w: cardW, h: 0.8, fontSize: 36, color: COLORS.white, bold: true, align: 'center' });
+    metricsSlide.addText('Score', { x: startX, y: cardY + 1.2, w: cardW, h: 0.4, fontSize: 12, color: COLORS.white, align: 'center' });
 
-    metrics.forEach((m, i) => {
-      const x = 0.5 + i * 3.2;
-      metricsSlide.addShape(pptx.ShapeType.rect, { x, y: 1.2, w: 3, h: 2.2, fill: { color: m.color }, shadow: { type: 'outer', blur: 6, offset: 3, angle: 45, opacity: 0.3 } });
-      metricsSlide.addText(m.icon, { x, y: 1.35, w: 3, h: 0.5, fontSize: 24, align: 'center' });
-      metricsSlide.addText(m.value, { x, y: 1.85, w: 3, h: 0.9, fontSize: 36, color: COLORS.white, bold: true, align: 'center' });
-      metricsSlide.addText(m.label, { x, y: 2.8, w: 3, h: 0.4, fontSize: 11, color: COLORS.white, align: 'center' });
-    });
+    // Confidence card
+    metricsSlide.addShape(pptx.ShapeType.rect, { x: startX + cardW + gap, y: cardY, w: cardW, h: cardH, fill: { color: COLORS.primary } });
+    metricsSlide.addText(`${validation.overallConfidence || 0}%`, { x: startX + cardW + gap, y: cardY + 0.3, w: cardW, h: 0.8, fontSize: 36, color: COLORS.white, bold: true, align: 'center' });
+    metricsSlide.addText('Confidence', { x: startX + cardW + gap, y: cardY + 1.2, w: cardW, h: 0.4, fontSize: 12, color: COLORS.white, align: 'center' });
 
-    // Summary text
-    metricsSlide.addText(validation.executiveSummary?.substring(0, 300) + '...' || 'Analysis complete.', {
-      x: 0.5, y: 3.7, w: 9, h: 1.2, fontSize: 11, color: COLORS.black, valign: 'top'
-    });
+    // Agents card
+    metricsSlide.addShape(pptx.ShapeType.rect, { x: startX + (cardW + gap) * 2, y: cardY, w: cardW, h: cardH, fill: { color: COLORS.accent } });
+    metricsSlide.addText('12', { x: startX + (cardW + gap) * 2, y: cardY + 0.3, w: cardW, h: 0.8, fontSize: 36, color: COLORS.white, bold: true, align: 'center' });
+    metricsSlide.addText('AI Agents', { x: startX + (cardW + gap) * 2, y: cardY + 1.2, w: cardW, h: 0.4, fontSize: 12, color: COLORS.white, align: 'center' });
 
-    // === SLIDE 3: Agent Performance Chart ===
+    // Summary
+    const summaryText = (validation.executiveSummary || 'Analysis complete.').substring(0, 350);
+    metricsSlide.addText(summaryText, { x: 0.5, y: 3.1, w: 9, h: 1.8, fontSize: 11, color: COLORS.black });
+
+    // === SLIDE 3: Agent Scores ===
     const agentSlide = pptx.addSlide({ masterName: 'MARKETING_MASTER' });
+    agentSlide.addText('AI Agent Analysis', { x: 0.5, y: 0.3, w: 9, h: 0.5, fontSize: 24, color: COLORS.primary, bold: true });
 
-    agentSlide.addText('AI Agent Analysis', { x: 0.5, y: 0.3, w: 9, h: 0.6, fontSize: 26, color: COLORS.primary, bold: true });
-    agentSlide.addShape(pptx.ShapeType.rect, { x: 0.5, y: 0.85, w: 1, h: 0.08, fill: { color: COLORS.secondary } });
+    const agents = [...(validation.agentReports || [])].sort((a: any, b: any) => b.score - a.score);
 
-    // Sort agents by score for visual impact
-    const sortedAgents = [...(validation.agentReports || [])].sort((a: any, b: any) => b.score - a.score);
-
-    // Horizontal bar chart representation
-    sortedAgents.slice(0, 10).forEach((report: any, i: number) => {
-      const y = 1.1 + i * 0.42;
-      const barWidth = (report.score / 100) * 6;
+    agents.slice(0, 10).forEach((report: any, i: number) => {
+      const rowY = 0.9 + i * 0.42;
+      const barWidth = (report.score / 100) * 5.5;
       const agentName = report.agentId.charAt(0).toUpperCase() + report.agentId.slice(1);
-      const agentScoreColor = getScoreColor(report.score);
+      const barColor = getScoreColor(report.score);
 
-      // Agent name
-      agentSlide.addText(`${AGENT_ICONS[report.agentId] || '•'} ${agentName}`, {
-        x: 0.5, y, w: 2.3, h: 0.35, fontSize: 10, color: COLORS.black
-      });
-
-      // Bar background
-      agentSlide.addShape(pptx.ShapeType.rect, { x: 2.8, y: y + 0.05, w: 6, h: 0.28, fill: { color: COLORS.lightBg } });
-
-      // Score bar
-      agentSlide.addShape(pptx.ShapeType.rect, { x: 2.8, y: y + 0.05, w: barWidth, h: 0.28, fill: { color: agentScoreColor } });
-
-      // Score value
-      agentSlide.addText(`${report.score}`, { x: 9, y, w: 0.5, h: 0.35, fontSize: 10, color: COLORS.black, bold: true });
+      agentSlide.addText(`${AGENT_ICONS[report.agentId] || ''} ${agentName}`, { x: 0.5, y: rowY, w: 2, h: 0.35, fontSize: 10, color: COLORS.black });
+      agentSlide.addShape(pptx.ShapeType.rect, { x: 2.6, y: rowY + 0.08, w: 5.5, h: 0.22, fill: { color: COLORS.lightBg } });
+      agentSlide.addShape(pptx.ShapeType.rect, { x: 2.6, y: rowY + 0.08, w: barWidth, h: 0.22, fill: { color: barColor } });
+      agentSlide.addText(`${report.score}`, { x: 8.3, y: rowY, w: 0.7, h: 0.35, fontSize: 10, color: COLORS.black, bold: true, align: 'right' });
     });
 
-    // === SLIDE 4: SWOT Summary ===
+    // === SLIDE 4: SWOT ===
     const swotSlide = pptx.addSlide({ masterName: 'MARKETING_MASTER' });
+    swotSlide.addText('SWOT Analysis', { x: 0.5, y: 0.3, w: 9, h: 0.5, fontSize: 24, color: COLORS.primary, bold: true });
 
-    swotSlide.addText('SWOT Analysis', { x: 0.5, y: 0.3, w: 9, h: 0.6, fontSize: 26, color: COLORS.primary, bold: true });
-    swotSlide.addShape(pptx.ShapeType.rect, { x: 0.5, y: 0.85, w: 1, h: 0.08, fill: { color: COLORS.secondary } });
-
-    // Collect findings
     const allFindings = validation.agentReports?.flatMap((r: any) => r.findings || []) || [];
     const strengths = allFindings.filter((f: any) => f.type === 'strength');
     const weaknesses = allFindings.filter((f: any) => f.type === 'weakness');
     const opportunities = allFindings.filter((f: any) => f.type === 'opportunity');
     const threats = allFindings.filter((f: any) => f.type === 'threat');
 
-    // 2x2 SWOT grid
-    const swotData = [
-      { title: 'Strengths', items: strengths, color: COLORS.secondary, x: 0.5, y: 1.1 },
-      { title: 'Weaknesses', items: weaknesses, color: COLORS.danger, x: 5, y: 1.1 },
-      { title: 'Opportunities', items: opportunities, color: COLORS.accent, x: 0.5, y: 3.1 },
-      { title: 'Threats', items: threats, color: COLORS.warning, x: 5, y: 3.1 },
-    ];
+    const swotBoxW = 4.3;
+    const swotBoxH = 2;
+    const swotGap = 0.4;
 
-    swotData.forEach(s => {
-      // Card
-      swotSlide.addShape(pptx.ShapeType.rect, { x: s.x, y: s.y, w: 4.3, h: 1.9, fill: { color: COLORS.white }, line: { color: s.color, width: 2 } });
+    // Strengths (top-left)
+    swotSlide.addShape(pptx.ShapeType.rect, { x: 0.5, y: 0.9, w: swotBoxW, h: swotBoxH, fill: { color: COLORS.white }, line: { color: COLORS.secondary, width: 2 } });
+    swotSlide.addShape(pptx.ShapeType.rect, { x: 0.5, y: 0.9, w: swotBoxW, h: 0.35, fill: { color: COLORS.secondary } });
+    swotSlide.addText(`Strengths (${strengths.length})`, { x: 0.6, y: 0.95, w: swotBoxW - 0.2, h: 0.25, fontSize: 11, color: COLORS.white, bold: true });
+    strengths.slice(0, 3).forEach((f: any, i: number) => {
+      swotSlide.addText(`• ${(f.title || '').substring(0, 35)}`, { x: 0.6, y: 1.35 + i * 0.45, w: swotBoxW - 0.2, h: 0.4, fontSize: 9, color: COLORS.black });
+    });
 
-      // Title bar
-      swotSlide.addShape(pptx.ShapeType.rect, { x: s.x, y: s.y, w: 4.3, h: 0.45, fill: { color: s.color } });
-      swotSlide.addText(`${s.title} (${s.items.length})`, { x: s.x + 0.1, y: s.y + 0.08, w: 4.1, h: 0.35, fontSize: 12, color: COLORS.white, bold: true });
+    // Weaknesses (top-right)
+    swotSlide.addShape(pptx.ShapeType.rect, { x: 0.5 + swotBoxW + swotGap, y: 0.9, w: swotBoxW, h: swotBoxH, fill: { color: COLORS.white }, line: { color: COLORS.danger, width: 2 } });
+    swotSlide.addShape(pptx.ShapeType.rect, { x: 0.5 + swotBoxW + swotGap, y: 0.9, w: swotBoxW, h: 0.35, fill: { color: COLORS.danger } });
+    swotSlide.addText(`Weaknesses (${weaknesses.length})`, { x: 0.6 + swotBoxW + swotGap, y: 0.95, w: swotBoxW - 0.2, h: 0.25, fontSize: 11, color: COLORS.white, bold: true });
+    weaknesses.slice(0, 3).forEach((f: any, i: number) => {
+      swotSlide.addText(`• ${(f.title || '').substring(0, 35)}`, { x: 0.6 + swotBoxW + swotGap, y: 1.35 + i * 0.45, w: swotBoxW - 0.2, h: 0.4, fontSize: 9, color: COLORS.black });
+    });
 
-      // Items
-      s.items.slice(0, 3).forEach((item: any, i: number) => {
-        swotSlide.addText(`• ${item.title || 'Finding'}`, {
-          x: s.x + 0.15, y: s.y + 0.55 + i * 0.42, w: 4, h: 0.4, fontSize: 9, color: COLORS.black
-        });
-      });
+    // Opportunities (bottom-left)
+    swotSlide.addShape(pptx.ShapeType.rect, { x: 0.5, y: 0.9 + swotBoxH + 0.2, w: swotBoxW, h: swotBoxH, fill: { color: COLORS.white }, line: { color: COLORS.accent, width: 2 } });
+    swotSlide.addShape(pptx.ShapeType.rect, { x: 0.5, y: 0.9 + swotBoxH + 0.2, w: swotBoxW, h: 0.35, fill: { color: COLORS.accent } });
+    swotSlide.addText(`Opportunities (${opportunities.length})`, { x: 0.6, y: 0.95 + swotBoxH + 0.2, w: swotBoxW - 0.2, h: 0.25, fontSize: 11, color: COLORS.white, bold: true });
+    opportunities.slice(0, 3).forEach((f: any, i: number) => {
+      swotSlide.addText(`• ${(f.title || '').substring(0, 35)}`, { x: 0.6, y: 1.35 + swotBoxH + 0.2 + i * 0.45, w: swotBoxW - 0.2, h: 0.4, fontSize: 9, color: COLORS.black });
+    });
+
+    // Threats (bottom-right)
+    swotSlide.addShape(pptx.ShapeType.rect, { x: 0.5 + swotBoxW + swotGap, y: 0.9 + swotBoxH + 0.2, w: swotBoxW, h: swotBoxH, fill: { color: COLORS.white }, line: { color: COLORS.warning, width: 2 } });
+    swotSlide.addShape(pptx.ShapeType.rect, { x: 0.5 + swotBoxW + swotGap, y: 0.9 + swotBoxH + 0.2, w: swotBoxW, h: 0.35, fill: { color: COLORS.warning } });
+    swotSlide.addText(`Threats (${threats.length})`, { x: 0.6 + swotBoxW + swotGap, y: 0.95 + swotBoxH + 0.2, w: swotBoxW - 0.2, h: 0.25, fontSize: 11, color: COLORS.white, bold: true });
+    threats.slice(0, 3).forEach((f: any, i: number) => {
+      swotSlide.addText(`• ${(f.title || '').substring(0, 35)}`, { x: 0.6 + swotBoxW + swotGap, y: 1.35 + swotBoxH + 0.2 + i * 0.45, w: swotBoxW - 0.2, h: 0.4, fontSize: 9, color: COLORS.black });
     });
 
     // === SLIDE 5: Recommendations ===
     const recsSlide = pptx.addSlide({ masterName: 'MARKETING_MASTER' });
+    recsSlide.addText('Top Recommendations', { x: 0.5, y: 0.3, w: 9, h: 0.5, fontSize: 24, color: COLORS.primary, bold: true });
 
-    recsSlide.addText('Top Recommendations', { x: 0.5, y: 0.3, w: 9, h: 0.6, fontSize: 26, color: COLORS.primary, bold: true });
-    recsSlide.addShape(pptx.ShapeType.rect, { x: 0.5, y: 0.85, w: 1, h: 0.08, fill: { color: COLORS.secondary } });
+    const recs = validation.agentReports?.flatMap((r: any) => r.recommendations || []).slice(0, 5) || [];
 
-    const allRecs = validation.agentReports?.flatMap((r: any) =>
-      (r.recommendations || []).map((rec: any) => ({ ...rec, agent: r.agentId }))
-    ).slice(0, 5) || [];
-
-    allRecs.forEach((rec: any, i: number) => {
-      const y = 1.1 + i * 0.85;
-
-      // Number badge
-      recsSlide.addShape(pptx.ShapeType.ellipse, { x: 0.5, y, w: 0.5, h: 0.5, fill: { color: COLORS.secondary } });
-      recsSlide.addText(`${i + 1}`, { x: 0.5, y: y + 0.08, w: 0.5, h: 0.35, fontSize: 14, color: COLORS.white, bold: true, align: 'center' });
-
-      // Recommendation text
-      recsSlide.addText(rec.title || 'Action', { x: 1.2, y, w: 8.3, h: 0.35, fontSize: 12, color: COLORS.black, bold: true });
-      recsSlide.addText(`${rec.description || ''} | ${rec.timeframe || 'TBD'}`, { x: 1.2, y: y + 0.35, w: 8.3, h: 0.4, fontSize: 10, color: COLORS.neutral });
+    recs.forEach((rec: any, i: number) => {
+      const recY = 0.9 + i * 0.8;
+      recsSlide.addShape(pptx.ShapeType.ellipse, { x: 0.5, y: recY, w: 0.4, h: 0.4, fill: { color: COLORS.secondary } });
+      recsSlide.addText(`${i + 1}`, { x: 0.5, y: recY + 0.05, w: 0.4, h: 0.3, fontSize: 12, color: COLORS.white, bold: true, align: 'center' });
+      recsSlide.addText((rec.title || 'Action').substring(0, 50), { x: 1.1, y: recY, w: 8, h: 0.35, fontSize: 11, color: COLORS.black, bold: true });
+      recsSlide.addText(`${(rec.description || '').substring(0, 80)} | ${rec.timeframe || 'TBD'}`, { x: 1.1, y: recY + 0.35, w: 8, h: 0.35, fontSize: 9, color: COLORS.neutral });
     });
 
-    // === SLIDE 6: Call to Action ===
+    // === SLIDE 6: CTA ===
     const ctaSlide = pptx.addSlide();
-
-    // Full colored background
     ctaSlide.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: '100%', h: '100%', fill: { color: COLORS.primary } });
 
-    // Accent shapes
-    ctaSlide.addShape(pptx.ShapeType.ellipse, { x: -2, y: 3, w: 5, h: 5, fill: { color: COLORS.darkBg, transparency: 70 } });
-    ctaSlide.addShape(pptx.ShapeType.ellipse, { x: 8, y: -1, w: 4, h: 4, fill: { color: COLORS.secondary, transparency: 80 } });
+    const ctaTitle = validation.verdict === 'PROCEED' ? 'Ready to Build'
+                   : validation.verdict === 'PROCEED_WITH_CAUTION' ? 'Proceed with Caution'
+                   : 'Needs Review';
 
-    // Main CTA
-    const ctaTitle = validation.verdict === 'PROCEED' ? '✓ Ready to Build'
-                   : validation.verdict === 'PROCEED_WITH_CAUTION' ? '⚠️ Proceed with Caution'
-                   : '⚠️ Needs Review';
-
-    ctaSlide.addText(ctaTitle, { x: 0.5, y: 1.5, w: 9, h: 1, fontSize: 42, color: COLORS.white, bold: true, align: 'center' });
+    ctaSlide.addText(ctaTitle, { x: 0.5, y: 1.5, w: 9, h: 0.8, fontSize: 36, color: COLORS.white, bold: true, align: 'center' });
 
     const ctaText = validation.verdict === 'PROCEED'
       ? 'Your startup idea shows strong potential.\nValidation Council recommends moving forward!'
@@ -785,15 +744,13 @@ export class PptxService {
       ? 'Your idea has merit but needs refinement.\nAddress identified risks before proceeding.'
       : 'Significant concerns identified.\nConsider pivoting or addressing fundamentals.';
 
-    ctaSlide.addText(ctaText, { x: 0.5, y: 2.8, w: 9, h: 1.2, fontSize: 16, color: COLORS.white, align: 'center' });
+    ctaSlide.addText(ctaText, { x: 0.5, y: 2.5, w: 9, h: 1, fontSize: 14, color: COLORS.white, align: 'center' });
 
-    // Brand footer
-    ctaSlide.addText('Powered by 12 AI Agents | www.startupverdict.com', {
-      x: 0.5, y: 4.5, w: 9, h: 0.4, fontSize: 11, color: COLORS.neutral, align: 'center'
-    });
+    // Score badge
+    ctaSlide.addShape(pptx.ShapeType.ellipse, { x: 4.25, y: 3.6, w: 1.5, h: 1.5, fill: { color: scoreColor } });
+    ctaSlide.addText(`${validation.overallScore || 0}`, { x: 4.25, y: 3.85, w: 1.5, h: 0.8, fontSize: 28, color: COLORS.white, bold: true, align: 'center' });
 
-    // Score reminder
-    ctaSlide.addShape(pptx.ShapeType.ellipse, { x: 4, y: 3.8, w: 1.5, h: 1.5, fill: { color: getScoreColor(validation.overallScore || 0) } });
-    ctaSlide.addText(`${validation.overallScore || 0}`, { x: 4, y: 4.1, w: 1.5, h: 0.8, fontSize: 28, color: COLORS.white, bold: true, align: 'center' });
+    // Footer
+    ctaSlide.addText('www.startupverdict.com', { x: 0.5, y: 4.8, w: 9, h: 0.3, fontSize: 10, color: COLORS.neutral, align: 'center' });
   }
 }
