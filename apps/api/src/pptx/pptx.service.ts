@@ -29,7 +29,7 @@ const getScoreColor = (score: number): string => {
   return COLORS.danger;
 };
 
-// Agent icons/emojis for visual representation
+// Agent icons for visual representation
 const AGENT_ICONS: Record<string, string> = {
   aria: '🎯',
   marcus: '📊',
@@ -45,20 +45,36 @@ const AGENT_ICONS: Record<string, string> = {
   sentinel: '🛡️',
 };
 
+// Agent display names - functional roles (not internal names)
+const AGENT_NAMES: Record<string, string> = {
+  aria: 'AI Orchestration',
+  marcus: 'Market Analysis',
+  sophia: 'Competitor Analysis',
+  david: 'Financial Analysis',
+  elena: 'Customer Analysis',
+  james: 'Team Assessment',
+  rachel: 'Legal & Risk',
+  omar: 'Technical Analysis',
+  nora: 'Funding Analysis',
+  victor: 'Valuation',
+  victoria: 'Final Synthesis',
+  sentinel: 'Trust & Audit',
+};
+
 // Agent descriptions
 const AGENT_DESCRIPTIONS: Record<string, string> = {
-  aria: 'Orchestrator - Coordinates all agents',
-  marcus: 'Market Intelligence - TAM/SAM/SOM analysis',
-  sophia: 'Competition - Competitive landscape',
-  david: 'Financial - Unit economics & projections',
-  elena: 'Customer - User validation & PMF',
-  james: 'Team - Founder & team assessment',
-  rachel: 'Legal/Risk - Regulatory & legal analysis',
-  omar: 'Technology - Tech stack & feasibility',
-  nora: 'Funding - Investment landscape',
-  victor: 'Valuation - Company valuation',
-  victoria: 'Synthesis - Final recommendations',
-  sentinel: 'Trust/Audit - Data verification',
+  aria: 'Coordination & Synthesis',
+  marcus: 'TAM/SAM/SOM Study',
+  sophia: 'Competitive Landscape',
+  david: 'Unit Economics',
+  elena: 'Product-Market Fit',
+  james: 'Founder Evaluation',
+  rachel: 'Regulatory Analysis',
+  omar: 'Tech Feasibility',
+  nora: 'Investment Landscape',
+  victor: 'Company Valuation',
+  victoria: 'Recommendations',
+  sentinel: 'Data Verification',
 };
 
 export interface PptxTemplate {
@@ -232,7 +248,7 @@ export class PptxService {
           fill: { color: COLORS.lightBg },
           line: { color: report ? getScoreColor(report.score) : COLORS.neutral, width: 2 }
         });
-        agentsSlide.addText(`${AGENT_ICONS[agentId]} ${agentId.charAt(0).toUpperCase() + agentId.slice(1)}`, {
+        agentsSlide.addText(`${AGENT_ICONS[agentId]} ${AGENT_NAMES[agentId] || agentId}`, {
           x, y: y + 0.1, w: 2.2, h: 0.4, fontSize: 11, color: COLORS.black, bold: true, align: 'center'
         });
         agentsSlide.addText(report ? `Score: ${report.score}` : 'Pending', {
@@ -399,7 +415,7 @@ export class PptxService {
 
     (validation.agentReports || []).forEach((report: any, i: number) => {
       const y = 1.2 + i * 0.38;
-      agentsSlide.addText(`${report.agentId.charAt(0).toUpperCase() + report.agentId.slice(1)}`, { x: 0.5, y, w: 3, h: 0.35, fontSize: 12, color: COLORS.black });
+      agentsSlide.addText(`${AGENT_NAMES[report.agentId] || report.agentId}`, { x: 0.5, y, w: 3, h: 0.35, fontSize: 12, color: COLORS.black });
       agentsSlide.addShape(pptx.ShapeType.rect, { x: 3.5, y: y + 0.08, w: (report.score / 100) * 4, h: 0.2, fill: { color: getScoreColor(report.score) } });
       agentsSlide.addText(`${report.score}`, { x: 8, y, w: 1, h: 0.35, fontSize: 12, color: COLORS.black, bold: true });
     });
@@ -523,10 +539,10 @@ export class PptxService {
    */
   private addAgentSlide(pptx: PptxGenJS, report: any, masterName: string) {
     const slide = pptx.addSlide({ masterName });
-    const agentName = report.agentId.charAt(0).toUpperCase() + report.agentId.slice(1);
+    const agentName = AGENT_NAMES[report.agentId] || report.agentId;
 
     // Header
-    slide.addText(`${AGENT_ICONS[report.agentId] || '🔹'} ${agentName} Analysis`, {
+    slide.addText(`${AGENT_ICONS[report.agentId] || '🔹'} ${agentName}`, {
       x: 0.5, y: 0.8, w: 7, h: 0.6, fontSize: 24, color: COLORS.primary, bold: true
     });
 
@@ -559,7 +575,7 @@ export class PptxService {
    */
   private addModernAgentSlide(pptx: PptxGenJS, report: any) {
     const slide = pptx.addSlide({ masterName: 'MODERN_MASTER' });
-    const agentName = report.agentId.charAt(0).toUpperCase() + report.agentId.slice(1);
+    const agentName = AGENT_NAMES[report.agentId] || report.agentId;
 
     slide.addText(`${AGENT_ICONS[report.agentId] || '🔹'} ${agentName}`, {
       x: 0.5, y: 0.3, w: 6, h: 0.6, fontSize: 28, color: COLORS.white, bold: true
@@ -659,7 +675,7 @@ export class PptxService {
     agents.slice(0, 10).forEach((report: any, i: number) => {
       const rowY = 0.9 + i * 0.42;
       const barWidth = (report.score / 100) * 5.5;
-      const agentName = report.agentId.charAt(0).toUpperCase() + report.agentId.slice(1);
+      const agentName = AGENT_NAMES[report.agentId] || report.agentId;
       const barColor = getScoreColor(report.score);
 
       agentSlide.addText(`${AGENT_ICONS[report.agentId] || ''} ${agentName}`, { x: 0.5, y: rowY, w: 2, h: 0.35, fontSize: 10, color: COLORS.black });

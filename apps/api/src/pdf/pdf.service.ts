@@ -32,19 +32,20 @@ const getVerdictColor = (verdict: string): string => {
   return COLORS.danger;
 };
 
+// Agent display names - showing functional roles, not internal names
 const AGENT_INFO: Record<string, { name: string; role: string }> = {
-  aria: { name: 'Aria', role: 'Orchestrator' },
-  marcus: { name: 'Marcus', role: 'Market Intel' },
-  sophia: { name: 'Sophia', role: 'Competition' },
-  david: { name: 'David', role: 'Financial' },
-  elena: { name: 'Elena', role: 'Customer' },
-  james: { name: 'James', role: 'Team' },
-  rachel: { name: 'Rachel', role: 'Legal/Risk' },
-  omar: { name: 'Omar', role: 'Technology' },
-  nora: { name: 'Nora', role: 'Funding' },
-  victor: { name: 'Victor', role: 'Valuation' },
-  victoria: { name: 'Victoria', role: 'Synthesis' },
-  sentinel: { name: 'Sentinel', role: 'Trust/Audit' },
+  aria: { name: 'AI Orchestration', role: 'Coordination & Synthesis' },
+  marcus: { name: 'Market Analysis', role: 'TAM/SAM/SOM Study' },
+  sophia: { name: 'Competitor Analysis', role: 'Competitive Landscape' },
+  david: { name: 'Financial Analysis', role: 'Unit Economics' },
+  elena: { name: 'Customer Analysis', role: 'Product-Market Fit' },
+  james: { name: 'Team Assessment', role: 'Founder Evaluation' },
+  rachel: { name: 'Legal & Risk', role: 'Regulatory Analysis' },
+  omar: { name: 'Technical Analysis', role: 'Tech Feasibility' },
+  nora: { name: 'Funding Analysis', role: 'Investment Landscape' },
+  victor: { name: 'Valuation', role: 'Company Valuation' },
+  victoria: { name: 'Final Synthesis', role: 'Recommendations' },
+  sentinel: { name: 'Trust & Audit', role: 'Data Verification' },
 };
 
 export interface PdfTemplate {
