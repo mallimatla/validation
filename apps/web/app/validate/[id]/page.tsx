@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
 import Link from 'next/link';
-import jsPDF from 'jspdf';
+// jsPDF removed - using server-side PDF generation now
 import dynamic from 'next/dynamic';
 
 // Dynamic imports for chart components
@@ -176,27 +176,72 @@ export default function ValidationResultsPage() {
   const strengths = allFindings.filter(f => f.type === 'strength').length;
   const weaknesses = allFindings.filter(f => f.type === 'weakness').length;
 
-  // Download PDF function (simplified)
-  const downloadPDF = () => {
+  // Download PDF from server (professional quality)
+  const downloadPDF = async (template: string = 'executive') => {
     if (!validation) return;
     setIsDownloading(true);
     setShowDownloadMenu(false);
 
-    const doc = new jsPDF();
-    doc.setFontSize(20);
-    doc.text('Validation Report', 20, 20);
-    doc.setFontSize(14);
-    doc.text(validation.title || 'Untitled', 20, 35);
-    doc.setFontSize(12);
-    doc.text(`Score: ${validation.overallScore}/100`, 20, 50);
-    doc.text(`Verdict: ${validation.verdict}`, 20, 60);
-    doc.text(`Confidence: ${validation.overallConfidence}%`, 20, 70);
-    if (validation.executiveSummary) {
-      const lines = doc.splitTextToSize(validation.executiveSummary, 170);
-      doc.text(lines, 20, 85);
+    try {
+      const token = await getToken();
+      const response = await fetch(
+        `${API_URL}/api/v1/pdf/validation/${validationId}?template=${template}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      if (!response.ok) throw new Error('Failed to generate PDF');
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `validation-report-${validationId}-${template}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('PDF download error:', err);
+      alert('Failed to download PDF. Please try again.');
+    } finally {
+      setIsDownloading(false);
     }
-    doc.save(`validation-${validationId}.pdf`);
-    setIsDownloading(false);
+  };
+
+  // Download PPTX from server
+  const downloadPPTX = async (template: string = 'marketing') => {
+    if (!validation) return;
+    setIsDownloading(true);
+    setShowDownloadMenu(false);
+
+    try {
+      const token = await getToken();
+      const response = await fetch(
+        `${API_URL}/api/v1/pptx/validation/${validationId}?template=${template}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      if (!response.ok) throw new Error('Failed to generate PPTX');
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `validation-report-${validationId}-${template}.pptx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('PPTX download error:', err);
+      alert('Failed to download PPTX. Please try again.');
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   if (isLoading) {
@@ -243,9 +288,64 @@ export default function ValidationResultsPage() {
               {isDownloading ? 'Generating...' : 'Download Report ▼'}
             </button>
             {showDownloadMenu && (
-              <div className="absolute right-0 mt-2 w-56 bg-slate-800 rounded-lg shadow-xl border border-slate-700 z-50">
-                <button onClick={downloadPDF} className="w-full text-left px-4 py-3 hover:bg-slate-700 rounded-t-lg">
-                  <span className="font-medium">📄 PDF Report</span>
+              <div className="absolute right-0 mt-2 w-72 bg-slate-800 rounded-xl shadow-2xl border border-slate-700 z-50 overflow-hidden">
+                {/* PDF Section */}
+                <div className="px-3 py-2 bg-slate-700/50 border-b border-slate-700">
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">PDF Reports</span>
+                </div>
+                <button onClick={() => downloadPDF('executive')} className="w-full text-left px-4 py-3 hover:bg-slate-700/50 flex items-start gap-3 border-b border-slate-700/50">
+                  <span className="text-lg">📄</span>
+                  <div>
+                    <span className="font-medium text-white block">Executive Summary</span>
+                    <span className="text-xs text-slate-400">Perfect for WhatsApp sharing</span>
+                  </div>
+                </button>
+                <button onClick={() => downloadPDF('detailed')} className="w-full text-left px-4 py-3 hover:bg-slate-700/50 flex items-start gap-3 border-b border-slate-700/50">
+                  <span className="text-lg">📋</span>
+                  <div>
+                    <span className="font-medium text-white block">Full Detailed Report</span>
+                    <span className="text-xs text-slate-400">Complete analysis with all agents</span>
+                  </div>
+                </button>
+                <button onClick={() => downloadPDF('summary')} className="w-full text-left px-4 py-3 hover:bg-slate-700/50 flex items-start gap-3 border-b border-slate-700">
+                  <span className="text-lg">📊</span>
+                  <div>
+                    <span className="font-medium text-white block">One-Page Summary</span>
+                    <span className="text-xs text-slate-400">Quick overview with metrics</span>
+                  </div>
+                </button>
+
+                {/* PPTX Section */}
+                <div className="px-3 py-2 bg-slate-700/50 border-b border-slate-700">
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">PowerPoint Presentations</span>
+                </div>
+                <button onClick={() => downloadPPTX('marketing')} className="w-full text-left px-4 py-3 hover:bg-slate-700/50 flex items-start gap-3 border-b border-slate-700/50">
+                  <span className="text-lg">🎯</span>
+                  <div>
+                    <span className="font-medium text-white block">Marketing Deck</span>
+                    <span className="text-xs text-slate-400">High-impact visuals for sharing</span>
+                  </div>
+                </button>
+                <button onClick={() => downloadPPTX('investor')} className="w-full text-left px-4 py-3 hover:bg-slate-700/50 flex items-start gap-3 border-b border-slate-700/50">
+                  <span className="text-lg">💼</span>
+                  <div>
+                    <span className="font-medium text-white block">Investor Pitch</span>
+                    <span className="text-xs text-slate-400">Professional pitch deck format</span>
+                  </div>
+                </button>
+                <button onClick={() => downloadPPTX('professional')} className="w-full text-left px-4 py-3 hover:bg-slate-700/50 flex items-start gap-3 border-b border-slate-700/50">
+                  <span className="text-lg">🏢</span>
+                  <div>
+                    <span className="font-medium text-white block">Corporate Style</span>
+                    <span className="text-xs text-slate-400">Professional dark blue theme</span>
+                  </div>
+                </button>
+                <button onClick={() => downloadPPTX('modern')} className="w-full text-left px-4 py-3 hover:bg-slate-700/50 flex items-start gap-3 rounded-b-xl">
+                  <span className="text-lg">✨</span>
+                  <div>
+                    <span className="font-medium text-white block">Modern Gradient</span>
+                    <span className="text-xs text-slate-400">Vibrant contemporary design</span>
+                  </div>
                 </button>
               </div>
             )}

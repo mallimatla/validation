@@ -64,7 +64,7 @@ const AGENT_DESCRIPTIONS: Record<string, string> = {
 export interface PptxTemplate {
   name: string;
   description: string;
-  style: 'professional' | 'modern' | 'minimal' | 'investor';
+  style: 'professional' | 'modern' | 'minimal' | 'investor' | 'marketing';
 }
 
 @Injectable()
@@ -97,6 +97,11 @@ export class PptxService {
         name: 'investor',
         description: 'Investor-focused pitch deck format',
         style: 'investor',
+      },
+      {
+        name: 'marketing',
+        description: 'Marketing-quality slides perfect for WhatsApp/social sharing',
+        style: 'marketing',
       },
     ];
   }
@@ -145,6 +150,9 @@ export class PptxService {
         break;
       case 'investor':
         await this.generateInvestorTemplate(pptx, validation);
+        break;
+      case 'marketing':
+        await this.generateMarketingTemplate(pptx, validation);
         break;
       default:
         await this.generateProfessionalTemplate(pptx, validation);
@@ -572,5 +580,220 @@ export class PptxService {
       slide.addText(f.description, { x: 0.7, y: y + 0.45, w: 8.6, h: 0.35, fontSize: 10, color: COLORS.neutral });
       y += 1;
     });
+  }
+
+  /**
+   * Add subtle watermark/branding to slide
+   */
+  private addWatermark(slide: any) {
+    // Subtle bottom-right logo/text watermark
+    slide.addText('VALIDATION COUNCIL', {
+      x: 6.5, y: 5.1, w: 3, h: 0.3,
+      fontSize: 8, color: COLORS.neutral, bold: false,
+      align: 'right',
+    });
+  }
+
+  /**
+   * Marketing Template - Perfect for WhatsApp/Social sharing
+   * High visual impact, concise information, branded
+   */
+  private async generateMarketingTemplate(pptx: PptxGenJS, validation: any) {
+    // Marketing master with gradient background effect
+    pptx.defineSlideMaster({
+      title: 'MARKETING_MASTER',
+      background: { color: COLORS.white },
+      objects: [
+        // Subtle brand bar at bottom
+        { rect: { x: 0, y: 5.2, w: '100%', h: 0.3, fill: { color: COLORS.primary } } },
+        { text: { text: 'VALIDATION COUNCIL', options: { x: 7, y: 5.23, w: 2.5, h: 0.25, fontSize: 8, color: COLORS.white, align: 'right' } } },
+      ],
+    });
+
+    // === SLIDE 1: Hero Cover ===
+    const coverSlide = pptx.addSlide();
+
+    // Full gradient background
+    coverSlide.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: '100%', h: '100%', fill: { color: COLORS.darkBg } });
+
+    // Accent shapes for visual interest
+    coverSlide.addShape(pptx.ShapeType.rect, { x: -1, y: -0.5, w: 4, h: 6, fill: { color: COLORS.primary }, rotate: -15 });
+    coverSlide.addShape(pptx.ShapeType.ellipse, { x: 7, y: 3, w: 4, h: 4, fill: { color: COLORS.secondary, transparency: 85 } });
+
+    // Brand
+    coverSlide.addText('VALIDATION COUNCIL', { x: 0.5, y: 0.4, w: 5, h: 0.4, fontSize: 12, color: COLORS.white, bold: true });
+
+    // Main title
+    coverSlide.addText(validation.title || 'Startup Validation', {
+      x: 0.5, y: 1.8, w: 9, h: 1.5, fontSize: 38, color: COLORS.white, bold: true, valign: 'middle'
+    });
+
+    // Score badge - large and prominent
+    const scoreColor = getScoreColor(validation.overallScore || 0);
+    coverSlide.addShape(pptx.ShapeType.rect, { x: 7, y: 0.3, w: 2.5, h: 1.8, fill: { color: scoreColor }, shadow: { type: 'outer', blur: 8, offset: 4, angle: 45, opacity: 0.4 } });
+    coverSlide.addText(`${validation.overallScore || 0}`, { x: 7, y: 0.5, w: 2.5, h: 1, fontSize: 52, color: COLORS.white, bold: true, align: 'center' });
+    coverSlide.addText('SCORE', { x: 7, y: 1.5, w: 2.5, h: 0.4, fontSize: 11, color: COLORS.white, align: 'center' });
+
+    // Verdict banner
+    const verdictColor = validation.verdict === 'PROCEED' ? COLORS.secondary : validation.verdict === 'PROCEED_WITH_CAUTION' ? COLORS.warning : COLORS.danger;
+    coverSlide.addShape(pptx.ShapeType.rect, { x: 0.5, y: 3.5, w: 5, h: 0.9, fill: { color: verdictColor } });
+    coverSlide.addText(`${validation.verdict?.replace(/_/g, ' ') || 'ANALYZING'}`, {
+      x: 0.5, y: 3.65, w: 5, h: 0.6, fontSize: 20, color: COLORS.white, bold: true, align: 'center'
+    });
+
+    // Date
+    coverSlide.addText(`${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}`, {
+      x: 0.5, y: 4.8, w: 9, h: 0.3, fontSize: 10, color: COLORS.neutral
+    });
+
+    // === SLIDE 2: Key Metrics Dashboard ===
+    const metricsSlide = pptx.addSlide({ masterName: 'MARKETING_MASTER' });
+
+    metricsSlide.addText('Key Metrics', { x: 0.5, y: 0.3, w: 9, h: 0.6, fontSize: 26, color: COLORS.primary, bold: true });
+    metricsSlide.addShape(pptx.ShapeType.rect, { x: 0.5, y: 0.85, w: 1, h: 0.08, fill: { color: COLORS.secondary } });
+
+    // Three metric cards
+    const metrics = [
+      { label: 'Overall Score', value: `${validation.overallScore || 0}/100`, color: getScoreColor(validation.overallScore || 0), icon: '📊' },
+      { label: 'Confidence Level', value: `${validation.overallConfidence || 0}%`, color: COLORS.primary, icon: '🎯' },
+      { label: 'AI Agents', value: '12', color: COLORS.accent, icon: '🤖' },
+    ];
+
+    metrics.forEach((m, i) => {
+      const x = 0.5 + i * 3.2;
+      metricsSlide.addShape(pptx.ShapeType.rect, { x, y: 1.2, w: 3, h: 2.2, fill: { color: m.color }, shadow: { type: 'outer', blur: 6, offset: 3, angle: 45, opacity: 0.3 } });
+      metricsSlide.addText(m.icon, { x, y: 1.35, w: 3, h: 0.5, fontSize: 24, align: 'center' });
+      metricsSlide.addText(m.value, { x, y: 1.85, w: 3, h: 0.9, fontSize: 36, color: COLORS.white, bold: true, align: 'center' });
+      metricsSlide.addText(m.label, { x, y: 2.8, w: 3, h: 0.4, fontSize: 11, color: COLORS.white, align: 'center' });
+    });
+
+    // Summary text
+    metricsSlide.addText(validation.executiveSummary?.substring(0, 300) + '...' || 'Analysis complete.', {
+      x: 0.5, y: 3.7, w: 9, h: 1.2, fontSize: 11, color: COLORS.black, valign: 'top'
+    });
+
+    // === SLIDE 3: Agent Performance Chart ===
+    const agentSlide = pptx.addSlide({ masterName: 'MARKETING_MASTER' });
+
+    agentSlide.addText('AI Agent Analysis', { x: 0.5, y: 0.3, w: 9, h: 0.6, fontSize: 26, color: COLORS.primary, bold: true });
+    agentSlide.addShape(pptx.ShapeType.rect, { x: 0.5, y: 0.85, w: 1, h: 0.08, fill: { color: COLORS.secondary } });
+
+    // Sort agents by score for visual impact
+    const sortedAgents = [...(validation.agentReports || [])].sort((a: any, b: any) => b.score - a.score);
+
+    // Horizontal bar chart representation
+    sortedAgents.slice(0, 10).forEach((report: any, i: number) => {
+      const y = 1.1 + i * 0.42;
+      const barWidth = (report.score / 100) * 6;
+      const agentName = report.agentId.charAt(0).toUpperCase() + report.agentId.slice(1);
+      const agentScoreColor = getScoreColor(report.score);
+
+      // Agent name
+      agentSlide.addText(`${AGENT_ICONS[report.agentId] || '•'} ${agentName}`, {
+        x: 0.5, y, w: 2.3, h: 0.35, fontSize: 10, color: COLORS.black
+      });
+
+      // Bar background
+      agentSlide.addShape(pptx.ShapeType.rect, { x: 2.8, y: y + 0.05, w: 6, h: 0.28, fill: { color: COLORS.lightBg } });
+
+      // Score bar
+      agentSlide.addShape(pptx.ShapeType.rect, { x: 2.8, y: y + 0.05, w: barWidth, h: 0.28, fill: { color: agentScoreColor } });
+
+      // Score value
+      agentSlide.addText(`${report.score}`, { x: 9, y, w: 0.5, h: 0.35, fontSize: 10, color: COLORS.black, bold: true });
+    });
+
+    // === SLIDE 4: SWOT Summary ===
+    const swotSlide = pptx.addSlide({ masterName: 'MARKETING_MASTER' });
+
+    swotSlide.addText('SWOT Analysis', { x: 0.5, y: 0.3, w: 9, h: 0.6, fontSize: 26, color: COLORS.primary, bold: true });
+    swotSlide.addShape(pptx.ShapeType.rect, { x: 0.5, y: 0.85, w: 1, h: 0.08, fill: { color: COLORS.secondary } });
+
+    // Collect findings
+    const allFindings = validation.agentReports?.flatMap((r: any) => r.findings || []) || [];
+    const strengths = allFindings.filter((f: any) => f.type === 'strength');
+    const weaknesses = allFindings.filter((f: any) => f.type === 'weakness');
+    const opportunities = allFindings.filter((f: any) => f.type === 'opportunity');
+    const threats = allFindings.filter((f: any) => f.type === 'threat');
+
+    // 2x2 SWOT grid
+    const swotData = [
+      { title: 'Strengths', items: strengths, color: COLORS.secondary, x: 0.5, y: 1.1 },
+      { title: 'Weaknesses', items: weaknesses, color: COLORS.danger, x: 5, y: 1.1 },
+      { title: 'Opportunities', items: opportunities, color: COLORS.accent, x: 0.5, y: 3.1 },
+      { title: 'Threats', items: threats, color: COLORS.warning, x: 5, y: 3.1 },
+    ];
+
+    swotData.forEach(s => {
+      // Card
+      swotSlide.addShape(pptx.ShapeType.rect, { x: s.x, y: s.y, w: 4.3, h: 1.9, fill: { color: COLORS.white }, line: { color: s.color, width: 2 } });
+
+      // Title bar
+      swotSlide.addShape(pptx.ShapeType.rect, { x: s.x, y: s.y, w: 4.3, h: 0.45, fill: { color: s.color } });
+      swotSlide.addText(`${s.title} (${s.items.length})`, { x: s.x + 0.1, y: s.y + 0.08, w: 4.1, h: 0.35, fontSize: 12, color: COLORS.white, bold: true });
+
+      // Items
+      s.items.slice(0, 3).forEach((item: any, i: number) => {
+        swotSlide.addText(`• ${item.title || 'Finding'}`, {
+          x: s.x + 0.15, y: s.y + 0.55 + i * 0.42, w: 4, h: 0.4, fontSize: 9, color: COLORS.black
+        });
+      });
+    });
+
+    // === SLIDE 5: Recommendations ===
+    const recsSlide = pptx.addSlide({ masterName: 'MARKETING_MASTER' });
+
+    recsSlide.addText('Top Recommendations', { x: 0.5, y: 0.3, w: 9, h: 0.6, fontSize: 26, color: COLORS.primary, bold: true });
+    recsSlide.addShape(pptx.ShapeType.rect, { x: 0.5, y: 0.85, w: 1, h: 0.08, fill: { color: COLORS.secondary } });
+
+    const allRecs = validation.agentReports?.flatMap((r: any) =>
+      (r.recommendations || []).map((rec: any) => ({ ...rec, agent: r.agentId }))
+    ).slice(0, 5) || [];
+
+    allRecs.forEach((rec: any, i: number) => {
+      const y = 1.1 + i * 0.85;
+
+      // Number badge
+      recsSlide.addShape(pptx.ShapeType.ellipse, { x: 0.5, y, w: 0.5, h: 0.5, fill: { color: COLORS.secondary } });
+      recsSlide.addText(`${i + 1}`, { x: 0.5, y: y + 0.08, w: 0.5, h: 0.35, fontSize: 14, color: COLORS.white, bold: true, align: 'center' });
+
+      // Recommendation text
+      recsSlide.addText(rec.title || 'Action', { x: 1.2, y, w: 8.3, h: 0.35, fontSize: 12, color: COLORS.black, bold: true });
+      recsSlide.addText(`${rec.description || ''} | ${rec.timeframe || 'TBD'}`, { x: 1.2, y: y + 0.35, w: 8.3, h: 0.4, fontSize: 10, color: COLORS.neutral });
+    });
+
+    // === SLIDE 6: Call to Action ===
+    const ctaSlide = pptx.addSlide();
+
+    // Full colored background
+    ctaSlide.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: '100%', h: '100%', fill: { color: COLORS.primary } });
+
+    // Accent shapes
+    ctaSlide.addShape(pptx.ShapeType.ellipse, { x: -2, y: 3, w: 5, h: 5, fill: { color: COLORS.darkBg, transparency: 70 } });
+    ctaSlide.addShape(pptx.ShapeType.ellipse, { x: 8, y: -1, w: 4, h: 4, fill: { color: COLORS.secondary, transparency: 80 } });
+
+    // Main CTA
+    const ctaTitle = validation.verdict === 'PROCEED' ? '✓ Ready to Build'
+                   : validation.verdict === 'PROCEED_WITH_CAUTION' ? '⚠️ Proceed with Caution'
+                   : '⚠️ Needs Review';
+
+    ctaSlide.addText(ctaTitle, { x: 0.5, y: 1.5, w: 9, h: 1, fontSize: 42, color: COLORS.white, bold: true, align: 'center' });
+
+    const ctaText = validation.verdict === 'PROCEED'
+      ? 'Your startup idea shows strong potential.\nValidation Council recommends moving forward!'
+      : validation.verdict === 'PROCEED_WITH_CAUTION'
+      ? 'Your idea has merit but needs refinement.\nAddress identified risks before proceeding.'
+      : 'Significant concerns identified.\nConsider pivoting or addressing fundamentals.';
+
+    ctaSlide.addText(ctaText, { x: 0.5, y: 2.8, w: 9, h: 1.2, fontSize: 16, color: COLORS.white, align: 'center' });
+
+    // Brand footer
+    ctaSlide.addText('Powered by 12 AI Agents | www.startupverdict.com', {
+      x: 0.5, y: 4.5, w: 9, h: 0.4, fontSize: 11, color: COLORS.neutral, align: 'center'
+    });
+
+    // Score reminder
+    ctaSlide.addShape(pptx.ShapeType.ellipse, { x: 4, y: 3.8, w: 1.5, h: 1.5, fill: { color: getScoreColor(validation.overallScore || 0) } });
+    ctaSlide.addText(`${validation.overallScore || 0}`, { x: 4, y: 4.1, w: 1.5, h: 0.8, fontSize: 28, color: COLORS.white, bold: true, align: 'center' });
   }
 }
