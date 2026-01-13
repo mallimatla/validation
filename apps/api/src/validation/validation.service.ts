@@ -262,12 +262,56 @@ export class ValidationService {
             totalKillSignals += detectedKillSignals.length;
             criticalKillSignals += detectedKillSignals.filter((k: any) => k.severity === 'critical').length;
 
-            // Ensure scores are proper integers (1-100 scale)
-            // Agent scores are 1-10, multiply by 10 for percentage
-            const rawScore = Number(agentOutput.score) || 5;
-            const rawConfidence = Number(agentOutput.confidence) || 5;
-            const normalizedScore = Math.round(Math.max(1, Math.min(10, rawScore)) * 10);
-            const normalizedConfidence = Math.round(Math.max(1, Math.min(10, rawConfidence)) * 10);
+            // Smart score normalization that handles multiple scales
+            // LLMs and agents may return scores on different scales:
+            // - 0-1 scale (0.7 meaning 70%)
+            // - 1-10 scale (7 meaning 70%)
+            // - 0-100 scale (70 meaning 70%)
+            let rawScore = Number(agentOutput.score);
+            let rawConfidence = Number(agentOutput.confidence);
+
+            // Log original values for debugging
+            this.logger.debug(`${agent.name} raw scores: score=${rawScore}, confidence=${rawConfidence}`);
+
+            // Detect and convert from 0-1 scale (common LLM output)
+            // If score is between 0 and 1.5, it's likely a 0-1 scale
+            if (rawScore > 0 && rawScore <= 1.5) {
+              this.logger.log(`${agent.name}: Converting score ${rawScore} from 0-1 scale to 1-10`);
+              rawScore = rawScore * 10;
+            }
+            if (rawConfidence > 0 && rawConfidence <= 1.5) {
+              this.logger.log(`${agent.name}: Converting confidence ${rawConfidence} from 0-1 scale to 1-10`);
+              rawConfidence = rawConfidence * 10;
+            }
+
+            // Detect and convert from 0-100 scale
+            // If score is greater than 10, it's likely already a percentage
+            if (rawScore > 10 && rawScore <= 100) {
+              this.logger.log(`${agent.name}: Score ${rawScore} appears to be on 0-100 scale, converting to 1-10`);
+              rawScore = rawScore / 10;
+            }
+            if (rawConfidence > 10 && rawConfidence <= 100) {
+              this.logger.log(`${agent.name}: Confidence ${rawConfidence} appears to be on 0-100 scale, converting to 1-10`);
+              rawConfidence = rawConfidence / 10;
+            }
+
+            // Apply defaults for invalid/missing scores
+            if (!Number.isFinite(rawScore) || rawScore <= 0) {
+              this.logger.warn(`${agent.name}: Invalid score ${agentOutput.score}, defaulting to 5`);
+              rawScore = 5;
+            }
+            if (!Number.isFinite(rawConfidence) || rawConfidence <= 0) {
+              this.logger.warn(`${agent.name}: Invalid confidence ${agentOutput.confidence}, defaulting to 5`);
+              rawConfidence = 5;
+            }
+
+            // Clamp to 1-10 range then convert to percentage (0-100)
+            const clampedScore = Math.max(1, Math.min(10, rawScore));
+            const clampedConfidence = Math.max(1, Math.min(10, rawConfidence));
+            const normalizedScore = Math.round(clampedScore * 10);
+            const normalizedConfidence = Math.round(clampedConfidence * 10);
+
+            this.logger.log(`${agent.name} final scores: ${normalizedScore}% (confidence: ${normalizedConfidence}%)`);
 
             reportData = {
               score: normalizedScore,
