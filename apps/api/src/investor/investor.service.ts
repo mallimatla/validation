@@ -75,14 +75,15 @@ export class InvestorService {
     const { page = 1, limit = 20, sortBy = 'matchScore', minScore = 0 } = filters;
     const skip = (page - 1) * limit;
 
-    // Get investor profile for thesis matching (may be null for non-investors)
-    const investorProfile = await this.getInvestorProfile(investorId);
+    try {
+      // Get investor profile for thesis matching (may be null for non-investors)
+      const investorProfile = await this.getInvestorProfile(investorId);
 
-    // If no investor profile, return empty results (user needs to set up profile)
-    if (!investorProfile) {
-      this.logger.log(`No investor profile for user ${investorId}, returning empty results`);
-      return { data: [], total: 0, page, limit };
-    }
+      // If no investor profile, return empty results (user needs to set up profile)
+      if (!investorProfile) {
+        this.logger.log(`No investor profile for user ${investorId}, returning empty results`);
+        return { data: [], total: 0, page, limit };
+      }
 
     // Get investor's shortlisted validations
     const shortlistedIds = await this.getShortlistedIds(investorId);
@@ -171,6 +172,10 @@ export class InvestorService {
     }
 
     return { data: startups, total, page, limit };
+    } catch (error) {
+      this.logger.error(`Error discovering startups for investor ${investorId}:`, error);
+      return { data: [], total: 0, page, limit };
+    }
   }
 
   /**
@@ -353,11 +358,12 @@ export class InvestorService {
    * Get investor's shortlisted startups
    */
   async getShortlist(investorId: string): Promise<StartupForInvestor[]> {
-    const investorProfile = await this.getInvestorProfile(investorId);
+    try {
+      const investorProfile = await this.getInvestorProfile(investorId);
 
-    if (!investorProfile) {
-      return [];
-    }
+      if (!investorProfile) {
+        return [];
+      }
 
     // Get shortlisted validation IDs
     const shortlistEntries = await this.prisma.investorShortlist.findMany({
@@ -419,6 +425,10 @@ export class InvestorService {
         fundingAsk: (v.founderData as any)?.fundingAsk,
       };
     });
+    } catch (error) {
+      this.logger.error(`Error fetching shortlist for investor ${investorId}:`, error);
+      return [];
+    }
   }
 
   /**
@@ -488,41 +498,46 @@ export class InvestorService {
    * Get investor's intro requests
    */
   async getIntroRequests(investorId: string): Promise<any[]> {
-    const investorProfile = await this.getInvestorProfile(investorId);
+    try {
+      const investorProfile = await this.getInvestorProfile(investorId);
 
-    if (!investorProfile) {
-      return [];
-    }
+      if (!investorProfile) {
+        return [];
+      }
 
-    const requests = await this.prisma.investorIntroRequest.findMany({
-      where: { investorProfileId: investorProfile.id },
-      orderBy: { requestedAt: 'desc' },
-    });
+      const requests = await this.prisma.investorIntroRequest.findMany({
+        where: { investorProfileId: investorProfile.id },
+        orderBy: { requestedAt: 'desc' },
+      });
 
-    // Fetch validation details for each request
-    const enrichedRequests = await Promise.all(
-      requests.map(async (req: any) => {
-        const validation = await this.prisma.validation.findUnique({
-          where: { id: req.validationId },
-          select: {
-            id: true,
-            title: true,
-            industry: true,
-            stage: true,
-            overallScore: true,
-            user: {
-              select: {
-                name: true,
-                avatarUrl: true,
+      // Fetch validation details for each request
+      const enrichedRequests = await Promise.all(
+        requests.map(async (req: any) => {
+          const validation = await this.prisma.validation.findUnique({
+            where: { id: req.validationId },
+            select: {
+              id: true,
+              title: true,
+              industry: true,
+              stage: true,
+              overallScore: true,
+              user: {
+                select: {
+                  name: true,
+                  avatarUrl: true,
+                },
               },
             },
-          },
-        });
-        return { ...req, validation };
-      })
-    );
+          });
+          return { ...req, validation };
+        })
+      );
 
-    return enrichedRequests;
+      return enrichedRequests;
+    } catch (error) {
+      this.logger.error(`Error fetching intro requests for investor ${investorId}:`, error);
+      return [];
+    }
   }
 
   /**
