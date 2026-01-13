@@ -385,7 +385,7 @@ export default function Home() {
                   ))}
                 </ul>
                 <Link
-                  href="/investor"
+                  href="/sign-up?redirect_url=/onboarding"
                   className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-full font-semibold transition-colors"
                 >
                   Investor Portal
@@ -428,30 +428,109 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Get Started - Choose Your Path */}
+      <section className="relative z-10 container mx-auto px-4 py-24" id="get-started">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-5xl font-bold mb-4">
+              Get Started Today
+            </h2>
+            <p className="text-xl text-slate-400">
+              Choose your path and join our growing community
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-8">
+            {/* Founder Path */}
+            <div className="group relative bg-gradient-to-br from-emerald-500/10 via-slate-800/50 to-emerald-500/5 rounded-3xl border border-emerald-500/30 p-8 hover:border-emerald-500/60 transition-all hover:scale-[1.02]">
+              <div className="absolute top-4 right-4 bg-emerald-500/20 text-emerald-400 text-xs font-semibold px-3 py-1 rounded-full">
+                Most Popular
+              </div>
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center text-3xl mb-6">
+                🚀
+              </div>
+              <h3 className="text-2xl font-bold mb-3">I'm a Founder</h3>
+              <p className="text-slate-400 mb-6">
+                Validate your startup idea with our AI Council of 12 expert agents.
+                Get investor-ready reports in minutes.
+              </p>
+              <ul className="space-y-3 mb-8">
+                {['AI-powered validation', 'Market & competitive analysis', 'Financial projections', 'Risk identification', 'Investor-ready reports'].map((item) => (
+                  <li key={item} className="flex items-center gap-3 text-slate-300 text-sm">
+                    <svg className="w-4 h-4 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+              <Link
+                href="/sign-up?redirect_url=/onboarding"
+                className="block w-full text-center bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white py-4 rounded-xl font-semibold transition-all shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40"
+              >
+                Start Validating Free
+              </Link>
+            </div>
+
+            {/* Investor Path */}
+            <div className="group relative bg-gradient-to-br from-blue-500/10 via-slate-800/50 to-purple-500/5 rounded-3xl border border-blue-500/30 p-8 hover:border-blue-500/60 transition-all hover:scale-[1.02]">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-700 flex items-center justify-center text-3xl mb-6">
+                💼
+              </div>
+              <h3 className="text-2xl font-bold mb-3">I'm an Investor</h3>
+              <p className="text-slate-400 mb-6">
+                Discover pre-validated startups matching your investment thesis.
+                Accelerate your due diligence process.
+              </p>
+              <ul className="space-y-3 mb-8">
+                {['Browse validated deal flow', 'Filter by stage & industry', 'Standardized scoring', 'Request founder intros', 'Access detailed reports'].map((item) => (
+                  <li key={item} className="flex items-center gap-3 text-slate-300 text-sm">
+                    <svg className="w-4 h-4 text-blue-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+              <Link
+                href="/sign-up?redirect_url=/onboarding"
+                className="block w-full text-center bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white py-4 rounded-xl font-semibold transition-all shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40"
+              >
+                Access Investor Portal
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Final CTA */}
       <section className="relative z-10 container mx-auto px-4 py-24">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-4xl md:text-6xl font-bold mb-6">
-            Ready to Validate
-            <br />
-            <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
-              Your Next Big Idea?
-            </span>
+            Ready to Get Started?
           </h2>
           <p className="text-xl text-slate-400 mb-10 max-w-2xl mx-auto">
-            Join thousands of founders who've de-risked their startups with
-            AI-powered validation. Your first analysis is free.
+            Join thousands of founders and investors using AI-powered validation
+            to make better decisions.
           </p>
-          <Link
-            href="/validate"
-            className="inline-flex items-center gap-2 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white px-10 py-5 rounded-full font-semibold text-lg transition-all shadow-2xl shadow-emerald-500/30 hover:shadow-emerald-500/50 hover:scale-105"
-          >
-            Start Free Validation
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-            </svg>
-          </Link>
-          <p className="text-sm text-slate-500 mt-6">No credit card required · Results in minutes</p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link
+              href="/sign-up?redirect_url=/onboarding"
+              className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white px-10 py-5 rounded-full font-semibold text-lg transition-all shadow-2xl shadow-emerald-500/30 hover:shadow-emerald-500/50 hover:scale-105"
+            >
+              Sign Up Free
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+              </svg>
+            </Link>
+            <Link
+              href="/sign-in"
+              className="inline-flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-white px-10 py-5 rounded-full font-semibold text-lg transition-all border border-slate-700"
+            >
+              Sign In
+            </Link>
+          </div>
+          <p className="text-sm text-slate-500 mt-6">No credit card required · Choose your role after signup</p>
         </div>
       </section>
 
