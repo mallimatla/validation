@@ -47,7 +47,7 @@ export class UsersController {
    */
   @Get('profile')
   async getProfile(@Request() req: any) {
-    const userId = req.user.userId;
+    const userId = req.user.id;
 
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -66,7 +66,7 @@ export class UsersController {
    */
   @Put('profile')
   async updateProfile(@Request() req: any, @Body() body: UpdateProfileDto) {
-    const userId = req.user.userId;
+    const userId = req.user.id;
 
     this.logger.log(`Updating profile for user ${userId}, userType: ${body.userType}`);
 
