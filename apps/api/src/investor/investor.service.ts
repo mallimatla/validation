@@ -43,6 +43,7 @@ export class InvestorService {
 
   /**
    * Get investor profile with thesis matching criteria
+   * Returns null if user is not an investor (allows graceful handling)
    */
   async getInvestorProfile(userId: string) {
     const user = await this.prisma.user.findUnique({
@@ -50,8 +51,15 @@ export class InvestorService {
       include: { investorProfile: true },
     });
 
-    if (!user || user.userType !== 'INVESTOR') {
-      throw new ForbiddenException('User is not an investor');
+    if (!user) {
+      this.logger.warn(`User not found: ${userId}`);
+      return null;
+    }
+
+    // If user is not an investor, return null to allow frontend to handle redirect
+    if (user.userType !== 'INVESTOR') {
+      this.logger.log(`User ${userId} is not an investor (type: ${user.userType})`);
+      return null;
     }
 
     return user.investorProfile;
@@ -67,8 +75,14 @@ export class InvestorService {
     const { page = 1, limit = 20, sortBy = 'matchScore', minScore = 0 } = filters;
     const skip = (page - 1) * limit;
 
-    // Get investor profile for thesis matching
+    // Get investor profile for thesis matching (may be null for non-investors)
     const investorProfile = await this.getInvestorProfile(investorId);
+
+    // If no investor profile, return empty results (user needs to set up profile)
+    if (!investorProfile) {
+      this.logger.log(`No investor profile for user ${investorId}, returning empty results`);
+      return { data: [], total: 0, page, limit };
+    }
 
     // Get investor's shortlisted validations
     const shortlistedIds = await this.getShortlistedIds(investorId);

@@ -36,7 +36,7 @@ export class InvestorController {
    */
   @Get('profile')
   async getProfile(@Request() req: any) {
-    return this.investorService.getInvestorProfile(req.user.userId);
+    return this.investorService.getInvestorProfile(req.user.id);
   }
 
   /**
@@ -58,7 +58,7 @@ export class InvestorController {
       limit: query.limit ? parseInt(query.limit) : 20,
     };
 
-    return this.investorService.discoverStartups(req.user.userId, filters);
+    return this.investorService.discoverStartups(req.user.id, filters);
   }
 
   /**
@@ -69,7 +69,7 @@ export class InvestorController {
     @Request() req: any,
     @Param('id') validationId: string,
   ) {
-    return this.investorService.getValidationDetails(req.user.userId, validationId);
+    return this.investorService.getValidationDetails(req.user.id, validationId);
   }
 
   /**
@@ -77,7 +77,7 @@ export class InvestorController {
    */
   @Get('shortlist')
   async getShortlist(@Request() req: any) {
-    return this.investorService.getShortlist(req.user.userId);
+    return this.investorService.getShortlist(req.user.id);
   }
 
   /**
@@ -88,7 +88,7 @@ export class InvestorController {
     @Request() req: any,
     @Param('validationId') validationId: string,
   ) {
-    await this.investorService.addToShortlist(req.user.userId, validationId);
+    await this.investorService.addToShortlist(req.user.id, validationId);
     return { success: true, message: 'Added to shortlist' };
   }
 
@@ -100,7 +100,7 @@ export class InvestorController {
     @Request() req: any,
     @Param('validationId') validationId: string,
   ) {
-    await this.investorService.removeFromShortlist(req.user.userId, validationId);
+    await this.investorService.removeFromShortlist(req.user.id, validationId);
     return { success: true, message: 'Removed from shortlist' };
   }
 
@@ -109,7 +109,7 @@ export class InvestorController {
    */
   @Get('intros')
   async getIntroRequests(@Request() req: any) {
-    return this.investorService.getIntroRequests(req.user.userId);
+    return this.investorService.getIntroRequests(req.user.id);
   }
 
   /**
@@ -122,7 +122,7 @@ export class InvestorController {
     @Body() body: IntroRequestDto,
   ) {
     return this.investorService.requestIntro(
-      req.user.userId,
+      req.user.id,
       validationId,
       body.message,
     );
