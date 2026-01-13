@@ -169,7 +169,9 @@ export abstract class BaseAnalysisAgent {
         agentId: this.agentId,
         agentVersion: this.agentVersion,
         validationId: input.validationId,
-        score: criticalKillSignals.length > 0 ? Math.min(score, 3) : score, // Cap score if critical kill signals
+        // Don't cap individual agent scores - let the overall calculation handle kill signals
+        // This prevents overly harsh scoring when one agent detects issues
+        score,
         confidence,
         findings: this.findings,
         citations: this.citations,

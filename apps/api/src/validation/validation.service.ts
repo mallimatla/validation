@@ -337,31 +337,36 @@ export class ValidationService {
         this.logger.warn(`Validation ${validation.id}: Detected ${totalKillSignals} kill signals (${criticalKillSignals} critical)`);
       }
 
-      // Calculate overall scores with kill signal consideration
+      // Calculate overall scores with graduated kill signal penalties
       let overallScore = Math.round(totalScore / AGENTS.length);
       const overallConfidence = Math.round(totalConfidence / AGENTS.length);
 
-      // Apply kill signal penalties (research-backed: critical issues should cap investment potential)
-      if (criticalKillSignals > 0) {
-        // Critical kill signals cap the score at 40 (RECONSIDER territory)
-        overallScore = Math.min(overallScore, 40);
-        this.logger.warn(`Score capped due to ${criticalKillSignals} critical kill signal(s)`);
+      // Apply graduated penalties instead of hard caps
+      // This allows scores to still reflect the actual analysis quality
+      if (criticalKillSignals >= 3) {
+        // Multiple critical issues: significant penalty but not hard cap
+        overallScore = Math.max(20, Math.round(overallScore * 0.5));
+        this.logger.warn(`Significant penalty applied for ${criticalKillSignals} critical kill signals`);
+      } else if (criticalKillSignals > 0) {
+        // Some critical issues: moderate penalty
+        overallScore = Math.max(30, Math.round(overallScore * 0.7));
+        this.logger.warn(`Moderate penalty applied for ${criticalKillSignals} critical kill signal(s)`);
+      } else if (totalKillSignals >= 5) {
+        // Many major issues: small penalty
+        overallScore = Math.max(40, Math.round(overallScore * 0.85));
       } else if (totalKillSignals >= 3) {
-        // Multiple major kill signals cap at 50 (PROCEED_WITH_CAUTION)
-        overallScore = Math.min(overallScore, 50);
+        // Some major issues: minimal penalty
+        overallScore = Math.max(45, Math.round(overallScore * 0.9));
       }
 
       // Determine recommendation based on score and kill signals
       let recommendation: string;
       let verdict: string;
 
-      if (criticalKillSignals > 0) {
-        recommendation = 'RED';
-        verdict = 'RECONSIDER';
-      } else if (overallScore >= 70 && totalKillSignals === 0) {
+      if (overallScore >= 70 && criticalKillSignals === 0) {
         recommendation = 'GREEN';
         verdict = 'PROCEED';
-      } else if (overallScore >= 50) {
+      } else if (overallScore >= 50 && criticalKillSignals <= 1) {
         recommendation = 'YELLOW';
         verdict = 'PROCEED_WITH_CAUTION';
       } else {
@@ -369,13 +374,13 @@ export class ValidationService {
         verdict = 'RECONSIDER';
       }
 
-      // Generate executive summary with kill signal context
+      // Generate executive summary with context
       let executiveSummary = `Comprehensive analysis of "${dto.title}" completed by 12 AI agents using research-backed validation framework (Sequoia, YC, a16z, Hamilton Helmer's 7 Powers, CB Insights). Overall score: ${overallScore}/100 with ${overallConfidence}% confidence.`;
 
       if (criticalKillSignals > 0) {
-        executiveSummary += ` CRITICAL: ${criticalKillSignals} critical kill signal(s) detected that historically correlate with startup failure. Score capped at 40/100. Recommendation: ${verdict} - address critical issues before proceeding.`;
+        executiveSummary += ` ${criticalKillSignals} critical concern(s) identified that may impact investment potential. Recommendation: ${verdict} - address these issues before proceeding.`;
       } else if (totalKillSignals > 0) {
-        executiveSummary += ` ${totalKillSignals} kill signal(s) identified that require attention. Recommendation: ${verdict}.`;
+        executiveSummary += ` ${totalKillSignals} area(s) identified that require attention. Recommendation: ${verdict}.`;
       } else {
         executiveSummary += ` No critical red flags detected. Recommendation: ${verdict}.`;
       }
