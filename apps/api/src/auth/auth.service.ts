@@ -83,12 +83,12 @@ export class AuthService {
         });
 
         if (existingUserByEmail) {
-          console.log(`[Auth] Found existing user by email, updating ID from ${existingUserByEmail.id} to ${clerkUserId}`);
-          // Update the existing user with the new Clerk ID
+          console.log(`[Auth] Found existing user by email: ${existingUserByEmail.id}, updating profile`);
+          // Don't change the ID (it's a primary key with foreign key relations)
+          // Just update the profile and return the existing user
           user = await this.prisma.user.update({
             where: { id: existingUserByEmail.id },
             data: {
-              id: clerkUserId,
               name: `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim() || existingUserByEmail.name,
               avatarUrl: clerkUser.imageUrl || existingUserByEmail.avatarUrl,
               lastLoginAt: new Date(),
