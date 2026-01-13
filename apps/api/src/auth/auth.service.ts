@@ -73,12 +73,35 @@ export class AuthService {
       try {
         console.log(`[Auth] Fetching user from Clerk: ${clerkUserId}`);
         const clerkUser = await this.clerkClient.users.getUser(clerkUserId);
-        console.log(`[Auth] Got Clerk user: ${clerkUser.id}`);
+        console.log(`[Auth] Got Clerk user: ${clerkUser.id}, email: ${clerkUser.emailAddresses[0]?.emailAddress}`);
 
+        const email = clerkUser.emailAddresses[0]?.emailAddress || '';
+
+        // Check if user with this email already exists (from previous sign-ups)
+        const existingUserByEmail = await this.prisma.user.findFirst({
+          where: { email },
+        });
+
+        if (existingUserByEmail) {
+          console.log(`[Auth] Found existing user by email, updating ID from ${existingUserByEmail.id} to ${clerkUserId}`);
+          // Update the existing user with the new Clerk ID
+          user = await this.prisma.user.update({
+            where: { id: existingUserByEmail.id },
+            data: {
+              id: clerkUserId,
+              name: `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim() || existingUserByEmail.name,
+              avatarUrl: clerkUser.imageUrl || existingUserByEmail.avatarUrl,
+              lastLoginAt: new Date(),
+            },
+          });
+          return user;
+        }
+
+        // Create new user
         user = await this.prisma.user.create({
           data: {
             id: clerkUserId,
-            email: clerkUser.emailAddresses[0]?.emailAddress || '',
+            email,
             name: `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim() || null,
             avatarUrl: clerkUser.imageUrl,
             lastLoginAt: new Date(),
