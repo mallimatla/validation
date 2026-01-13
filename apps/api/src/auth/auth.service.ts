@@ -21,7 +21,10 @@ export class AuthService {
   ) {
     const secretKey = this.configService.get<string>('CLERK_SECRET_KEY');
     if (secretKey) {
+      console.log(`[Auth] Initializing Clerk client with key: ${secretKey.substring(0, 15)}...${secretKey.substring(secretKey.length - 8)}`);
       this.clerkClient = createClerkClient({ secretKey });
+    } else {
+      console.warn('[Auth] No CLERK_SECRET_KEY found - running in development mode');
     }
   }
 
@@ -68,7 +71,9 @@ export class AuthService {
     // Fetch user details from Clerk
     if (this.clerkClient) {
       try {
+        console.log(`[Auth] Fetching user from Clerk: ${clerkUserId}`);
         const clerkUser = await this.clerkClient.users.getUser(clerkUserId);
+        console.log(`[Auth] Got Clerk user: ${clerkUser.id}`);
 
         user = await this.prisma.user.create({
           data: {
@@ -92,8 +97,10 @@ export class AuthService {
         });
 
         return user;
-      } catch (error) {
-        throw new UnauthorizedException('Failed to fetch user details');
+      } catch (error: any) {
+        console.error(`[Auth] Failed to fetch user from Clerk:`, error?.message || error);
+        console.error(`[Auth] Error details:`, JSON.stringify(error?.errors || error, null, 2));
+        throw new UnauthorizedException(`Failed to fetch user details: ${error?.message || 'Unknown error'}`);
       }
     }
 
