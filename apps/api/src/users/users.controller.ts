@@ -71,7 +71,7 @@ export class UsersController {
     this.logger.log(`Updating profile for user ${userId}, userType: ${body.userType}`);
 
     // Start a transaction to update user and create/update profiles atomically
-    const result = await this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx: any) => {
       // Update base user fields
       const userData: any = {};
       if (body.userType) userData.userType = body.userType;

@@ -278,7 +278,7 @@ export class InvestorService {
 
     if (!profile) return new Set();
 
-    return new Set(profile.shortlist.map(s => s.validationId));
+    return new Set(profile.shortlist.map((s: { validationId: string }) => s.validationId));
   }
 
   /**
@@ -378,7 +378,7 @@ export class InvestorService {
     // Get full validation data
     const validations = await this.prisma.validation.findMany({
       where: {
-        id: { in: shortlistEntries.map(s => s.validationId) },
+        id: { in: shortlistEntries.map((s: { validationId: string }) => s.validationId) },
         status: 'COMPLETE',
       },
       include: {
