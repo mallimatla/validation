@@ -64,17 +64,14 @@ ENV NODE_ENV=production
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nestjs
 
-# Copy production dependencies
-COPY --from=prod-deps /app/node_modules ./node_modules
+# Copy all node_modules from builder (ensures workspace dependencies work correctly)
+# Using builder instead of prod-deps to ensure monorepo dependencies like pptxgenjs resolve
+COPY --from=builder /app/node_modules ./node_modules
 
 # Copy built application
 COPY --from=builder /app/apps/api/dist ./dist
 COPY --from=builder /app/apps/api/package.json ./package.json
 COPY --from=builder /app/apps/api/prisma ./prisma
-
-# Copy Prisma client from builder (it's generated in node_modules)
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma/client ./node_modules/@prisma/client
 
 # Set permissions
 RUN chown -R nestjs:nodejs /app

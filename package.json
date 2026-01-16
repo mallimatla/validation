@@ -20,6 +20,7 @@
     "db:studio": "npm run db:studio --workspace=@validation-council/api"
   },
   "devDependencies": {
+    "@types/pdfmake": "^0.2.12",
     "turbo": "^2.0.0",
     "typescript": "^5.3.0"
   },

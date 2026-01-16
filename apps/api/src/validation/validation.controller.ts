@@ -52,7 +52,19 @@ export class ValidationController {
   @ApiQuery({ name: 'limit', required: false })
   @ApiQuery({ name: 'offset', required: false })
   async findAll(@Query() query: ValidationQueryDto, @Request() req: any) {
-    return this.validationService.findAll(req.user.id, query);
+    try {
+      if (!req.user?.id) {
+        console.log('[Validations] No user ID, returning empty list');
+        return { validations: [], total: 0, limit: 10, offset: 0 };
+      }
+      console.log(`[Validations] Fetching for user: ${req.user.id}`);
+      const result = await this.validationService.findAll(req.user.id, query);
+      return result;
+    } catch (error: any) {
+      console.error('[Validations] Error fetching validations:', error?.message || error);
+      // Return empty list on error rather than 500
+      return { validations: [], total: 0, limit: 10, offset: 0 };
+    }
   }
 
   @Get(':id')

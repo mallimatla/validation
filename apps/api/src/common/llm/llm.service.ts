@@ -335,15 +335,15 @@ You are an expert analyst providing rigorous startup validation. Your analysis m
 Respond ONLY with valid JSON in the following format:
 {
   "summary": "Brief executive summary of your analysis",
-  "score": <number 1-10>,
-  "confidence": <number 1-10>,
+  "score": <INTEGER from 1 to 10 where 1=worst, 5=average, 10=best - e.g. 7 for good, 3 for poor>,
+  "confidence": <INTEGER from 1 to 10 where 1=low confidence, 10=high confidence - e.g. 8 if confident>,
   "findings": [
     {
       "title": "Finding title",
       "description": "Detailed description with evidence",
       "type": "strength|weakness|opportunity|threat|neutral",
       "severity": "critical|major|minor|info",
-      "confidence": <number 1-10>
+      "confidence": <INTEGER 1-10>
     }
   ],
   "risks": [
@@ -371,12 +371,20 @@ Respond ONLY with valid JSON in the following format:
       "claim": "The specific claim being made",
       "source": "Source name",
       "sourceUrl": "URL or reference",
-      "confidence": <number 0-1>,
+      "confidence": <decimal 0.0 to 1.0 for citation reliability>,
       "dataType": "primary|secondary|computed"
     }
   ],
   "rawAnalysis": "Your detailed written analysis in markdown format"
-}`;
+}
+
+IMPORTANT SCORING GUIDANCE:
+- score MUST be an INTEGER between 1-10 (NOT a decimal like 0.7)
+- 1-3: Poor/problematic - significant concerns
+- 4-5: Below average to average - notable weaknesses
+- 6-7: Good - solid with some areas to improve
+- 8-10: Excellent - strong across most dimensions
+- Default to 5-6 if uncertain, be realistic not overly harsh`;
 
     const userPrompt = `${prompt}
 
@@ -1027,12 +1035,45 @@ Focus on direct competitors that a startup would face.`;
 
   /**
    * Validate and normalize analysis structure
+   * Handles scores on different scales (0-1, 1-10, 0-100)
    */
   private validateAndNormalizeAnalysis(data: any): StructuredAnalysis {
+    // Smart score normalization - detect and convert different scales
+    let score = Number(data.score);
+    let confidence = Number(data.confidence);
+
+    // Detect 0-1 scale (LLM returned decimal like 0.7 meaning 70%)
+    if (score > 0 && score <= 1.5) {
+      this.logger.debug(`LLM score ${score} appears to be 0-1 scale, converting to 1-10`);
+      score = score * 10;
+    }
+    if (confidence > 0 && confidence <= 1.5) {
+      this.logger.debug(`LLM confidence ${confidence} appears to be 0-1 scale, converting to 1-10`);
+      confidence = confidence * 10;
+    }
+
+    // Detect 0-100 scale
+    if (score > 10 && score <= 100) {
+      this.logger.debug(`LLM score ${score} appears to be 0-100 scale, converting to 1-10`);
+      score = score / 10;
+    }
+    if (confidence > 10 && confidence <= 100) {
+      this.logger.debug(`LLM confidence ${confidence} appears to be 0-100 scale, converting to 1-10`);
+      confidence = confidence / 10;
+    }
+
+    // Apply defaults for invalid values
+    if (!Number.isFinite(score) || score <= 0) {
+      score = 5; // Default neutral score
+    }
+    if (!Number.isFinite(confidence) || confidence <= 0) {
+      confidence = 5; // Default neutral confidence
+    }
+
     return {
       summary: data.summary || '',
-      score: Math.max(1, Math.min(10, Number(data.score) || 5)),
-      confidence: Math.max(1, Math.min(10, Number(data.confidence) || 5)),
+      score: Math.max(1, Math.min(10, score)),
+      confidence: Math.max(1, Math.min(10, confidence)),
       findings: (data.findings || []).map((f: any) => ({
         title: f.title || 'Untitled Finding',
         description: f.description || '',

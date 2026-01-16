@@ -17,6 +17,13 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { LLMService } from '../../common/llm/llm.service';
 import { MarketDataService, MarketResearchData } from '../../common/market-data/market-data.service';
 import { BaseAnalysisAgent, AnalysisInput, Citation } from '../base/base-analysis.agent';
+import {
+  MARKET_THRESHOLDS,
+  MARKET_KILL_SIGNALS,
+  SUCCESS_FACTOR_WEIGHTS,
+  HYPE_CYCLE_PHASES,
+  FIRST_MOVER_STATISTICS,
+} from '../validation-framework.constants';
 
 interface MarketData {
   tam: number;
@@ -178,8 +185,81 @@ EVERY CLAIM MUST HAVE A SOURCE.`;
     // Step 9: Comprehensive risk assessment
     await this.performRiskAssessment(input);
 
+    // Step 10: Check for KILL SIGNALS (based on research)
+    await this.checkMarketKillSignals(input);
+
     // Build raw analysis
     this.buildRawAnalysis();
+  }
+
+  /**
+   * Check for market-related kill signals that should stop investment
+   * Based on: CB Insights failure causes, VC rejection patterns
+   */
+  private async checkMarketKillSignals(input: AnalysisInput): Promise<void> {
+    const md = this.marketData;
+    if (!md) return;
+
+    // Kill Signal 1: Market too small (TAM < $500M)
+    this.checkKillSignals([
+      {
+        signal: MARKET_KILL_SIGNALS[0], // Market declining or under $500M TAM
+        severity: 'critical',
+        condition: md.tam < MARKET_THRESHOLDS.TAM_TOO_SMALL || md.marketTiming === 'declining',
+        evidence: `TAM: $${this.formatCurrency(md.tam)}, Market timing: ${md.marketTiming}. Markets below $500M rarely support venture-scale outcomes.`,
+        recommendation: 'Consider adjacent markets or validate if market definition is too narrow.',
+      },
+      {
+        signal: MARKET_KILL_SIGNALS[1], // Technology on mature S-curve
+        severity: 'major',
+        condition: md.marketTiming === 'mature' && md.growthRate < MARKET_THRESHOLDS.GROWTH_SLOW,
+        evidence: `Market is mature with only ${(md.growthRate * 100).toFixed(1)}% growth. Limited innovation potential.`,
+        recommendation: 'Need disruptive approach or consider different market.',
+      },
+      {
+        signal: MARKET_KILL_SIGNALS[3], // Regulatory framework actively hostile
+        severity: 'critical',
+        condition: this.hasHostileRegulation(input),
+        evidence: 'Industry facing active regulatory crackdown or legislative uncertainty.',
+        recommendation: 'Assess regulatory trajectory and consider compliance-first strategy.',
+      },
+      {
+        signal: MARKET_KILL_SIGNALS[5], // Top 3 competitors control 80%+ with network effects
+        severity: 'major',
+        condition: md.marketConcentration === 'concentrated' && this.hasNetworkEffectIncumbents(input),
+        evidence: 'Market dominated by incumbents with strong network effects.',
+        recommendation: 'Find underserved niche or develop counter-positioning strategy.',
+      },
+    ]);
+
+    // Add timing risk based on Bill Gross research (timing = 42% of success)
+    if (md.marketTiming === 'emerging') {
+      this.addRisk({
+        title: 'Timing Risk (Research: 42% of Success)',
+        description: `Bill Gross research shows timing accounts for ${(SUCCESS_FACTOR_WEIGHTS.timing * 100).toFixed(0)}% of startup success. Emerging markets have high uncertainty. First movers have ${(FIRST_MOVER_STATISTICS.first_mover_failure_rate * 100).toFixed(0)}% failure rate vs ${(FIRST_MOVER_STATISTICS.fast_follower_failure_rate * 100).toFixed(0)}% for fast followers.`,
+        category: 'market',
+        probability: 'medium',
+        impact: 'critical',
+        mitigations: [
+          'Validate enabling infrastructure is in place',
+          'Consider fast-follower strategy if possible',
+          'Maintain capital efficiency until market timing validates',
+        ],
+        evidence: [],
+      });
+    }
+  }
+
+  private hasHostileRegulation(input: AnalysisInput): boolean {
+    const industry = (input.idea.industry || '').toLowerCase();
+    const hostileIndustries = ['crypto', 'cannabis', 'gambling', 'payday lending'];
+    return hostileIndustries.some(h => industry.includes(h));
+  }
+
+  private hasNetworkEffectIncumbents(input: AnalysisInput): boolean {
+    const industry = (input.idea.industry || '').toLowerCase();
+    const networkEffectMarkets = ['social', 'marketplace', 'payments', 'messaging'];
+    return networkEffectMarkets.some(n => industry.includes(n));
   }
 
   /**
@@ -942,7 +1022,9 @@ ${this.citations.map(c => `- ${c.source}: "${c.claim}" (Confidence: ${(c.confide
     if (this.llmAnalysis) {
       const llmScore = this.llmAnalysis.score;
       const rulesScore = this.calculateRulesBasedScore();
-      return Math.round((llmScore * 0.6 + rulesScore * 0.4) * 10) / 10;
+      const weightedScore = llmScore * 0.6 + rulesScore * 0.4;
+      // Ensure score is bounded to 1-10 and properly rounded
+      return Math.round(Math.max(1, Math.min(10, weightedScore)) * 10) / 10;
     }
     return this.calculateRulesBasedScore();
   }
@@ -953,23 +1035,24 @@ ${this.citations.map(c => `- ${c.source}: "${c.claim}" (Confidence: ${(c.confide
 
     let score = 5;
 
-    // TAM scoring (0-3 points)
-    if (md.tam >= 100e9) score += 2.5;
-    else if (md.tam >= 10e9) score += 1.5;
-    else if (md.tam >= 1e9) score += 0.5;
-    else if (md.tam < 500e6) score -= 1.5;
+    // TAM scoring using framework thresholds (0-3 points)
+    if (md.tam >= MARKET_THRESHOLDS.TAM_MASSIVE) score += 2.5;
+    else if (md.tam >= MARKET_THRESHOLDS.TAM_LARGE) score += 1.5;
+    else if (md.tam >= MARKET_THRESHOLDS.TAM_VENTURE_SCALE) score += 0.5;
+    else if (md.tam < MARKET_THRESHOLDS.TAM_TOO_SMALL) score -= 2.5; // Kill signal territory
 
-    // Growth rate scoring (0-2 points)
-    if (md.growthRate >= 0.25) score += 2;
-    else if (md.growthRate >= 0.15) score += 1;
-    else if (md.growthRate >= 0.08) score += 0.5;
-    else if (md.growthRate < 0.05) score -= 1;
+    // Growth rate scoring using framework thresholds (0-2 points)
+    if (md.growthRate >= MARKET_THRESHOLDS.GROWTH_EXCEPTIONAL) score += 2;
+    else if (md.growthRate >= MARKET_THRESHOLDS.GROWTH_STRONG) score += 1;
+    else if (md.growthRate >= MARKET_THRESHOLDS.GROWTH_MODERATE) score += 0.5;
+    else if (md.growthRate < MARKET_THRESHOLDS.GROWTH_SLOW) score -= 1;
 
-    // Market timing scoring (0-1.5 points)
-    if (md.marketTiming === 'growing') score += 1.5;
-    else if (md.marketTiming === 'emerging') score += 0.5;
-    else if (md.marketTiming === 'mature') score -= 0.5;
-    else if (md.marketTiming === 'declining') score -= 2;
+    // Market timing scoring using framework TIMING_SCORES (0-1.5 points)
+    const timingInfo = MARKET_THRESHOLDS.TIMING_SCORES[md.marketTiming];
+    if (timingInfo) {
+      // Normalize score to 0-1.5 range (original scores are 1-9)
+      score += (timingInfo.score - 5) * 0.3;
+    }
 
     // Market concentration scoring (0-1 point)
     if (md.marketConcentration === 'fragmented') score += 0.5;

@@ -23,6 +23,8 @@ export default function SignUpPage() {
                 card: 'bg-slate-800 border border-slate-700 shadow-xl',
                 headerTitle: 'text-white',
                 headerSubtitle: 'text-slate-400',
+                logoBox: 'h-16 justify-center',
+                logoImage: 'h-14 w-auto max-h-14',
                 socialButtonsBlockButton: 'bg-slate-700 border-slate-600 text-white hover:bg-slate-600',
                 socialButtonsBlockButtonText: 'text-white',
                 formFieldLabel: 'text-slate-300',
@@ -36,7 +38,7 @@ export default function SignUpPage() {
             routing="path"
             path="/sign-up"
             signInUrl="/sign-in"
-            afterSignUpUrl="/dashboard"
+            fallbackRedirectUrl="/dashboard"
           />
         </div>
       </div>

@@ -6,10 +6,12 @@
  * Scoring Weight: 0.8x
  */
 
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { LLMService } from '../../common/llm/llm.service';
 import { BaseAnalysisAgent, AnalysisInput, Citation } from '../base/base-analysis.agent';
+import { LEGAL_KILL_SIGNALS } from '../validation-framework.constants';
 
 interface RegulatoryRequirement {
   name: string;
@@ -61,8 +63,12 @@ Remember: An ounce of legal prevention is worth a pound of litigation cure.`;
 
   private legalAnalysis: LegalAnalysis | null = null;
 
-  constructor(prisma: PrismaService, eventEmitter: EventEmitter2) {
-    super(prisma, eventEmitter);
+  constructor(
+    prisma: PrismaService,
+    eventEmitter: EventEmitter2,
+    @Optional() llm?: LLMService,
+  ) {
+    super(prisma, eventEmitter, llm);
   }
 
   protected buildAnalysisPrompt(input: AnalysisInput): string {
@@ -103,10 +109,64 @@ Identify any legal landmines that could kill the company. Be thorough but practi
     // Step 5: Liability assessment
     await this.assessLiability(input);
 
-    // Step 6: Generate mitigation strategies
+    // Step 6: Check legal kill signals
+    await this.checkLegalKillSignals(input);
+
+    // Step 7: Generate mitigation strategies
     await this.generateMitigations(input);
 
     this.buildRawAnalysis();
+  }
+
+  /**
+   * Check for legal kill signals that should stop investment
+   */
+  private async checkLegalKillSignals(input: AnalysisInput): Promise<void> {
+    const founderData = input.founderData || {};
+    const industry = (input.idea.industry || '').toLowerCase();
+
+    this.checkKillSignals([
+      {
+        signal: LEGAL_KILL_SIGNALS[0], // Pending litigation on core IP
+        severity: 'critical',
+        condition: founderData.pendingIPLitigation === true,
+        evidence: 'Pending litigation on core intellectual property creates existential legal risk.',
+        recommendation: 'Resolve IP disputes before proceeding with investment.',
+      },
+      {
+        signal: LEGAL_KILL_SIGNALS[1], // Operating in gray zone
+        severity: 'major',
+        condition: this.isGrayZoneIndustry(industry),
+        evidence: 'Business model operates in regulatory gray zone with high enforcement uncertainty.',
+        recommendation: 'Seek regulatory clarity or build compliance-first approach.',
+      },
+      {
+        signal: LEGAL_KILL_SIGNALS[2], // Founder legal issues
+        severity: 'critical',
+        condition: founderData.founderLegalIssues === true,
+        evidence: 'Founder has undisclosed legal issues that could impact company operations.',
+        recommendation: 'Full disclosure and legal review required before investment.',
+      },
+      {
+        signal: LEGAL_KILL_SIGNALS[3], // Cap table issues
+        severity: 'major',
+        condition: founderData.capTableIssues === true,
+        evidence: 'Cap table has unauthorized shares, unclear ownership, or other structural issues.',
+        recommendation: 'Clean up cap table with qualified securities attorney before fundraising.',
+      },
+    ]);
+  }
+
+  private isGrayZoneIndustry(industry: string): boolean {
+    const grayZoneIndustries = [
+      'crypto',
+      'cannabis',
+      'gambling',
+      'adult',
+      'weapons',
+      'surveillance',
+    ];
+    return grayZoneIndustries.some(g => industry.includes(g));
   }
 
   private async screenPatents(input: AnalysisInput): Promise<void> {

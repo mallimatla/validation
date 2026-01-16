@@ -21,7 +21,10 @@ export class AuthService {
   ) {
     const secretKey = this.configService.get<string>('CLERK_SECRET_KEY');
     if (secretKey) {
+      console.log(`[Auth] Initializing Clerk client with key: ${secretKey.substring(0, 15)}...${secretKey.substring(secretKey.length - 8)}`);
       this.clerkClient = createClerkClient({ secretKey });
+    } else {
+      console.warn('[Auth] No CLERK_SECRET_KEY found - running in development mode');
     }
   }
 
@@ -68,12 +71,37 @@ export class AuthService {
     // Fetch user details from Clerk
     if (this.clerkClient) {
       try {
+        console.log(`[Auth] Fetching user from Clerk: ${clerkUserId}`);
         const clerkUser = await this.clerkClient.users.getUser(clerkUserId);
+        console.log(`[Auth] Got Clerk user: ${clerkUser.id}, email: ${clerkUser.emailAddresses[0]?.emailAddress}`);
 
+        const email = clerkUser.emailAddresses[0]?.emailAddress || '';
+
+        // Check if user with this email already exists (from previous sign-ups)
+        const existingUserByEmail = await this.prisma.user.findFirst({
+          where: { email },
+        });
+
+        if (existingUserByEmail) {
+          console.log(`[Auth] Found existing user by email: ${existingUserByEmail.id}, updating profile`);
+          // Don't change the ID (it's a primary key with foreign key relations)
+          // Just update the profile and return the existing user
+          user = await this.prisma.user.update({
+            where: { id: existingUserByEmail.id },
+            data: {
+              name: `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim() || existingUserByEmail.name,
+              avatarUrl: clerkUser.imageUrl || existingUserByEmail.avatarUrl,
+              lastLoginAt: new Date(),
+            },
+          });
+          return user;
+        }
+
+        // Create new user
         user = await this.prisma.user.create({
           data: {
             id: clerkUserId,
-            email: clerkUser.emailAddresses[0]?.emailAddress || '',
+            email,
             name: `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim() || null,
             avatarUrl: clerkUser.imageUrl,
             lastLoginAt: new Date(),
@@ -92,8 +120,10 @@ export class AuthService {
         });
 
         return user;
-      } catch (error) {
-        throw new UnauthorizedException('Failed to fetch user details');
+      } catch (error: any) {
+        console.error(`[Auth] Failed to fetch user from Clerk:`, error?.message || error);
+        console.error(`[Auth] Error details:`, JSON.stringify(error?.errors || error, null, 2));
+        throw new UnauthorizedException(`Failed to fetch user details: ${error?.message || 'Unknown error'}`);
       }
     }
 

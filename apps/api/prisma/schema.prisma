@@ -89,6 +89,7 @@ model InvestorProfile {
 
   // Relations
   introRequests   InvestorIntroRequest[]
+  shortlist       InvestorShortlist[]
 }
 
 // ============================================================================
@@ -587,4 +588,18 @@ model InvestorIntroRequest {
 
   @@index([validationId])
   @@index([investorProfileId])
+}
+
+model InvestorShortlist {
+  id                String      @id @default(cuid())
+  investorProfileId String
+  investorProfile   InvestorProfile @relation(fields: [investorProfileId], references: [id], onDelete: Cascade)
+  validationId      String
+
+  notes             String?
+  addedAt           DateTime    @default(now())
+
+  @@unique([investorProfileId, validationId])
+  @@index([investorProfileId])
+  @@index([validationId])
 }

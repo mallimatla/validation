@@ -85,6 +85,15 @@ export interface Recommendation {
   impact: 'low' | 'medium' | 'high';
 }
 
+export interface KillSignal {
+  id: string;
+  signal: string;
+  severity: 'critical' | 'major';
+  detected: boolean;
+  evidence: string;
+  recommendation: string;
+}
+
 export interface AnalysisOutput {
   agentId: string;
   agentVersion: string;
@@ -95,6 +104,7 @@ export interface AnalysisOutput {
   citations: Citation[];
   risks: Risk[];
   recommendations: Recommendation[];
+  killSignals: KillSignal[];
   rawAnalysis: string;
   executionTimeMs: number;
   metadata?: Record<string, any>;
@@ -112,6 +122,7 @@ export abstract class BaseAnalysisAgent {
   protected citations: Citation[] = [];
   protected risks: Risk[] = [];
   protected recommendations: Recommendation[] = [];
+  protected killSignals: KillSignal[] = [];
   protected rawAnalysis: string = '';
   protected llmAnalysis: StructuredAnalysis | null = null;
   protected analysisScore: number = 5;
@@ -153,22 +164,28 @@ export abstract class BaseAnalysisAgent {
       const confidence = this.calculateConfidence();
 
       // Build output
+      const criticalKillSignals = this.killSignals.filter(k => k.detected && k.severity === 'critical');
       const output: AnalysisOutput = {
         agentId: this.agentId,
         agentVersion: this.agentVersion,
         validationId: input.validationId,
+        // Don't cap individual agent scores - let the overall calculation handle kill signals
+        // This prevents overly harsh scoring when one agent detects issues
         score,
         confidence,
         findings: this.findings,
         citations: this.citations,
         risks: this.risks,
         recommendations: this.recommendations,
+        killSignals: this.killSignals.filter(k => k.detected),
         rawAnalysis: this.rawAnalysis,
         executionTimeMs: Date.now() - startTime,
         metadata: {
           usedLLM: this.llm?.isAvailable() ?? false,
           agentName: this.agentName,
           scoringWeight: this.scoringWeight,
+          hasKillSignals: this.killSignals.some(k => k.detected),
+          criticalKillSignalCount: criticalKillSignals.length,
         },
       };
 
@@ -324,29 +341,52 @@ export abstract class BaseAnalysisAgent {
 
   /**
    * Calculate the final score (1-10)
+   * Subclasses can override but should always return a value between 1-10
    */
   protected calculateScore(): number {
+    let score: number;
+
     // Prefer LLM score if available, otherwise use agent's calculation
     if (this.llmAnalysis) {
-      return this.llmAnalysis.score;
+      score = this.llmAnalysis.score;
+    } else {
+      score = this.analysisScore;
     }
-    return this.analysisScore;
+
+    // Ensure score is always a valid number between 1-10
+    // Minimum of 3 (not 1) to avoid overly harsh scores with limited data
+    if (!Number.isFinite(score) || score < 1) {
+      score = 5; // Default neutral score
+    }
+    return Math.round(Math.max(1, Math.min(10, score)) * 10) / 10;
   }
 
   /**
    * Calculate confidence level (1-10)
+   * Higher confidence when more data is available
    */
   protected calculateConfidence(): number {
-    // Base confidence on citation count and data quality
-    const citationScore = Math.min(10, this.citations.length * 1.2);
-    const findingScore = Math.min(10, this.findings.length * 1.5);
+    // Base confidence starts at 3 (minimum) - we're always somewhat uncertain without data
+    let baseConfidence = 3;
+
+    // Citation-based confidence boost (up to +3)
+    const citationBonus = Math.min(3, this.citations.length * 0.3);
+
+    // Finding-based confidence boost (up to +2)
+    const findingBonus = Math.min(2, this.findings.length * 0.25);
+
+    // LLM analysis bonus (+2 if AI was used)
     const llmBonus = this.llmAnalysis ? 2 : 0;
 
+    // Average citation confidence contribution (up to +1)
     const avgCitationConfidence = this.citations.length > 0
-      ? this.citations.reduce((sum, c) => sum + c.confidence, 0) / this.citations.length * 10
+      ? Math.min(1, this.citations.reduce((sum, c) => sum + c.confidence, 0) / this.citations.length)
       : 0;
 
-    return Math.min(10, Math.round((citationScore + findingScore + avgCitationConfidence + llmBonus) / 4));
+    const totalConfidence = baseConfidence + citationBonus + findingBonus + llmBonus + avgCitationConfidence;
+
+    // Ensure confidence is always a valid number between 1-10
+    return Math.round(Math.max(1, Math.min(10, totalConfidence)) * 10) / 10;
   }
 
   /**
@@ -357,6 +397,7 @@ export abstract class BaseAnalysisAgent {
     this.citations = [];
     this.risks = [];
     this.recommendations = [];
+    this.killSignals = [];
     this.rawAnalysis = '';
     this.llmAnalysis = null;
     this.analysisScore = 5;
@@ -402,6 +443,59 @@ export abstract class BaseAnalysisAgent {
       ...rec,
       id: this.generateId('rec'),
     });
+  }
+
+  /**
+   * Add a kill signal (critical red flags that should stop investment)
+   */
+  protected addKillSignal(signal: Omit<KillSignal, 'id'>): void {
+    this.killSignals.push({
+      ...signal,
+      id: this.generateId('kill'),
+    });
+
+    // If detected, also add as a critical risk
+    if (signal.detected) {
+      this.addRisk({
+        title: `KILL SIGNAL: ${signal.signal}`,
+        description: signal.evidence,
+        category: 'critical',
+        probability: 'high',
+        impact: 'critical',
+        mitigations: [signal.recommendation],
+        evidence: [],
+      });
+
+      this.addFinding({
+        title: `Critical Red Flag: ${signal.signal}`,
+        description: `${signal.evidence}. Recommendation: ${signal.recommendation}`,
+        type: 'threat',
+        severity: 'critical',
+        evidence: [],
+        confidence: 9,
+      });
+    }
+  }
+
+  /**
+   * Check multiple kill signals against conditions
+   */
+  protected checkKillSignals(signals: Array<{
+    signal: string;
+    severity: 'critical' | 'major';
+    condition: boolean;
+    evidence: string;
+    recommendation: string;
+  }>): void {
+    for (const signal of signals) {
+      this.addKillSignal({
+        signal: signal.signal,
+        severity: signal.severity,
+        detected: signal.condition,
+        evidence: signal.evidence,
+        recommendation: signal.recommendation,
+      });
+    }
   }
 
   /**
@@ -459,6 +553,8 @@ export abstract class BaseAnalysisAgent {
           confidence: output.confidence,
           findingsCount: output.findings.length,
           citationsCount: output.citations.length,
+          killSignalsCount: output.killSignals.length,
+          hasKillSignals: output.killSignals.length > 0,
           executionTimeMs: output.executionTimeMs,
         },
       },

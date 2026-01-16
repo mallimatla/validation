@@ -1,10 +1,53 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
   <defs>
-    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#10B981"/>
-      <stop offset="100%" style="stop-color:#059669"/>
+    <!-- Shield gradient -->
+    <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#22D3EE"/>
+      <stop offset="50%" style="stop-color:#06B6D4"/>
+      <stop offset="100%" style="stop-color:#0891B2"/>
+    </linearGradient>
+    <!-- Glow effect -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="1" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <!-- Checkmark gradient -->
+    <linearGradient id="checkGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4ADE80"/>
+      <stop offset="100%" style="stop-color:#22C55E"/>
     </linearGradient>
   </defs>
-  <rect width="32" height="32" rx="6" fill="url(#grad)"/>
-  <text x="16" y="22" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="white" text-anchor="middle">V</text>
+
+  <!-- Background -->
+  <rect width="32" height="32" rx="4" fill="#0F172A"/>
+
+  <!-- Shield outline with glow -->
+  <path d="M16 3 L26 7 L26 14 C26 20 22 25 16 28 C10 25 6 20 6 14 L6 7 Z"
+        fill="none"
+        stroke="url(#shieldGrad)"
+        stroke-width="1.5"
+        filter="url(#glow)"/>
+
+  <!-- Inner shield fill -->
+  <path d="M16 5 L24 8.5 L24 14 C24 19 20.5 23.5 16 26 C11.5 23.5 8 19 8 14 L8 8.5 Z"
+        fill="#1E293B"
+        opacity="0.8"/>
+
+  <!-- Network dots -->
+  <circle cx="12" cy="11" r="0.8" fill="#22D3EE" opacity="0.6"/>
+  <circle cx="20" cy="11" r="0.8" fill="#22D3EE" opacity="0.6"/>
+  <circle cx="16" cy="8" r="0.8" fill="#22D3EE" opacity="0.6"/>
+  <circle cx="11" cy="15" r="0.8" fill="#22D3EE" opacity="0.6"/>
+  <circle cx="21" cy="15" r="0.8" fill="#22D3EE" opacity="0.6"/>
+
+  <!-- Checkmark -->
+  <path d="M11 16 L14.5 19.5 L21 12"
+        fill="none"
+        stroke="url(#checkGrad)"
+        stroke-width="2.5"
+        stroke-linecap="round"
+        stroke-linejoin="round"/>
 </svg>

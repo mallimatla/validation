@@ -6,10 +6,17 @@
  * Scoring Weight: 1.2x
  */
 
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { LLMService } from '../../common/llm/llm.service';
 import { BaseAnalysisAgent, AnalysisInput, Citation } from '../base/base-analysis.agent';
+import {
+  SEVEN_POWERS,
+  MOAT_THRESHOLDS,
+  MOAT_KILL_SIGNALS,
+  NETWORK_EFFECT_TYPES,
+} from '../validation-framework.constants';
 
 interface Competitor {
   name: string;
@@ -61,8 +68,12 @@ Remember: Competition is not just about who exists today, but who will enter tom
 
   private analysis: CompetitiveAnalysis | null = null;
 
-  constructor(prisma: PrismaService, eventEmitter: EventEmitter2) {
-    super(prisma, eventEmitter);
+  constructor(
+    prisma: PrismaService,
+    eventEmitter: EventEmitter2,
+    @Optional() llm?: LLMService,
+  ) {
+    super(prisma, eventEmitter, llm);
   }
 
   protected buildAnalysisPrompt(input: AnalysisInput): string {
@@ -240,69 +251,165 @@ Be brutally honest about the competitive reality. If this is a crowded space, sa
     return differentiationScore;
   }
 
+  /**
+   * Analyze moat using Hamilton Helmer's 7 Powers framework
+   * Based on research showing 70% of tech value comes from network effects
+   */
   private async analyzeMoat(input: AnalysisInput): Promise<number> {
     let moatScore = 0;
-    const moatFactors: string[] = [];
+    const detectedPowers: string[] = [];
+    const powerAnalysis: Record<string, { detected: boolean; strength: string; evidence: string }> = {};
 
-    // Check for network effects
-    if (this.hasNetworkEffects(input)) {
-      moatScore += 3;
-      moatFactors.push('network effects');
+    // Analyze each of the 7 Powers
+    const powers = [
+      { key: 'scale_economies', check: () => this.hasScaleEconomies(input) },
+      { key: 'network_economies', check: () => this.hasNetworkEffects(input) },
+      { key: 'counter_positioning', check: () => this.hasCounterPositioning(input) },
+      { key: 'switching_costs', check: () => this.hasSwitchingCosts(input) },
+      { key: 'branding', check: () => this.hasBrandingPower(input) },
+      { key: 'cornered_resource', check: () => this.hasCorneredResource(input) },
+      { key: 'process_power', check: () => this.hasProcessPower(input) },
+    ];
+
+    for (const power of powers) {
+      const powerInfo = SEVEN_POWERS[power.key as keyof typeof SEVEN_POWERS];
+      const detected = power.check();
+
+      powerAnalysis[power.key] = {
+        detected,
+        strength: powerInfo.strength,
+        evidence: detected ? `Indicators present for ${powerInfo.name}` : 'Not detected',
+      };
+
+      if (detected) {
+        detectedPowers.push(powerInfo.name);
+        // Assign points based on power strength
+        const strengthPoints: Record<string, number> = {
+          'very_high': 2.5,
+          'high': 2,
+          'medium_high': 1.5,
+          'medium': 1,
+        };
+        moatScore += strengthPoints[powerInfo.strength] || 1;
+      }
     }
 
-    // Check for data advantages
-    if (this.hasDataAdvantage(input)) {
-      moatScore += 2;
-      moatFactors.push('data advantage');
+    // Check for data advantage specifically (often overestimated by founders per NFX research)
+    const hasDataNetwork = this.hasDataAdvantage(input);
+    if (hasDataNetwork) {
+      this.addFinding({
+        title: 'Data Network Effect Claimed',
+        description: 'Data network effects are often weaker than founders believe. Validate: Does more data actually improve product for all users? Is data proprietary and defensible?',
+        type: 'neutral',
+        severity: 'info',
+        evidence: [],
+        confidence: 7,
+      });
     }
-
-    // Check for switching costs
-    if (this.hasSwitchingCosts(input)) {
-      moatScore += 2;
-      moatFactors.push('switching costs');
-    }
-
-    // Check for brand/trust
-    if (moatScore > 0) moatScore += 1;
 
     const citation = this.addCitation({
-      claim: `Moat strength: ${moatScore}/10 based on: ${moatFactors.join(', ') || 'limited defensibility'}`,
-      source: 'Moat Analysis',
-      sourceUrl: 'internal://sophia/moat-analysis',
-      confidence: 0.6,
+      claim: `7 Powers Analysis: ${detectedPowers.length}/7 powers detected - ${detectedPowers.join(', ') || 'None identified'}. ${(MOAT_THRESHOLDS.NETWORK_EFFECTS_VALUE_SHARE * 100).toFixed(0)}% of tech value since 1994 comes from network effects.`,
+      source: 'Hamilton Helmer 7 Powers Framework',
+      sourceUrl: 'internal://sophia/seven-powers-analysis',
+      confidence: 0.75,
       dataType: 'computed',
     });
 
     if (moatScore >= 5) {
       this.addFinding({
-        title: 'Potential Defensibility',
-        description: `Identified moat factors: ${moatFactors.join(', ')}`,
+        title: 'Strong Defensibility (7 Powers)',
+        description: `Detected powers: ${detectedPowers.join(', ')}. These create structural advantages competitors cannot easily replicate.`,
         type: 'strength',
+        severity: 'critical',
+        evidence: [citation],
+        confidence: 7,
+      });
+    } else if (moatScore >= 2) {
+      this.addFinding({
+        title: 'Moderate Defensibility (7 Powers)',
+        description: `Detected powers: ${detectedPowers.join(', ') || 'Weak signals only'}. Need to strengthen moat before scaling.`,
+        type: 'neutral',
         severity: 'major',
         evidence: [citation],
         confidence: 6,
       });
     } else {
       this.addFinding({
-        title: 'Limited Defensibility',
-        description: 'No strong moat identified - easy for competitors to replicate',
+        title: 'Limited Defensibility (7 Powers)',
+        description: 'No strong powers detected. Business can be easily replicated. This is a major concern for venture-scale returns.',
         type: 'weakness',
-        severity: 'major',
+        severity: 'critical',
         evidence: [citation],
-        confidence: 6,
+        confidence: 7,
       });
 
       this.addRecommendation({
-        title: 'Build Moat',
-        description: 'Focus on building network effects, proprietary data, or high switching costs',
-        priority: 'high',
-        timeframe: 'medium-term',
+        title: 'Develop Strategic Power',
+        description: 'Focus on building at least one of: network effects (strongest), counter-positioning against incumbents, or high switching costs through deep integration.',
+        priority: 'critical',
+        timeframe: 'immediate',
         effort: 'high',
         impact: 'high',
       });
     }
 
-    return moatScore;
+    // Check moat kill signals
+    this.checkMoatKillSignals(input, moatScore);
+
+    return Math.min(10, moatScore);
+  }
+
+  /**
+   * Check for moat-related kill signals
+   */
+  private checkMoatKillSignals(input: AnalysisInput, moatScore: number): void {
+    this.checkKillSignals([
+      {
+        signal: MOAT_KILL_SIGNALS[0], // Easily replicable in under 12 months
+        severity: 'major',
+        condition: moatScore < 2,
+        evidence: 'No significant barriers to replication identified.',
+        recommendation: 'Identify unique defensible advantages or first-mover dynamics.',
+      },
+      {
+        signal: MOAT_KILL_SIGNALS[2], // Commoditized supply
+        severity: 'major',
+        condition: this.hasCommoditizedSupply(input),
+        evidence: 'Supply side is commoditized with low differentiation.',
+        recommendation: 'Focus on demand-side aggregation or unique supply partnerships.',
+      },
+    ]);
+  }
+
+  private hasScaleEconomies(input: AnalysisInput): boolean {
+    const desc = (input.idea.description + (input.idea.solution || '')).toLowerCase();
+    return ['infrastructure', 'manufacturing', 'logistics', 'wholesale', 'distribution'].some(k => desc.includes(k));
+  }
+
+  private hasCounterPositioning(input: AnalysisInput): boolean {
+    const desc = (input.idea.description + (input.idea.solution || '')).toLowerCase();
+    // Counter-positioning: new business model incumbents can't copy
+    return ['disrupt', 'replace', 'alternative to', 'unlike traditional', 'reimagine'].some(k => desc.includes(k));
+  }
+
+  private hasBrandingPower(input: AnalysisInput): boolean {
+    const desc = (input.idea.description + (input.idea.solution || '')).toLowerCase();
+    return ['premium', 'luxury', 'brand', 'trust', 'reputation'].some(k => desc.includes(k));
+  }
+
+  private hasCorneredResource(input: AnalysisInput): boolean {
+    const desc = (input.idea.description + (input.idea.solution || '')).toLowerCase();
+    return ['exclusive', 'patent', 'licensed', 'proprietary', 'only', 'unique access'].some(k => desc.includes(k));
+  }
+
+  private hasProcessPower(input: AnalysisInput): boolean {
+    const desc = (input.idea.description + (input.idea.solution || '')).toLowerCase();
+    return ['operational excellence', 'process', 'methodology', 'system', 'proven approach'].some(k => desc.includes(k));
+  }
+
+  private hasCommoditizedSupply(input: AnalysisInput): boolean {
+    const desc = (input.idea.description + (input.idea.solution || '')).toLowerCase();
+    return ['commodity', 'standard', 'generic', 'undifferentiated'].some(k => desc.includes(k));
   }
 
   private async generateWarGamingScenarios(input: AnalysisInput, competitors: Competitor[]): Promise<void> {
